@@ -98,12 +98,12 @@ STYLE INFLUENCE: Vague=45-60, Clear=65-75, Specific=78-90. description:1 sentenc
 var PRESET_ARTISTS = [
   "Billie Eilish","Bruno Mars","Lady Gaga","Taylor Swift","HUNTR/X","RAYE","Teddy Swims",
   "Adele","Rihanna","Maroon 5","Coldplay","Billy Joel","George Michael","Gloria Estefan",
-  "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai",
-  "Nancy Sinatra","Sting","Eric Clapton","Fleetwood Mac",
-  "Linkin Park","Moloko","Robyn","Leony",
+  "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai","Nancy Sinatra","Sting",
+  "Linkin Park","Eric Clapton","Fleetwood Mac",
+  "Glockenbach","Ofenbach","Daft Punk","Kygo","Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino",
+  "Moloko","Robyn","Leony",
   "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer",
-  "Glockenbach","Ofenbach","Daft Punk","Kygo",
-  "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino"
+  "The Midnight","Timecop1983","FM-84","Gunship","Kavinsky","Quixotic"
 ];
 var ARTIST_GROUPS = [
   {label:"Pop / Singer-Songwriter", artists:[
@@ -113,17 +113,21 @@ var ARTIST_GROUPS = [
   ]},
   {label:"Soul / R&B / Funk", artists:[
     "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai",
-    "Nancy Sinatra","Sting","Eric Clapton","Fleetwood Mac"
+    "Nancy Sinatra","Sting"
   ]},
-  {label:"Alternative / Rock", artists:[
-    "Linkin Park","Moloko","Robyn","Leony"
+  {label:"Rock / Alternative", artists:[
+    "Linkin Park","Eric Clapton","Fleetwood Mac"
+  ]},
+  {label:"Electronic / Dance", artists:[
+    "Glockenbach","Ofenbach","Daft Punk","Kygo",
+    "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino",
+    "Moloko","Robyn","Leony"
   ]},
   {label:"80s Synth", artists:[
     "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer"
   ]},
-  {label:"Electronic / Dance", artists:[
-    "Glockenbach","Ofenbach","Daft Punk","Kygo",
-    "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino"
+  {label:"Retrowave / Synthwave", artists:[
+    "The Midnight","Timecop1983","FM-84","Gunship","Kavinsky","Quixotic"
   ]},
 ];
 var GENRE_GROUPS = [
@@ -1335,11 +1339,7 @@ export default function App() {
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
               <div className="space-y-3 mb-3">
                 {ARTIST_GROUPS.map(function(grp){
-                  var gp=grp.artists.filter(function(a){return availArtists.includes(a);});
-                  var ex=grp===ARTIST_GROUPS[ARTIST_GROUPS.length-1]
-                    ?availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);})
-                    :[];
-                  var vis=gp.concat(ex);
+                  var vis=grp.artists.filter(function(a){return availArtists.includes(a);});
                   if(!vis.length)return null;
                   return (
                     <div key={grp.label}>
@@ -1363,6 +1363,27 @@ export default function App() {
                     </div>
                   );
                 })}
+                {availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}).length>0&&(
+                  <div>
+                    <p className="text-xs text-zinc-600 mb-1">Custom</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}).map(function(a){
+                        var active=artists.includes(a);
+                        return (
+                          <span key={a}
+                            className={"flex items-center rounded border text-xs transition-all overflow-hidden "+
+                              (active?"bg-fuchsia-600 border-fuchsia-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-300")}>
+                            <button onClick={function(){toggle(artists,setArtists,a);}}
+                              className="px-2 py-1 hover:bg-white hover:bg-opacity-10">{a}</button>
+                            <button onClick={function(){removeArtist(a);}}
+                              className={"px-1.5 py-1 border-l "+
+                                (active?"border-fuchsia-400 hover:bg-red-600 text-fuchsia-200 hover:text-white":"border-zinc-700 hover:bg-red-700 text-zinc-500 hover:text-white")}>x</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <input value={customArtist}
