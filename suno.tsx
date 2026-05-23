@@ -133,19 +133,23 @@ var GENRE_GROUPS = [
   {label:"Hip Hop / Urban", genres:[
     "Hip Hop","Trap","R&B","Soul","Funk"
   ]},
+  {label:"Rock / Alternative", genres:[
+    "Rock","Indie Rock","Shoegaze","Alternative","New Wave",
+    "Post-Punk","Darkwave","Gothic Rock","Industrial Rock","Cold Wave"
+  ]},
   {label:"Electronic / Dance", genres:[
     "Electronic","Experimental Electronic","EDM","House",
     "Deep House","French House","UK House","Tropical House",
     "Nu-Disco","Techno","Drum & Bass","UK Garage","2-Step"
   ]},
-  {label:"Rock / Alternative", genres:[
-    "Rock","Indie Rock","Shoegaze","Alternative","New Wave",
-    "Post-Punk","Darkwave","Gothic Rock","Industrial Rock","Cold Wave"
-  ]},
   {label:"80s", genres:[
     "Neue Deutsche Welle","Synth-Pop","Electro-Pop","Italo Disco",
     "Euro Disco","Hi-NRG","Power Pop","Glam Rock",
     "Hair Metal","Arena Rock","Soft Rock","Adult Contemporary"
+  ]},
+  {label:"Synthwave / Retrowave", genres:[
+    "Synthwave","Retrowave","Outrun","Darksynth",
+    "Cyberpunk","Vaporwave","Nu-Italo"
   ]},
   {label:"Folk / Country", genres:[
     "Folk","Indie Folk","Country","Americana"
