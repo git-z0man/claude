@@ -29,6 +29,11 @@ MAX MODE (when enabled):
 - Lyrics block FIRST line must be: ///*****///
 - Style block LAST line must be: [Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)
 
+AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
+- Weirdness: 15-30 Conventional, 30-45 Twist, AVOID 45-55, 58-65 Creative, 65-78 Unusual, 80-95 Experimental.
+- Style Influence: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
+- Pick based on genres, mood and inputs. Output the chosen integer in # 3. ADVANCED OPTIONS.
+
 STYLE FORMAT:
 genre: ...
 instruments: ...
@@ -716,6 +721,7 @@ export default function App() {
   var [voicesMode,       setVoicesMode]       = useState(false);
   var [weirdness,        setWeirdness]        = useState(62);
   var [styleInf,         setStyleInf]         = useState(70);
+  var [autoAdvanced,     setAutoAdvanced]     = useState(true);
   var [searchQ,          setSearchQ]          = useState("");
   var [searching,        setSearching]        = useState(false);
   var [searchInfo,       setSearchInfo]       = useState("");
@@ -796,6 +802,7 @@ export default function App() {
       if (s.voicesMode!=null)              setVoicesMode(s.voicesMode);
       if (s.weirdness!=null)               setWeirdness(s.weirdness);
       if (s.styleInf!=null)                setStyleInf(s.styleInf);
+      if (s.autoAdvanced!=null)            setAutoAdvanced(s.autoAdvanced);
     }
     setInitialized(true);
   },[]);
@@ -810,14 +817,14 @@ export default function App() {
         vocalType, vocalTone, accent, dynamics, songKey, prodFx,
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
-        maxMode, instrumental, voicesMode, weirdness, styleInf
+        maxMode, instrumental, voicesMode, weirdness, styleInf, autoAdvanced
       });
     }, 300);
     return function(){ clearTimeout(id); };
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
-     excludeStyle,maxMode,instrumental,voicesMode,weirdness,styleInf]);
+     excludeStyle,maxMode,instrumental,voicesMode,weirdness,styleInf,autoAdvanced]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -864,7 +871,7 @@ export default function App() {
     setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setDescription("");
     setTitleSugg(""); setExcludeStyle("");
     setMaxMode(true); setInstrumental(false); setVoicesMode(false);
-    setWeirdness(62); setStyleInf(70);
+    setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
     setOutput(null); setError(""); setSearchQ(""); setSearchInfo("");
     setCreativeP(""); setCreativeInfo(""); setConfirmReset(false);
     storageSave({});
@@ -986,8 +993,13 @@ export default function App() {
       "VOICES MODE: Remove ALL gender descriptors from Style AND Lyrics. " +
       "Use freed space for production detail. Keep Weirdness low."
     );
-    p.push("Weirdness: "+weirdness+"%");
-    p.push("Style Influence: "+styleInf+"%");
+    if(autoAdvanced) {
+      p.push("Weirdness: AUTO");
+      p.push("Style Influence: AUTO");
+    } else {
+      p.push("Weirdness: "+weirdness+"%");
+      p.push("Style Influence: "+styleInf+"%");
+    }
     if(excludeStyle.trim()) p.push("Exclude: "+excludeStyle.trim());
     if(titleSugg.trim())   p.push("Title: "+titleSugg.trim());
     if(ownLyrics)          p.push("Own Lyrics:\n"+ownLyrics);
@@ -1123,6 +1135,7 @@ export default function App() {
     x += '  <voicesMode>'+voicesMode+'</voicesMode>\n';
     x += '  <weirdness>'+weirdness+'</weirdness>\n';
     x += '  <styleInf>'+styleInf+'</styleInf>\n';
+    x += '  <autoAdvanced>'+autoAdvanced+'</autoAdvanced>\n';
     x += '</SunoSongSettings>';
     return x;
   }
@@ -1170,6 +1183,7 @@ export default function App() {
         var vm=getT("voicesMode");    setVoicesMode(vm==="true");
         var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
         var si=getT("styleInf");      if(si) setStyleInf(Number(si));
+        var aa=getT("autoAdvanced");  if(aa) setAutoAdvanced(aa==="true");
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
       }catch(err){
@@ -1759,7 +1773,7 @@ export default function App() {
             {/* Advanced */}
             <div>
               <SectionHeader title={t.advancedTitle}
-                onClear={function(){setExcludeStyle("");setMaxMode(true);setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);}}/>
+                onClear={function(){setExcludeStyle("");setMaxMode(true);setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);setAutoAdvanced(true);}}/>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
@@ -1776,6 +1790,9 @@ export default function App() {
                 {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
                  label:isEn?"Voices Mode (v5.5)":"Voices-Modus (v5.5)",
                  desc:isEn?"Using cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
+                {val:autoAdvanced, set:setAutoAdvanced, color:"bg-emerald-600",
+                 label:isEn?"Auto Mode (Advanced)":"Auto-Modus (Erweitert)",
+                 desc:isEn?"Claude picks Weirdness & Style Influence from your inputs":"Claude wählt Weirdness & Style Influence anhand der Eingaben"},
               ].map(function(item){
                 return (
                   <div key={item.label}
@@ -1789,28 +1806,30 @@ export default function App() {
                   </div>
                 );
               })}
-              <div className="mb-4">
+              <div className="mb-4" style={{opacity: autoAdvanced ? 0.5 : 1}}>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
-                  <span className="text-xs font-semibold text-white">{weirdness}%</span>
+                  <span className="text-xs font-semibold text-white">{autoAdvanced ? "AUTO" : weirdness+"%"}</span>
                 </div>
                 <input type="range" min="0" max="100" value={weirdness}
+                  disabled={autoAdvanced}
                   onChange={function(e){setWeirdness(Number(e.target.value));}}
-                  className="w-full accent-indigo-500"/>
+                  className="w-full accent-indigo-500 disabled:cursor-not-allowed"/>
                 <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
                   <span>{t.weirdnessLeft}</span>
                   <span className="text-red-600">{t.weirdnessAvoid}</span>
                   <span>{t.weirdnessRight}</span>
                 </div>
               </div>
-              <div>
+              <div style={{opacity: autoAdvanced ? 0.5 : 1}}>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs text-zinc-400">{t.styleInfluenceLabel}</label>
-                  <span className="text-xs font-semibold text-white">{styleInf}%</span>
+                  <span className="text-xs font-semibold text-white">{autoAdvanced ? "AUTO" : styleInf+"%"}</span>
                 </div>
                 <input type="range" min="0" max="100" value={styleInf}
+                  disabled={autoAdvanced}
                   onChange={function(e){setStyleInf(Number(e.target.value));}}
-                  className="w-full accent-purple-500"/>
+                  className="w-full accent-purple-500 disabled:cursor-not-allowed"/>
                 <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
                   <span>{t.styleLeft}</span>
                   <span>{t.styleRight}</span>
