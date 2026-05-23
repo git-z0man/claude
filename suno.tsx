@@ -1,81 +1,97 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
-var SP1 = "You are a professional SUNO v5.5 songwriter. Output exactly 4 code blocks.\n\n";
-var SP2 = "CORE RULES:\n";
-var SP3 = "- Structure tags on own lines only, NEVER inline in lyrics.\n";
-var SP4 = "- Style field: HARD LIMIT 1000 chars. No artist names. Sonic descriptors only.\n";
-var SP5 = "- Rule of 5: max 5 elements per tag bracket. With pipe separator: max 6-7.\n";
-var SP6 = "- RHYME: Every verse/chorus/bridge needs clear AABB or ABAB scheme.\n";
-var SP7 = "- Non-English: add [Textual Particularity] CRITICAL: Maintain pronunciation.\n";
-var SP7b = "- CRITICAL: Write ALL lyrics in the Song language specified. Never default to German or any other language.\n";
-var SP8 = "- BPM and Key go in Style field ONLY.\n";
-var SP9 = "- Front-load Style field: most important genre and mood in first 20-30 words.\n\n";
-var SP10 = "v5.5 PRECISION RULES:\n";
-var SP11 = "- Use SPECIFIC descriptors. v5.5 responds to nuance. 5-7 specific tags.\n";
-var SP12 = "- Emotion tags MUST be on their OWN line. NEVER stack in pipes.\n";
-var SP13 = "- Parentheses ( ) = background vocal layer. NEVER use for instructions.\n";
-var SP14 = "- Square brackets [ ] = structure/production cues, not sung.\n";
-var SP15 = "- ALL CAPS: max 1-3 words per section. Never overuse.\n\n";
-var SP16 = "INSTRUMENTAL MODE (when requested):\n";
-var SP17 = "- Style: include no vocals, no singing, no humming, no choir, no voice\n";
-var SP18 = "- Lyrics: use only [Instrumental] tags, leave text empty\n\n";
-var SP19 = "MAX MODE (when enabled):\n";
-var SP20 = "- Lyrics block FIRST line must be: ///*****///\n";
-var SP21 = "- Style block LAST line must be: ";
-var SP22 = "[Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)\n\n";
-var SP23 = "STYLE FORMAT:\ngenre: ...\ninstruments: ...\nstyle tags: ...\nrecording: ...\n";
-var SP24 = "[negative prompts at END if needed]\n[MAX MODE line if enabled]\n\n";
-var SP25 = "NEGATIVE PROMPTING:\n";
-var SP26 = "- Place no [element] at the END of style tags (max 1-2 in style field)\n\n";
-var SP27 = "ENDING CONTROL:\n";
-var SP28 = "- Fade: [Outro: Slow Fade, Gradual Volume Decrease] plus fade out ending\n";
-var SP29 = "- Hard Stop: [Outro: Sudden Stop, Final Chord Hit] plus definitive ending\n";
-var SP30 = "- Echo: [Outro: Reverb Decay, Echoing Into Distance] plus reverb tail ending\n\n";
-var SP31 = "CALLBACK ANTI-DRIFT: Repeat EXACT keywords from Style in Bridge/Final Chorus.\n\n";
-var SP32 = "PIPE-STACKING examples:\n";
-var SP33 = "[Chorus | anthemic | stacked harmonies | modern pop polish]\n";
-var SP34 = "[Drop | sidechained synth bass | layered riser | sub drop impact]\n\n";
-var SP35 = "GLOSSARY: Adagio(66-76) Andante(76-108) Allegro(120-168) Presto(168-200) Rubato\n";
-var SP36 = "Crescendo Decrescendo Staccato Legato Vibrato Tremolo Syncopation Polyrhythm\n";
-var SP37 = "Falsetto Belt Melisma Crooning Arpeggio Counterpoint Ostinato Sparse Dense\n\n";
-var SP38 = "OUTPUT format with 4 code blocks:\n";
-var SP39 = "# 1. LYRICS\n```\n[structure + lyrics]\n[Outro: ...]\n[End]\n```\n";
-var SP40 = "# 2. STYLE\n```\ngenre: ...\ninstruments: ...\nstyle tags: ...\nrecording: ...\n```\n";
-var SP41 = "# 3. ADVANCED OPTIONS\n```\nWeirdness: X%\nStyle Influence: X%\n```\n";
-var SP42 = "# 4. TITLE\n```\nSongname\n```";
-var SYSTEM_PROMPT = SP1+SP2+SP3+SP4+SP5+SP6+SP7+SP7b+SP8+SP9+SP10+SP11+SP12+SP13+SP14+SP15;
-SYSTEM_PROMPT += SP16+SP17+SP18+SP19+SP20+SP21+SP22+SP23+SP24+SP25+SP26+SP27+SP28+SP29+SP30;
-SYSTEM_PROMPT += SP31+SP32+SP33+SP34+SP35+SP36+SP37+SP38+SP39+SP40+SP41+SP42;
+var SYSTEM_PROMPT = `You are a professional SUNO v5.5 songwriter. Output exactly 4 code blocks.
 
-var AJ = '{"artist":"","genres":[],"moods":[],"energy":"Medium",';
-AJ += '"tempoTerm":"","bpmMin":0,"bpmMax":0,';
-AJ += '"vocalType":"","vocalTone":"","dynamics":[],"key":"","era":"",';
-AJ += '"lyricThemes":[],"lyricContent":"","structure":[],';
-AJ += '"weirdness":60,"styleInfluence":70,"description":""}';
-var AP1 = "Analyze the artist/song. Return ONLY valid JSON, no text, no backticks.\n";
-var AP2 = "\ngenres:1-3. moods:2-3. energy:Low/Medium/High.";
-var AP3 = " tempoTerm:Adagio/Andante/Allegro/Presto/Rubato.\n";
-var AP4 = "vocalType:Male Vocal/Female Vocal/Duet/Choir/Falsetto/Belt/Melisma/Crooning/Rap.\n";
-var AP5 = "vocalTone:Raspy/Soft/Powerful/Smooth/Deep/High/Breathy/Melismatic.";
-var AP6 = " dynamics:0-2. key:Major/Minor.\n";
-var AP7 = "era:1950s-2020s. lyricThemes:1-2. structure:array.";
-var AP8 = " weirdness:0-100. styleInfluence:40-95. description:1 sentence.";
-var ANALYZE_PROMPT = AP1+AJ+AP2+AP3+AP4+AP5+AP6+AP7+AP8;
+CORE RULES:
+- Structure tags on own lines only, NEVER inline in lyrics.
+- Style field: HARD LIMIT 1000 chars. No artist names. Sonic descriptors only.
+- Rule of 5: max 5 elements per tag bracket. With pipe separator: max 6-7.
+- RHYME: Every verse/chorus/bridge needs clear AABB or ABAB scheme.
+- Non-English: add [Textual Particularity] CRITICAL: Maintain pronunciation.
+- CRITICAL: Write ALL lyrics in the Song language specified. Never default to German or any other language.
+- BPM and Key go in Style field ONLY.
+- Front-load Style field: most important genre and mood in first 20-30 words.
 
-var CJ = '{"genres":[],"moods":[],"energy":"Medium","tempoTerm":"",';
-CJ += '"bpmMin":0,"bpmMax":0,"vocalType":"","vocalTone":"",';
-CJ += '"dynamics":[],"key":"","era":"","lang":"",';
-CJ += '"lyricThemes":[],"lyricContent":"","structure":[],';
-CJ += '"artists":[],"weirdness":0,"styleInfluence":0,"description":""}';
-var CP1 = "You are a creative music director. Return ONLY valid JSON, no text, no backticks.\n";
-var CP2 = "\ngenres:1-3. moods:2-3. energy:Low/Medium/High. lang: infer from language.\n";
-var CP3 = "lyricContent:2-3 sentence story. structure:fitting array.\n";
-var CP4 = "WEIRDNESS: Conventional=15-30, Twist=30-45, AVOID 45-55,";
-var CP5 = " Creative=58-65, Unusual=65-78, Experimental=80-95.\n";
-var CP6 = "STYLE INFLUENCE: Vague=45-60, Clear=65-75, Specific=78-90. description:1 sentence.";
-var CREATIVE_PROMPT = CP1+CJ+CP2+CP3+CP4+CP5+CP6;
+v5.5 PRECISION RULES:
+- Use SPECIFIC descriptors. v5.5 responds to nuance. 5-7 specific tags.
+- Emotion tags MUST be on their OWN line. NEVER stack in pipes.
+- Parentheses ( ) = background vocal layer. NEVER use for instructions.
+- Square brackets [ ] = structure/production cues, not sung.
+- ALL CAPS: max 1-3 words per section. Never overuse.
+
+INSTRUMENTAL MODE (when requested):
+- Style: include no vocals, no singing, no humming, no choir, no voice
+- Lyrics: use only [Instrumental] tags, leave text empty
+
+MAX MODE (when enabled):
+- Lyrics block FIRST line must be: ///*****///
+- Style block LAST line must be: [Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)
+
+STYLE FORMAT:
+genre: ...
+instruments: ...
+style tags: ...
+recording: ...
+[negative prompts at END if needed]
+[MAX MODE line if enabled]
+
+NEGATIVE PROMPTING:
+- Place no [element] at the END of style tags (max 1-2 in style field)
+
+ENDING CONTROL:
+- Fade: [Outro: Slow Fade, Gradual Volume Decrease] plus fade out ending
+- Hard Stop: [Outro: Sudden Stop, Final Chord Hit] plus definitive ending
+- Echo: [Outro: Reverb Decay, Echoing Into Distance] plus reverb tail ending
+
+CALLBACK ANTI-DRIFT: Repeat EXACT keywords from Style in Bridge/Final Chorus.
+
+PIPE-STACKING examples:
+[Chorus | anthemic | stacked harmonies | modern pop polish]
+[Drop | sidechained synth bass | layered riser | sub drop impact]
+
+GLOSSARY: Adagio(66-76) Andante(76-108) Allegro(120-168) Presto(168-200) Rubato
+Crescendo Decrescendo Staccato Legato Vibrato Tremolo Syncopation Polyrhythm
+Falsetto Belt Melisma Crooning Arpeggio Counterpoint Ostinato Sparse Dense
+
+OUTPUT format with 4 code blocks:
+# 1. LYRICS
+\`\`\`
+[structure + lyrics]
+[Outro: ...]
+[End]
+\`\`\`
+# 2. STYLE
+\`\`\`
+genre: ...
+instruments: ...
+style tags: ...
+recording: ...
+\`\`\`
+# 3. ADVANCED OPTIONS
+\`\`\`
+Weirdness: X%
+Style Influence: X%
+\`\`\`
+# 4. TITLE
+\`\`\`
+Songname
+\`\`\``;
+
+var ANALYZE_PROMPT = `Analyze the artist/song. Return ONLY valid JSON, no text, no backticks.
+{"artist":"","genres":[],"moods":[],"energy":"Medium","tempoTerm":"","bpmMin":0,"bpmMax":0,"vocalType":"","vocalTone":"","dynamics":[],"key":"","era":"","lyricThemes":[],"lyricContent":"","structure":[],"weirdness":60,"styleInfluence":70,"description":""}
+genres:1-3. moods:2-3. energy:Low/Medium/High. tempoTerm:Adagio/Andante/Allegro/Presto/Rubato.
+vocalType:Male Vocal/Female Vocal/Duet/Choir/Falsetto/Belt/Melisma/Crooning/Rap.
+vocalTone:Raspy/Soft/Powerful/Smooth/Deep/High/Breathy/Melismatic. dynamics:0-2. key:Major/Minor.
+era:1950s-2020s. lyricThemes:1-2. structure:array. weirdness:0-100. styleInfluence:40-95. description:1 sentence.`;
+
+var CREATIVE_PROMPT = `You are a creative music director. Return ONLY valid JSON, no text, no backticks.
+{"genres":[],"moods":[],"energy":"Medium","tempoTerm":"","bpmMin":0,"bpmMax":0,"vocalType":"","vocalTone":"","dynamics":[],"key":"","era":"","lang":"","lyricThemes":[],"lyricContent":"","structure":[],"artists":[],"weirdness":0,"styleInfluence":0,"description":""}
+genres:1-3. moods:2-3. energy:Low/Medium/High. lang: infer from language.
+lyricContent:2-3 sentence story. structure:fitting array.
+WEIRDNESS: Conventional=15-30, Twist=30-45, AVOID 45-55, Creative=58-65, Unusual=65-78, Experimental=80-95.
+STYLE INFLUENCE: Vague=45-60, Clear=65-75, Specific=78-90. description:1 sentence.`;
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -289,8 +305,10 @@ function getSLabel(v, en) {
 function truncateStyle(s) {
   if (!s || s.length <= 1000) return s;
   var cut = s.substring(0, 1000);
-  var pos = cut.lastIndexOf(",") > 900 ? cut.lastIndexOf(",")
-    : cut.lastIndexOf(" ") > 900 ? cut.lastIndexOf(" ") : 1000;
+  var lastComma = cut.lastIndexOf(",");
+  var lastSpace = cut.lastIndexOf(" ");
+  var pos = Math.max(lastComma, lastSpace);
+  if (pos < 1) pos = 1000;
   return cut.substring(0, pos).trim();
 }
 function parseOutput(raw) {
@@ -303,7 +321,7 @@ function parseOutput(raw) {
   r.lyrics   = exB((raw.match(/# 1\. LYRICS[\s\S]*?(?=# 2\.|$)/i)   || [])[0]);
   r.style    = exB((raw.match(/# 2\. STYLE[\s\S]*?(?=# 3\.|$)/i)    || [])[0]);
   r.advanced = exB((raw.match(/# 3\. ADVANCED[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
-  r.title    = exB((raw.match(/# 4\. TIT[EL]+[\s\S]*?$/i)           || [])[0]);
+  r.title    = exB((raw.match(/# 4\.\s*(?:TITLE|TITEL)\b[\s\S]*?$/i) || [])[0]);
   r.style    = truncateStyle(r.style);
   return r;
 }
@@ -476,6 +494,15 @@ function TooltipBtn({label, active, onClick, tooltip, activeClass, inactiveClass
   );
 }
 
+function Toggle({value, onToggle, color}) {
+  return (
+    <button onClick={onToggle}
+      className={"w-10 h-5 rounded-full transition-all relative "+(value?color:"bg-zinc-700")}>
+      <span className={"absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all "+(value?"left-5":"left-0.5")}/>
+    </button>
+  );
+}
+
 function ClearBtn({onClick}) {
   var [hov, setHov] = useState(false);
   return (
@@ -639,8 +666,9 @@ export default function App() {
   var [uiLang, setUiLang] = useState(function(){
     return (navigator.language||"en").toLowerCase().startsWith("de")?"de":"en";
   });
-  var t = T[uiLang]; var isEn = uiLang==="en";
-  var THEMES = isEn ? THEMES_EN : THEMES_DE;
+  var isEn = uiLang==="en";
+  var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
+  var THEMES = useMemo(function(){ return isEn ? THEMES_EN : THEMES_DE; }, [isEn]);
 
   var [genres,           setGenres]           = useState([]);
   var [extraGenres,      setExtraGenres]      = useState([]);
@@ -712,8 +740,10 @@ export default function App() {
         model:"claude-haiku-4-5",max_tokens:10,
         messages:[{role:"user",content:"hi"}]
       })
-    }).then(function(r){return r.json();}).then(function(d){
-      setApiStatus(d.content||d.error?"ok":"error");
+    }).then(function(r){
+      return r.json().then(function(d){return {ok:r.ok, d:d};});
+    }).then(function(res){
+      setApiStatus(res.ok && res.d && res.d.content && !res.d.error ? "ok" : "error");
     }).catch(function(){setApiStatus("error");});
   }
 
@@ -760,15 +790,18 @@ export default function App() {
 
   useEffect(function(){
     if (!initialized) return;
-    storageSave({
-      genres, extraGenres, artists,
-      availExtra: availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}),
-      moods, energy, tempoTerm, bpmMin, bpmMax,
-      vocalType, vocalTone, accent, dynamics, songKey, prodFx,
-      era, lang, structure, lyricThemes, lyricContent,
-      ownLyrics, description, titleSugg, excludeStyle,
-      maxMode, instrumental, voicesMode, weirdness, styleInf
-    });
+    var id = setTimeout(function(){
+      storageSave({
+        genres, extraGenres, artists,
+        availExtra: availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}),
+        moods, energy, tempoTerm, bpmMin, bpmMax,
+        vocalType, vocalTone, accent, dynamics, songKey, prodFx,
+        era, lang, structure, lyricThemes, lyricContent,
+        ownLyrics, description, titleSugg, excludeStyle,
+        maxMode, instrumental, voicesMode, weirdness, styleInf
+      });
+    }, 300);
+    return function(){ clearTimeout(id); };
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
@@ -1135,20 +1168,11 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  var tabs=[
+  var tabs = useMemo(function(){ return [
     {key:"lyrics",label:t.tab1,icon:"🎤"},
     {key:"style", label:t.tab2,icon:"🎨"},
     {key:"meta",  label:t.tab3,icon:"⚙️"}
-  ];
-
-  function Toggle({value, onToggle, color}) {
-    return (
-      <button onClick={onToggle}
-        className={"w-10 h-5 rounded-full transition-all relative "+(value?color:"bg-zinc-700")}>
-        <span className={"absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all "+(value?"left-5":"left-0.5")}/>
-      </button>
-    );
-  }
+  ]; }, [t]);
 
   return (
     <div style={{fontFamily:"system-ui,sans-serif"}}
@@ -1731,10 +1755,8 @@ export default function App() {
                       <p className="text-xs font-medium text-zinc-200">{item.label}</p>
                       <p className="text-xs text-zinc-500">{item.desc}</p>
                     </div>
-                    <button onClick={function(){item.set(!item.val);}}
-                      className={"w-10 h-5 rounded-full transition-all relative "+(item.val?item.color:"bg-zinc-700")}>
-                      <span className={"absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all "+(item.val?"left-5":"left-0.5")}/>
-                    </button>
+                    <Toggle value={item.val} color={item.color}
+                      onToggle={function(){item.set(!item.val);}}/>
                   </div>
                 );
               })}
