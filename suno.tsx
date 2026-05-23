@@ -101,6 +101,7 @@ var PRESET_ARTISTS = [
   "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai",
   "Nancy Sinatra","Sting","Eric Clapton","Fleetwood Mac",
   "Linkin Park","Moloko","Robyn","Leony",
+  "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer",
   "Glockenbach","Ofenbach","Daft Punk","Kygo",
   "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino"
 ];
@@ -116,6 +117,9 @@ var ARTIST_GROUPS = [
   ]},
   {label:"Alternative / Rock", artists:[
     "Linkin Park","Moloko","Robyn","Leony"
+  ]},
+  {label:"80s Synth", artists:[
+    "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer"
   ]},
   {label:"Electronic / Dance", artists:[
     "Glockenbach","Ofenbach","Daft Punk","Kygo",
