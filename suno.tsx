@@ -683,6 +683,12 @@ export default function App() {
   var [uiLang, setUiLang] = useState(function(){
     return (navigator.language||"en").toLowerCase().startsWith("de")?"de":"en";
   });
+  var [theme, setTheme] = useState(function(){
+    try { return localStorage.getItem("sunoTheme") || "dark"; } catch(e) { return "dark"; }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoTheme", theme); } catch(e) {}
+  }, [theme]);
   var isEn = uiLang==="en";
   var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
   var THEMES = useMemo(function(){ return isEn ? THEMES_EN : THEMES_DE; }, [isEn]);
@@ -1202,8 +1208,66 @@ export default function App() {
 
   return (
     <div style={{fontFamily:"system-ui,sans-serif"}}
-      className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-      <style>{`input,textarea,select{font-size:16px!important}`}</style>
+      className={"min-h-screen bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"")}>
+      <style>{`
+        input,textarea,select{font-size:16px!important}
+        .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
+        .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
+        .theme-light .bg-zinc-800 { background-color: #f4f4f5 !important; }
+        .theme-light .bg-zinc-700 { background-color: #e4e4e7 !important; }
+        .theme-light .bg-zinc-600 { background-color: #d4d4d8 !important; }
+        .theme-light .bg-zinc-500 { background-color: #a1a1aa !important; }
+        .theme-light .text-white { color: #18181b !important; }
+        .theme-light .text-zinc-100 { color: #27272a !important; }
+        .theme-light .text-zinc-200 { color: #3f3f46 !important; }
+        .theme-light .text-zinc-300 { color: #52525b !important; }
+        .theme-light .text-zinc-400 { color: #52525b !important; }
+        .theme-light .text-zinc-500 { color: #71717a !important; }
+        .theme-light .text-zinc-600 { color: #a1a1aa !important; }
+        .theme-light .border-zinc-500 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-600 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-700 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-800 { border-color: #e4e4e7 !important; }
+        .theme-light .placeholder-zinc-600::placeholder { color: #a1a1aa !important; }
+        .theme-light .hover\\:bg-zinc-700:hover { background-color: #d4d4d8 !important; }
+        .theme-light .hover\\:bg-zinc-600:hover { background-color: #a1a1aa !important; }
+        .theme-light .hover\\:text-zinc-300:hover { color: #52525b !important; }
+        .theme-light .hover\\:text-white:hover { color: #18181b !important; }
+        .theme-light .hover\\:bg-white:hover { background-color: #18181b !important; }
+        /* Recolor active chip text/borders for colored chips on light backgrounds is unchanged - saturated colors stay. */
+        /* Alert/info dark backgrounds → pale tints */
+        .theme-light .bg-indigo-950 { background-color: #eef2ff !important; }
+        .theme-light .border-indigo-800 { border-color: #c7d2fe !important; }
+        .theme-light .text-indigo-300 { color: #4338ca !important; }
+        .theme-light .text-indigo-500 { color: #6366f1 !important; }
+        .theme-light .text-indigo-200 { color: #4338ca !important; }
+        .theme-light .bg-red-950 { background-color: #fef2f2 !important; }
+        .theme-light .bg-red-900 { background-color: #fee2e2 !important; }
+        .theme-light .border-red-800 { border-color: #fecaca !important; }
+        .theme-light .text-red-300 { color: #b91c1c !important; }
+        .theme-light .text-red-400 { color: #b91c1c !important; }
+        .theme-light .text-red-600 { color: #b91c1c !important; }
+        .theme-light .text-red-700 { color: #b91c1c !important; }
+        .theme-light .bg-gradient-to-r.from-pink-950.to-purple-950 {
+          background-image: linear-gradient(to right, #fdf2f8, #faf5ff) !important;
+        }
+        .theme-light .border-pink-800 { border-color: #fbcfe8 !important; }
+        .theme-light .text-pink-200 { color: #9d174d !important; }
+        .theme-light .text-pink-300 { color: #be185d !important; }
+        .theme-light .text-pink-500 { color: #db2777 !important; }
+        .theme-light .border-emerald-800 { border-color: #a7f3d0 !important; }
+        .theme-light .border-emerald-900 { border-color: #6ee7b7 !important; }
+        .theme-light .text-emerald-300 { color: #047857 !important; }
+        .theme-light .text-emerald-400 { color: #047857 !important; }
+        .theme-light .border-amber-800 { border-color: #fde68a !important; }
+        .theme-light .text-amber-300 { color: #b45309 !important; }
+        .theme-light .text-amber-400 { color: #b45309 !important; }
+        .theme-light .text-sky-300 { color: #0369a1 !important; }
+        .theme-light .text-yellow-400 { color: #a16207 !important; }
+        .theme-light .text-fuchsia-200 { color: #86198f !important; }
+        .theme-light .text-purple-200 { color: #6b21a8 !important; }
+        .theme-light .text-teal-200 { color: #115e59 !important; }
+      `}</style>
 
       {/* Header */}
       <div className="border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
@@ -1232,6 +1296,11 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={function(){setTheme(theme==="dark"?"light":"dark");}}
+            title={isEn?"Toggle theme":"Theme wechseln"} aria-label={isEn?"Toggle theme":"Theme wechseln"}
+            className="px-2.5 py-1.5 rounded text-sm border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+            {theme==="dark"?"☀":"🌙"}
+          </button>
           <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-1">
             <button onClick={function(){setUiLang("en");}}
               className={"px-2.5 py-1 rounded text-xs font-semibold transition-all "+
