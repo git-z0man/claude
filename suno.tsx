@@ -1280,6 +1280,15 @@ export default function App() {
         .theme-light .text-fuchsia-200 { color: #86198f !important; }
         .theme-light .text-purple-200 { color: #6b21a8 !important; }
         .theme-light .text-teal-200 { color: #115e59 !important; }
+        /* Chip context: text-{color}-200 stays light when nested in or on a saturated bg-{color}-N chip */
+        .theme-light .bg-indigo-500 .text-indigo-200, .theme-light .bg-indigo-600 .text-indigo-200, .theme-light .bg-indigo-700 .text-indigo-200,
+        .theme-light .bg-indigo-500.text-indigo-200, .theme-light .bg-indigo-600.text-indigo-200, .theme-light .bg-indigo-700.text-indigo-200 { color: #c7d2fe !important; }
+        .theme-light .bg-purple-500 .text-purple-200, .theme-light .bg-purple-600 .text-purple-200, .theme-light .bg-purple-700 .text-purple-200,
+        .theme-light .bg-purple-500.text-purple-200, .theme-light .bg-purple-600.text-purple-200, .theme-light .bg-purple-700.text-purple-200 { color: #e9d5ff !important; }
+        .theme-light .bg-fuchsia-500 .text-fuchsia-200, .theme-light .bg-fuchsia-600 .text-fuchsia-200,
+        .theme-light .bg-fuchsia-500.text-fuchsia-200, .theme-light .bg-fuchsia-600.text-fuchsia-200 { color: #f5d0fe !important; }
+        .theme-light .bg-teal-500 .text-teal-200, .theme-light .bg-teal-600 .text-teal-200,
+        .theme-light .bg-teal-500.text-teal-200, .theme-light .bg-teal-600.text-teal-200 { color: #99f6e4 !important; }
       `}</style>
 
       {/* Header */}
@@ -1619,7 +1628,7 @@ export default function App() {
                       className={"flex items-center justify-between w-full px-3 py-1.5 rounded text-xs border transition-all "+
                         (tempoTerm===term.label?"bg-indigo-700 border-indigo-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-indigo-500")}>
                       <span className="font-medium">{term.label}</span>
-                      <span className="text-zinc-500">
+                      <span className={tempoTerm===term.label?"text-indigo-200":"text-zinc-500"}>
                         {term.bpmLo>0?term.bpmLo+"-"+term.bpmHi+" BPM ":""}
                         {isEn?term.en:term.de}
                       </span>
