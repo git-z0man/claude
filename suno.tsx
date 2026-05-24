@@ -922,6 +922,9 @@ export default function App() {
   useEffect(function(){
     try { localStorage.setItem("sunoHistory", JSON.stringify(history)); } catch(e) {}
   }, [history]);
+  useEffect(function(){
+    if (!output && history.length > 0) setOutput(history[0].output);
+  }, []);
   function pushHistory(out) {
     if (!out || (!out.lyrics && !out.style && !out.title)) return;
     var firstLine = (out.title || "").split("\n")[0].trim().substring(0, 60);
