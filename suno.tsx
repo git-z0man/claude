@@ -545,6 +545,25 @@ function SectionHeader({title, onClear}) {
     </div>
   );
 }
+function Section({title, onClear, isOpen, onToggle, children}) {
+  return (
+    <div>
+      <div onClick={onToggle}
+        className="flex items-center justify-between -mx-1 px-1 py-1 rounded cursor-pointer select-none hover:bg-zinc-900/40">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+          <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{isOpen?"▼":"▶"}</span>
+          <span>{title}</span>
+        </h2>
+        {onClear && (
+          <span onClick={function(e){e.stopPropagation();}}>
+            <ClearBtn onClick={onClear}/>
+          </span>
+        )}
+      </div>
+      {isOpen && <div className="mt-1.5">{children}</div>}
+    </div>
+  );
+}
 function CopyBtn({text, label, doneLabel}) {
   var [done, setDone] = useState(false);
   function doCopy() {
@@ -691,6 +710,29 @@ export default function App() {
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", theme === "dark" ? "#09090b" : "#ffffff");
   }, [theme]);
+  var DEFAULT_SECTIONS = {
+    search:true, creative:true, artists:true, genre:true, mood:true,
+    energyTempo:true, vocals:true,
+    key:false, dynamics:false, production:false, eraLang:false,
+    structure:false, lyricThemes:false, ownLyrics:false, songTitle:false,
+    description:false, advanced:false, exportImport:false
+  };
+  var [openSections, setOpenSections] = useState(function(){
+    try {
+      var stored = JSON.parse(localStorage.getItem("sunoSections") || "{}");
+      return Object.assign({}, DEFAULT_SECTIONS, stored);
+    } catch(e) { return Object.assign({}, DEFAULT_SECTIONS); }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoSections", JSON.stringify(openSections)); } catch(e) {}
+  }, [openSections]);
+  function toggleSec(id) {
+    setOpenSections(function(prev){
+      var next = Object.assign({}, prev);
+      next[id] = !prev[id];
+      return next;
+    });
+  }
   var isEn = uiLang==="en";
   var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
   var THEMES = useMemo(function(){ return isEn ? THEMES_EN : THEMES_DE; }, [isEn]);
@@ -841,6 +883,7 @@ export default function App() {
   }
   function autoBpm(g) {
     var guide=BPM_GUIDE[g]; if(!guide)return;
+    if(bpmMin||bpmMax) return;
     var p=guide.split("-"); setBpmMin(p[0]); setBpmMax(p[1]);
   }
   function addCustomGenre(name) {
@@ -913,7 +956,7 @@ export default function App() {
       var ng=j.genres.filter(function(g){return !GENRES.includes(g);});
       setGenres(j.genres);
       if(ng.length) setExtraGenres(function(p){return Array.from(new Set(p.concat(ng)));});
-      if(j.genres[0]) autoBpm(j.genres[0]);
+      if(j.genres[0]&&!j.bpmMin&&!j.bpmMax) autoBpm(j.genres[0]);
     }
     if(j.moods&&j.moods.length)    setMoods(j.moods);
     if(j.energy)                    setEnergy(j.energy);
@@ -1292,30 +1335,17 @@ export default function App() {
       `}</style>
 
       {/* Header */}
-      <div className="border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg">🎵</div>
-          <div>
-            <h1 className="text-base font-semibold text-white">SUNO Song Creator</h1>
-            <div className="flex items-center gap-1.5">
-              <span className={"w-1.5 h-1.5 rounded-full flex-shrink-0 "+(
-                apiStatus==="ok"?"bg-emerald-500":
-                apiStatus==="error"?"bg-red-500":"bg-zinc-500 animate-pulse")}/>
-              <p className="text-xs text-zinc-500">
-                {t.appSubtitle}
-                {apiStatus==="error"&&
-                  <span className="text-red-400 ml-1">- {t.apiError}</span>}
-              </p>
-              <button onClick={checkApi} title={isEn?"Reconnect API":"API neu verbinden"}
-                className={"ml-1 text-zinc-600 hover:text-zinc-300 transition-colors "+(apiStatus==="unknown"?"animate-spin":"")}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-                  <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <div className="border-b border-zinc-800 px-4 py-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div title={t.appSubtitle}
+            className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg shrink-0">🎵</div>
+          <h1 className="text-base font-semibold text-white truncate">SUNO Song Creator</h1>
+          <button onClick={checkApi}
+            title={apiStatus==="error"?(isEn?"API error - tap to retry":"API-Fehler - tippen für neuen Versuch"):(isEn?"API connected - tap to recheck":"API verbunden - tippen für neuen Check")}
+            aria-label={isEn?"API status":"API-Status"}
+            className={"w-2 h-2 rounded-full shrink-0 transition-colors "+(
+              apiStatus==="ok"?"bg-emerald-500":
+              apiStatus==="error"?"bg-red-500":"bg-zinc-500 animate-pulse")}/>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={function(){setTheme(theme==="dark"?"light":"dark");}}
@@ -1375,9 +1405,9 @@ export default function App() {
           <div className="h-full overflow-y-auto p-4 space-y-5">
 
             {/* Search */}
-            <div>
-              <SectionHeader title={t.searchTitle}
-                onClear={function(){setSearchQ("");setSearchInfo("");}}/>
+            <Section title={t.searchTitle}
+              onClear={function(){setSearchQ("");setSearchInfo("");}}
+              isOpen={openSections.search} onToggle={function(){toggleSec("search");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.searchDesc}</p>
               <div className="flex gap-2">
                 <input value={searchQ}
@@ -1404,12 +1434,12 @@ export default function App() {
                   <p className="text-xs text-red-400 font-semibold mb-0.5">{t.analysisFailed}</p>
                   <p className="text-xs text-red-300">{searchErr}</p>
                 </div>}
-            </div>
+            </Section>
 
             {/* Creative */}
-            <div>
-              <SectionHeader title={t.creativeTitle}
-                onClear={function(){setCreativeP("");setCreativeInfo("");setCreativeErr("");}}/>
+            <Section title={t.creativeTitle}
+              onClear={function(){setCreativeP("");setCreativeInfo("");setCreativeErr("");}}
+              isOpen={openSections.creative} onToggle={function(){toggleSec("creative");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.creativeDesc}</p>
               <textarea value={creativeP}
                 onChange={function(e){setCreativeP(e.target.value);}}
@@ -1436,12 +1466,12 @@ export default function App() {
                 <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
                   <p className="text-xs text-red-400">{creativeErr}</p>
                 </div>}
-            </div>
+            </Section>
 
             {/* Artists */}
-            <div>
-              <SectionHeader title={t.artistTitle}
-                onClear={function(){setArtists([]);setAvailArtists(PRESET_ARTISTS.slice());setCustomArtist("");}}/>
+            <Section title={t.artistTitle}
+              onClear={function(){setArtists([]);setAvailArtists(PRESET_ARTISTS.slice());setCustomArtist("");}}
+              isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
               <div className="space-y-3 mb-3">
                 {ARTIST_GROUPS.map(function(grp){
@@ -1502,12 +1532,12 @@ export default function App() {
               </div>
               {artists.length>0&&
                 <p className="text-xs text-zinc-500 mt-1.5">{t.artistAnalyze}{artists.join(", ")}</p>}
-            </div>
+            </Section>
 
             {/* Genre */}
-            <div>
-              <SectionHeader title={t.genreTitle}
-                onClear={function(){setGenres([]);setExtraGenres([]);setHiddenGenres([]);setShowHidden(false);}}/>
+            <Section title={t.genreTitle}
+              onClear={function(){setGenres([]);setExtraGenres([]);setHiddenGenres([]);setShowHidden(false);}}
+              isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}>
               <div className="space-y-3 mb-2">
                 {GENRE_GROUPS.map(function(grp){
                   var vis=grp.genres.filter(function(g){return !hiddenGenres.includes(g);});
@@ -1587,11 +1617,11 @@ export default function App() {
                 <button onClick={function(){addCustomGenre(customGenre);setCustomGenre("");}}
                   className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-xs text-white font-medium">+ Add</button>
               </div>
-            </div>
+            </Section>
 
             {/* Mood */}
-            <div>
-              <SectionHeader title={t.moodTitle} onClear={function(){setMoods([]);}}/>
+            <Section title={t.moodTitle} onClear={function(){setMoods([]);}}
+              isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}>
               <div className="flex flex-wrap gap-1.5">
                 {MOODS.map(function(m){
                   var active=moods.includes(m);
@@ -1604,12 +1634,12 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Energy & Tempo */}
-            <div>
-              <SectionHeader title={t.energyTempoTitle}
-                onClear={function(){setEnergy("Medium");setTempoTerm("");setBpmMin("");setBpmMax("");}}/>
+            <Section title={t.energyTempoTitle}
+              onClear={function(){setEnergy("Medium");setTempoTerm("");setBpmMin("");setBpmMax("");}}
+              isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}>
               <div className="flex gap-2 mb-3">
                 {["Low","Medium","High"].map(function(lv){
                   return (
@@ -1646,11 +1676,11 @@ export default function App() {
                   placeholder={t.maxBpm}
                   className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"/>
               </div>
-            </div>
+            </Section>
 
             {/* Key */}
-            <div>
-              <SectionHeader title={t.keyTitle} onClear={function(){setSongKey("");}}/>
+            <Section title={t.keyTitle} onClear={function(){setSongKey("");}}
+              isOpen={openSections.key} onToggle={function(){toggleSec("key");}}>
               <div className="flex gap-2">
                 {["Major","Minor"].map(function(k){
                   return (
@@ -1662,11 +1692,11 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Dynamics */}
-            <div>
-              <SectionHeader title={t.dynamicsTitle} onClear={function(){setDynamics([]);}}/>
+            <Section title={t.dynamicsTitle} onClear={function(){setDynamics([]);}}
+              isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}>
               <div className="flex flex-wrap gap-1.5">
                 {DYNAMICS.map(function(d){
                   var active=dynamics.includes(d);
@@ -1680,12 +1710,12 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Vocals */}
-            <div>
-              <SectionHeader title={t.vocalsTitle}
-                onClear={function(){setVocalType("");setVocalTone("");setAccent("");}}/>
+            <Section title={t.vocalsTitle}
+              onClear={function(){setVocalType("");setVocalTone("");setAccent("");}}
+              isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {VOCAL_TYPES.map(function(v){
                   var active=vocalType===v;
@@ -1725,11 +1755,11 @@ export default function App() {
                 })}
               </div>
               {accent&&<p className="text-xs text-amber-400 mt-1.5 italic">{accent}</p>}
-            </div>
+            </Section>
 
             {/* Production */}
-            <div>
-              <SectionHeader title={t.productionTitle} onClear={function(){setProdFx([]);}}/>
+            <Section title={t.productionTitle} onClear={function(){setProdFx([]);}}
+              isOpen={openSections.production} onToggle={function(){toggleSec("production");}}>
               <div className="flex flex-wrap gap-1.5">
                 {PROD_FX.map(function(f){
                   var active=prodFx.includes(f);
@@ -1743,12 +1773,12 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Era & Language */}
-            <div>
-              <SectionHeader title={t.eraLangTitle}
-                onClear={function(){setEra("");setLang("English");}}/>
+            <Section title={t.eraLangTitle}
+              onClear={function(){setEra("");setLang("English");}}
+              isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-zinc-500 mb-1">{t.eraLabel}</p>
@@ -1766,12 +1796,12 @@ export default function App() {
                   </select>
                 </div>
               </div>
-            </div>
+            </Section>
 
             {/* Structure */}
-            <div>
-              <SectionHeader title={t.structureTitle}
-                onClear={function(){setStructure(DEF_STRUCT.slice());}}/>
+            <Section title={t.structureTitle}
+              onClear={function(){setStructure(DEF_STRUCT.slice());}}
+              isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}>
               <div className="space-y-1 mb-2">
                 {structure.map(function(s,i){
                   return (
@@ -1811,12 +1841,12 @@ export default function App() {
                   + {t.addSection}
                 </button>
               </div>
-            </div>
+            </Section>
 
             {/* Lyric Themes */}
-            <div>
-              <SectionHeader title={t.lyricThemesTitle}
-                onClear={function(){setLyricThemes([]);setLyricContent("");}}/>
+            <Section title={t.lyricThemesTitle}
+              onClear={function(){setLyricThemes([]);setLyricContent("");}}
+              isOpen={openSections.lyricThemes} onToggle={function(){toggleSec("lyricThemes");}}>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {THEMES.map(function(theme){
                   var active=lyricThemes.includes(theme);
@@ -1833,39 +1863,39 @@ export default function App() {
                 onChange={function(e){setLyricContent(e.target.value);}}
                 placeholder={t.lyricContentPlaceholder} rows={3}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"/>
-            </div>
+            </Section>
 
             {/* Own Lyrics */}
-            <div>
-              <SectionHeader title={t.ownLyricsTitle} onClear={function(){setOwnLyrics("");}}/>
+            <Section title={t.ownLyricsTitle} onClear={function(){setOwnLyrics("");}}
+              isOpen={openSections.ownLyrics} onToggle={function(){toggleSec("ownLyrics");}}>
               <textarea value={ownLyrics}
                 onChange={function(e){setOwnLyrics(e.target.value);}}
                 placeholder={t.ownLyricsPlaceholder} rows={5}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
-            </div>
+            </Section>
 
             {/* Title */}
-            <div>
-              <SectionHeader title={t.titleTitle} onClear={function(){setTitleSugg("");}}/>
+            <Section title={t.titleTitle} onClear={function(){setTitleSugg("");}}
+              isOpen={openSections.songTitle} onToggle={function(){toggleSec("songTitle");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.titleDesc}</p>
               <input value={titleSugg} onChange={function(e){setTitleSugg(e.target.value);}}
                 placeholder={t.titlePlaceholder}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-            </div>
+            </Section>
 
             {/* Free Description */}
-            <div>
-              <SectionHeader title={t.descTitle} onClear={function(){setDescription("");}}/>
+            <Section title={t.descTitle} onClear={function(){setDescription("");}}
+              isOpen={openSections.description} onToggle={function(){toggleSec("description");}}>
               <textarea value={description}
                 onChange={function(e){setDescription(e.target.value);}}
                 placeholder={t.descPlaceholder} rows={3}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
-            </div>
+            </Section>
 
             {/* Advanced */}
-            <div>
-              <SectionHeader title={t.advancedTitle}
-                onClear={function(){setExcludeStyle("");setMaxMode(true);setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);setAutoAdvanced(true);}}/>
+            <Section title={t.advancedTitle}
+              onClear={function(){setExcludeStyle("");setMaxMode(true);setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);setAutoAdvanced(true);}}
+              isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
@@ -1873,31 +1903,33 @@ export default function App() {
                   placeholder={t.excludePlaceholder}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-red-500"/>
               </div>
-              {[
-                {val:maxMode,  set:setMaxMode,  color:"bg-indigo-600",
-                 label:t.maxModeLabel, desc:t.maxModeDesc},
-                {val:instrumental, set:setInstrumental, color:"bg-teal-600",
-                 label:isEn?"Instrumental Mode":"Instrumental-Modus",
-                 desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
-                {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
-                 label:isEn?"Voices Mode (v5.5)":"Voices-Modus (v5.5)",
-                 desc:isEn?"Using cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
-                {val:autoAdvanced, set:setAutoAdvanced, color:"bg-emerald-600",
-                 label:isEn?"Auto Mode (Advanced)":"Auto-Modus (Erweitert)",
-                 desc:isEn?"Claude picks Weirdness & Style Influence from your inputs":"Claude wählt Weirdness & Style Influence anhand der Eingaben"},
-              ].map(function(item){
-                return (
-                  <div key={item.label}
-                    className="flex items-center justify-between mb-3 bg-zinc-800 rounded-lg px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium text-zinc-200">{item.label}</p>
-                      <p className="text-xs text-zinc-500">{item.desc}</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {[
+                  {val:maxMode,  set:setMaxMode,  color:"bg-indigo-600",
+                   label:t.maxModeLabel, desc:t.maxModeDesc},
+                  {val:instrumental, set:setInstrumental, color:"bg-teal-600",
+                   label:isEn?"Instrumental":"Instrumental",
+                   desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
+                  {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
+                   label:isEn?"Voices (v5.5)":"Voices (v5.5)",
+                   desc:isEn?"Cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
+                  {val:autoAdvanced, set:setAutoAdvanced, color:"bg-emerald-600",
+                   label:isEn?"Auto Mode":"Auto-Modus",
+                   desc:isEn?"Claude picks Weirdness & Style Influence":"Claude wählt Weirdness & Style Influence"},
+                ].map(function(item){
+                  return (
+                    <div key={item.label} title={item.desc}
+                      className="flex flex-col bg-zinc-800 rounded-lg px-2.5 py-2 gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-zinc-200 leading-tight">{item.label}</p>
+                        <Toggle value={item.val} color={item.color}
+                          onToggle={function(){item.set(!item.val);}}/>
+                      </div>
+                      <p className="text-[10px] text-zinc-500 leading-snug">{item.desc}</p>
                     </div>
-                    <Toggle value={item.val} color={item.color}
-                      onToggle={function(){item.set(!item.val);}}/>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
               <div className="mb-4" style={{opacity: autoAdvanced ? 0.5 : 1}}>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
@@ -1927,11 +1959,11 @@ export default function App() {
                   <span>{t.styleRight}</span>
                 </div>
               </div>
-            </div>
+            </Section>
 
             {/* Export / Import */}
-            <div>
-              <SectionHeader title={t.exportImport}/>
+            <Section title={t.exportImport}
+              isOpen={openSections.exportImport} onToggle={function(){toggleSec("exportImport");}}>
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-zinc-800 rounded-lg">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
                 <p className="text-xs text-zinc-400">{t.autoSaved}</p>
@@ -1979,19 +2011,21 @@ export default function App() {
                 <p className="text-xs mt-2 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300">
                   {importMsg}
                 </p>}
-            </div>
+            </Section>
 
-            <button onClick={generate} disabled={loading}
-              className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
-                (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
-              {loading
-                ?<span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
-                  {t.generating}
-                </span>
-                :"🎵 "+t.generateBtn}
-            </button>
-            {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mt-2">{error}</p>}
+            <div className="sticky bottom-0 -mx-4 px-4 pt-2 pb-3 bg-zinc-950 border-t border-zinc-800 z-10">
+              <button onClick={generate} disabled={loading}
+                className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
+                  (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
+                {loading
+                  ?<span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
+                    {t.generating}
+                  </span>
+                  :"🎵 "+t.generateBtn}
+              </button>
+              {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mt-2">{error}</p>}
+            </div>
           </div>
         )}
 
