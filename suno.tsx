@@ -688,6 +688,8 @@ export default function App() {
   });
   useEffect(function(){
     try { localStorage.setItem("sunoTheme", theme); } catch(e) {}
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#09090b" : "#ffffff");
   }, [theme]);
   var isEn = uiLang==="en";
   var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
@@ -1211,30 +1213,41 @@ export default function App() {
       className={"min-h-screen bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"")}>
       <style>{`
         input,textarea,select{font-size:16px!important}
-        .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
-        .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
-        .theme-light .bg-zinc-800 { background-color: #f4f4f5 !important; }
-        .theme-light .bg-zinc-700 { background-color: #e4e4e7 !important; }
-        .theme-light .bg-zinc-600 { background-color: #d4d4d8 !important; }
-        .theme-light .bg-zinc-500 { background-color: #a1a1aa !important; }
+        /* Root may have bg-zinc-950 + theme-light on the SAME element — match both descendant AND same-element */
+        .theme-light.bg-zinc-950, .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
+        .theme-light.bg-zinc-900, .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
+        .theme-light.bg-zinc-800, .theme-light .bg-zinc-800 { background-color: #f4f4f5 !important; }
+        .theme-light.bg-zinc-700, .theme-light .bg-zinc-700 { background-color: #e4e4e7 !important; }
+        .theme-light.bg-zinc-600, .theme-light .bg-zinc-600 { background-color: #d4d4d8 !important; }
+        .theme-light.bg-zinc-500, .theme-light .bg-zinc-500 { background-color: #a1a1aa !important; }
+        .theme-light.text-zinc-100, .theme-light .text-zinc-100 { color: #27272a !important; }
+        .theme-light.text-zinc-200, .theme-light .text-zinc-200 { color: #3f3f46 !important; }
+        .theme-light.text-zinc-300, .theme-light .text-zinc-300 { color: #52525b !important; }
+        .theme-light.text-zinc-400, .theme-light .text-zinc-400 { color: #52525b !important; }
+        .theme-light.text-zinc-500, .theme-light .text-zinc-500 { color: #71717a !important; }
+        .theme-light.text-zinc-600, .theme-light .text-zinc-600 { color: #71717a !important; }
+        /* text-white default → dark in light mode (e.g. page title), but keep it WHITE on saturated chips */
         .theme-light .text-white { color: #18181b !important; }
-        .theme-light .text-zinc-100 { color: #27272a !important; }
-        .theme-light .text-zinc-200 { color: #3f3f46 !important; }
-        .theme-light .text-zinc-300 { color: #52525b !important; }
-        .theme-light .text-zinc-400 { color: #52525b !important; }
-        .theme-light .text-zinc-500 { color: #71717a !important; }
-        .theme-light .text-zinc-600 { color: #a1a1aa !important; }
+        .theme-light .text-white.bg-indigo-500,    .theme-light .text-white.bg-indigo-600,
+        .theme-light .text-white.bg-indigo-700,    .theme-light .text-white.bg-purple-500,
+        .theme-light .text-white.bg-purple-600,    .theme-light .text-white.bg-purple-700,
+        .theme-light .text-white.bg-teal-600,      .theme-light .text-white.bg-red-500,
+        .theme-light .text-white.bg-red-600,       .theme-light .text-white.bg-red-700,
+        .theme-light .text-white.bg-rose-600,      .theme-light .text-white.bg-orange-500,
+        .theme-light .text-white.bg-orange-600,    .theme-light .text-white.bg-amber-600,
+        .theme-light .text-white.bg-emerald-500,   .theme-light .text-white.bg-emerald-600,
+        .theme-light .text-white.bg-fuchsia-600,   .theme-light .text-white.bg-cyan-500,
+        .theme-light .text-white.bg-yellow-500,
+        .theme-light [class*="bg-gradient-"].text-white { color: #ffffff !important; }
         .theme-light .border-zinc-500 { border-color: #d4d4d8 !important; }
         .theme-light .border-zinc-600 { border-color: #d4d4d8 !important; }
         .theme-light .border-zinc-700 { border-color: #d4d4d8 !important; }
         .theme-light .border-zinc-800 { border-color: #e4e4e7 !important; }
-        .theme-light .placeholder-zinc-600::placeholder { color: #a1a1aa !important; }
+        .theme-light .placeholder-zinc-600::placeholder { color: #71717a !important; }
         .theme-light .hover\\:bg-zinc-700:hover { background-color: #d4d4d8 !important; }
         .theme-light .hover\\:bg-zinc-600:hover { background-color: #a1a1aa !important; }
-        .theme-light .hover\\:text-zinc-300:hover { color: #52525b !important; }
+        .theme-light .hover\\:text-zinc-300:hover { color: #3f3f46 !important; }
         .theme-light .hover\\:text-white:hover { color: #18181b !important; }
-        .theme-light .hover\\:bg-white:hover { background-color: #18181b !important; }
-        /* Recolor active chip text/borders for colored chips on light backgrounds is unchanged - saturated colors stay. */
         /* Alert/info dark backgrounds → pale tints */
         .theme-light .bg-indigo-950 { background-color: #eef2ff !important; }
         .theme-light .border-indigo-800 { border-color: #c7d2fe !important; }
