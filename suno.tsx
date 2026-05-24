@@ -1321,6 +1321,21 @@ export default function App() {
       className={"min-h-screen bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"")}>
       <style>{`
         input,textarea,select{font-size:16px!important}
+        /* On touch devices iOS Safari leaves :hover stuck after a tap, so a
+           chip that shifted into the just-tapped spot inherits the hover
+           background. Disable hover-bg effects when no real hover capability
+           is present. */
+        @media (hover: none) {
+          .hover\\:bg-red-600:hover,
+          .hover\\:bg-red-700:hover,
+          .hover\\:bg-red-500:hover,
+          .hover\\:bg-white:hover,
+          .hover\\:bg-opacity-10:hover { background-color: transparent !important; }
+          .hover\\:bg-zinc-700:hover { background-color: inherit !important; }
+          .hover\\:bg-zinc-600:hover { background-color: inherit !important; }
+          .hover\\:text-white:hover,
+          .hover\\:text-zinc-300:hover { color: inherit !important; }
+        }
         /* Root may have bg-zinc-950 + theme-light on the SAME element — match both descendant AND same-element */
         .theme-light.bg-zinc-950, .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
         .theme-light.bg-zinc-900, .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
@@ -1400,7 +1415,7 @@ export default function App() {
       `}</style>
 
       {/* Header */}
-      <div className="border-b border-zinc-800 px-4 py-2.5 flex items-center justify-between gap-2">
+      <div className="border-b border-zinc-800 px-4 py-2.5 pr-12 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <div title={t.appSubtitle}
             className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg shrink-0">🎵</div>
