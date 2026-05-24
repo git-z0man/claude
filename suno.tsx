@@ -244,6 +244,72 @@ var W_ZONES = [
   {min:90, max:101, label:"Chaos",            labelDe:"Chaos",            cls:"bg-rose-600"},
 ];
 
+var BUILTIN_PRESETS = [
+  {
+    name:"Synthwave Night",
+    settings:{
+      genres:["Synthwave","Retrowave"],
+      moods:["Dreamy","Nostalgic"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"90", bpmMax:"110",
+      vocalTone:"Smooth", lang:"English",
+      dynamics:["Legato","Syncopation"],
+      prodFx:["Reverb","Delay/Echo","Sidechain"]
+    }
+  },
+  {
+    name:"Pop Ballad",
+    settings:{
+      genres:["Pop","Ballad"],
+      moods:["Romantic","Melancholic"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"70", bpmMax:"90",
+      vocalTone:"Powerful", lang:"English",
+      dynamics:["Legato","Crescendo","Vibrato"]
+    }
+  },
+  {
+    name:"Hip Hop / Trap",
+    settings:{
+      genres:["Hip Hop","Trap"],
+      moods:["Aggressive","Dark"],
+      energy:"High", tempoTerm:"Allegro", bpmMin:"75", bpmMax:"90",
+      vocalType:"Rap", lang:"English",
+      dynamics:["Triplet Feel","Half-Time"],
+      prodFx:["Compression","Sidechain"]
+    }
+  },
+  {
+    name:"Cinematic",
+    settings:{
+      genres:["Classical","Ambient"],
+      moods:["Epic","Cinematic","Mysterious"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"60", bpmMax:"100",
+      vocalType:"No Vocals", instrumental:true, lang:"English",
+      dynamics:["Crescendo","Decrescendo","Legato"]
+    }
+  },
+  {
+    name:"Indie Folk",
+    settings:{
+      genres:["Folk","Indie Folk","Singer-Songwriter"],
+      moods:["Calm","Nostalgic","Peaceful"],
+      energy:"Low", tempoTerm:"Andante", bpmMin:"80", bpmMax:"100",
+      vocalTone:"Soft", lang:"English",
+      dynamics:["Legato"], prodFx:["Reverb"]
+    }
+  },
+  {
+    name:"Deep House",
+    settings:{
+      genres:["Deep House","House"],
+      moods:["Euphoric","Dreamy"],
+      energy:"High", tempoTerm:"Allegro", bpmMin:"120", bpmMax:"128",
+      lang:"English",
+      dynamics:["Four on the Floor","Syncopation"],
+      prodFx:["Sidechain","Reverb","Filter"]
+    }
+  }
+];
+
 var ACCENTS = [
   {label:"London / Cockney",
    value:"London Cockney British English, glottal stops, dropped H"},
@@ -749,7 +815,7 @@ export default function App() {
     if (meta) meta.setAttribute("content", theme === "dark" ? "#09090b" : "#ffffff");
   }, [theme]);
   var DEFAULT_SECTIONS = {
-    smartFill:true, artists:true, genre:true, mood:true,
+    smartFill:true, presets:true, artists:true, genre:true, mood:true,
     energyTempo:true, vocals:true,
     key:false, dynamics:false, production:false, eraLang:false,
     structure:false, lyrics:false, advanced:false, exportImport:false
@@ -857,6 +923,60 @@ export default function App() {
     var firstLine = (out.title || "").split("\n")[0].trim().substring(0, 60);
     var entry = { ts: Date.now(), title: firstLine || (isEn?"(untitled)":"(ohne Titel)"), output: out };
     setHistory(function(prev){ return [entry].concat(prev).slice(0, 10); });
+  }
+  var [presets, setPresets] = useState(function(){
+    try { return JSON.parse(localStorage.getItem("sunoPresets") || "[]"); } catch(e) { return []; }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoPresets", JSON.stringify(presets)); } catch(e) {}
+  }, [presets]);
+  var [newPresetName, setNewPresetName] = useState("");
+  function loadPreset(p) {
+    var s = p.settings || {};
+    if (s.genres) setGenres(s.genres);
+    if (s.extraGenres) setExtraGenres(s.extraGenres);
+    if (s.moods) setMoods(s.moods);
+    if (s.energy) setEnergy(s.energy);
+    if (s.tempoTerm !== undefined) setTempoTerm(s.tempoTerm);
+    if (s.bpmMin !== undefined) setBpmMin(s.bpmMin);
+    if (s.bpmMax !== undefined) setBpmMax(s.bpmMax);
+    if (s.vocalType !== undefined) setVocalType(s.vocalType);
+    if (s.vocalTone !== undefined) setVocalTone(s.vocalTone);
+    if (s.accent !== undefined) setAccent(s.accent);
+    if (s.dynamics) setDynamics(s.dynamics);
+    if (s.songKey !== undefined) setSongKey(s.songKey);
+    if (s.prodFx) setProdFx(s.prodFx);
+    if (s.era !== undefined) setEra(s.era);
+    if (s.lang) setLang(s.lang);
+    if (s.structure) setStructure(s.structure);
+    if (s.lyricThemes) setLyricThemes(s.lyricThemes);
+    if (s.lyricContent !== undefined) setLyricContent(s.lyricContent);
+    if (s.excludeStyle !== undefined) setExcludeStyle(s.excludeStyle);
+    if (s.maxMode !== undefined) setMaxMode(s.maxMode);
+    if (s.instrumental !== undefined) setInstrumental(s.instrumental);
+    if (s.voicesMode !== undefined) setVoicesMode(s.voicesMode);
+    if (s.weirdness !== undefined) setWeirdness(s.weirdness);
+    if (s.styleInf !== undefined) setStyleInf(s.styleInf);
+    if (s.autoAdvanced !== undefined) setAutoAdvanced(s.autoAdvanced);
+  }
+  function savePreset() {
+    var n = newPresetName.trim(); if (!n) return;
+    var snap = {
+      genres:genres, extraGenres:extraGenres, moods:moods,
+      energy:energy, tempoTerm:tempoTerm, bpmMin:bpmMin, bpmMax:bpmMax,
+      vocalType:vocalType, vocalTone:vocalTone, accent:accent,
+      dynamics:dynamics, songKey:songKey, prodFx:prodFx,
+      era:era, lang:lang, structure:structure,
+      lyricThemes:lyricThemes, lyricContent:lyricContent,
+      excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
+      voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
+      autoAdvanced:autoAdvanced
+    };
+    setPresets(function(prev){ return prev.concat([{id:Date.now(), name:n, settings:snap}]); });
+    setNewPresetName("");
+  }
+  function deletePreset(id) {
+    setPresets(function(prev){ return prev.filter(function(p){ return p.id !== id; }); });
   }
   var [loading,          setLoading]          = useState(false);
   var [loadingLyrics,    setLoadingLyrics]    = useState(false);
@@ -1327,8 +1447,9 @@ export default function App() {
   var tabs = useMemo(function(){ return [
     {key:"lyrics",label:t.tab1,icon:"🎤"},
     {key:"style", label:t.tab2,icon:"🎨"},
-    {key:"meta",  label:t.tab3,icon:"⚙️"}
-  ]; }, [t]);
+    {key:"meta",  label:t.tab3,icon:"⚙️"},
+    {key:"all",   label:isEn?"4 All":"4 Alle",icon:"📋"}
+  ]; }, [t, isEn]);
 
   return (
     <div style={{fontFamily:"system-ui,sans-serif"}}
@@ -1503,6 +1624,7 @@ export default function App() {
               <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
                 {[
                   {id:"smartFill",   label:isEn?"Smart Fill":"Smart"},
+                  {id:"presets",     label:isEn?"Presets":"Vorlagen"},
                   {id:"artists",     label:isEn?"Artists":"Künstler"},
                   {id:"genre",       label:"Genre"},
                   {id:"mood",        label:"Mood"},
@@ -1605,6 +1727,53 @@ export default function App() {
                     </div>}
                 </>
               )}
+            </Section>
+
+            {/* Presets */}
+            <Section title={isEn?"Presets":"Vorlagen"}
+              id="presets" isOpen={openSections.presets} onToggle={function(){toggleSec("presets");}}>
+              <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{isEn?"Templates":"Vorlagen"}</p>
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {BUILTIN_PRESETS.map(function(p){
+                  return (
+                    <button key={p.name} onClick={function(){loadPreset(p);}}
+                      className="px-2.5 py-1 rounded-full text-xs border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {presets.length>0&&(
+                <>
+                  <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{isEn?"Saved":"Gespeichert"}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {presets.map(function(p){
+                      return (
+                        <span key={p.id} className="flex items-center rounded-full border border-zinc-700 bg-zinc-800 text-xs overflow-hidden">
+                          <button onClick={function(){loadPreset(p);}}
+                            className="px-2.5 py-1 text-zinc-300 hover:bg-white hover:bg-opacity-10">
+                            {p.name}
+                          </button>
+                          <button onClick={function(){deletePreset(p.id);}}
+                            className="px-1.5 py-1 text-zinc-500 hover:bg-red-700 hover:text-white border-l border-zinc-700">x</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <input value={newPresetName}
+                  onChange={function(e){setNewPresetName(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter")savePreset();}}
+                  placeholder={isEn?"Save current as...":"Aktuelle speichern als..."}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                <button onClick={savePreset} disabled={!newPresetName.trim()}
+                  className={"px-3 py-1.5 rounded text-xs font-medium "+
+                    (newPresetName.trim()?"bg-indigo-700 hover:bg-indigo-600 text-white":"bg-zinc-700 text-zinc-500 cursor-not-allowed")}>
+                  💾 {isEn?"Save":"Speichern"}
+                </button>
+              </div>
             </Section>
 
             {/* Artists */}
@@ -2311,6 +2480,17 @@ export default function App() {
                 )}
                 {activeTab==="meta"&&(
                   <div className="space-y-4">
+                    <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
+                    <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
+                      icon="✏️" content={output.title} t={t}/>
+                  </div>
+                )}
+                {activeTab==="all"&&(
+                  <div className="space-y-4">
+                    <OutputSection title={t.lyricsTitle} subtitle={t.lyricsSubtitle}
+                      icon="🎤" content={output.lyrics} t={t}/>
+                    <OutputSection title={t.styleTitle} subtitle={t.styleSubtitle}
+                      icon="🎨" content={output.style} t={t}/>
                     <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
                     <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
                       icon="✏️" content={output.title} t={t}/>
