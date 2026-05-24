@@ -1336,15 +1336,16 @@ export default function App() {
               className="px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 text-zinc-400 hover:border-red-600 hover:text-red-400 transition-all">
               ↺ {t.restart}
             </button>
-            :<div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-400">{t.restartConfirm}</span>
+            :<div className="flex items-center gap-1">
               <button onClick={resetAll}
-                className="px-3 py-1.5 rounded text-xs font-medium bg-red-700 hover:bg-red-600 text-white">
-                {t.yes}
+                title={t.yes} aria-label={t.yes}
+                className="w-8 h-8 rounded flex items-center justify-center bg-red-700 hover:bg-red-600 text-white text-sm font-bold">
+                ✓
               </button>
               <button onClick={function(){setConfirmReset(false);}}
-                className="px-3 py-1.5 rounded text-xs font-medium bg-zinc-700 hover:bg-zinc-600 text-white">
-                {t.cancel}
+                title={t.cancel} aria-label={t.cancel}
+                className="w-8 h-8 rounded flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-bold">
+                ✕
               </button>
             </div>
           }
