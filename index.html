@@ -106,10 +106,10 @@
         let src = await res.text();
 
         // Adapt the artifact source for standalone use (3 minimal edits):
-        // 1) Replace ES-module import with destructuring from global React.
+        // 1) Replace ES-module import with destructuring from global React (preserve which hooks are imported).
         src = src.replace(
-          /^import \{[^}]+\} from "react";\s*/m,
-          "var { useState, useEffect, useMemo } = React;\n"
+          /^import \{([^}]+)\} from "react";\s*/m,
+          "var {$1} = React;\n"
         );
         // 2) Drop the default export keyword.
         src = src.replace(/export default function App/, "function App");

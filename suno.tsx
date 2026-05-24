@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -493,19 +493,57 @@ var T = {
 
 function TooltipBtn({label, active, onClick, tooltip, activeClass, inactiveClass}) {
   var [show, setShow] = useState(false);
+  var [tipStyle, setTipStyle] = useState({left:"50%", transform:"translateX(-50%)"});
+  var btnRef = useRef(null);
+  var dismissRef = useRef(null);
+  function computeTipPosition() {
+    if (!btnRef.current) return {left:"50%", transform:"translateX(-50%)"};
+    var rect = btnRef.current.getBoundingClientRect();
+    var vw = window.innerWidth;
+    var margin = 8;
+    var maxTipHalf = Math.min(140, vw / 2 - margin);
+    var centerX = rect.left + rect.width / 2;
+    if (centerX - maxTipHalf < margin) {
+      return {left: (margin - rect.left) + "px"};
+    }
+    if (centerX + maxTipHalf > vw - margin) {
+      return {right: (margin - (vw - rect.right)) + "px", left:"auto"};
+    }
+    return {left:"50%", transform:"translateX(-50%)"};
+  }
+  function openTip() {
+    setTipStyle(computeTipPosition());
+    setShow(true);
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null; }
+  }
+  function closeTip() {
+    setShow(false);
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null; }
+  }
+  function handleClick(e) {
+    openTip();
+    if (dismissRef.current) clearTimeout(dismissRef.current);
+    dismissRef.current = setTimeout(function(){ setShow(false); dismissRef.current = null; }, 2500);
+    if (onClick) onClick(e);
+  }
   return (
-    <div className="relative" onMouseEnter={function(){setShow(true);}} onMouseLeave={function(){setShow(false);}}>
-      <button onClick={onClick}
+    <div className="relative" onMouseEnter={openTip} onMouseLeave={closeTip}>
+      <button ref={btnRef} onClick={handleClick}
         className={"px-2 py-1 rounded text-xs border transition-all "+(active?activeClass:inactiveClass)}>
         {label}
       </button>
       {show && tooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
-          <div className="bg-zinc-800 border border-zinc-600 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 shadow-xl text-center" style={{whiteSpace:"nowrap"}}>
-            {tooltip}
+        <>
+          <div className="absolute bottom-full mb-1.5 z-50 pointer-events-none" style={tipStyle}>
+            <div className="bg-zinc-800 border border-zinc-600 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 shadow-xl"
+              style={{maxWidth:"min(280px, calc(100vw - 16px))", whiteSpace:"normal"}}>
+              {tooltip}
+            </div>
           </div>
-          <div className="w-2 h-2 bg-zinc-800 border-r border-b border-zinc-600 rotate-45 mx-auto -mt-1"/>
-        </div>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 z-50 pointer-events-none" style={{marginBottom:"0.3rem"}}>
+            <div className="w-2 h-2 bg-zinc-800 border-r border-b border-zinc-600 rotate-45"/>
+          </div>
+        </>
       )}
     </div>
   );
@@ -714,8 +752,7 @@ export default function App() {
     search:true, creative:true, artists:true, genre:true, mood:true,
     energyTempo:true, vocals:true,
     key:false, dynamics:false, production:false, eraLang:false,
-    structure:false, lyricThemes:false, ownLyrics:false, songTitle:false,
-    description:false, advanced:false, exportImport:false
+    structure:false, lyrics:false, advanced:false, exportImport:false
   };
   var [openSections, setOpenSections] = useState(function(){
     try {
@@ -1843,53 +1880,50 @@ export default function App() {
               </div>
             </Section>
 
-            {/* Lyric Themes */}
-            <Section title={t.lyricThemesTitle}
-              onClear={function(){setLyricThemes([]);setLyricContent("");}}
-              isOpen={openSections.lyricThemes} onToggle={function(){toggleSec("lyricThemes");}}>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {THEMES.map(function(theme){
-                  var active=lyricThemes.includes(theme);
-                  return (
-                    <button key={theme} onClick={function(){toggle(lyricThemes,setLyricThemes,theme);}}
-                      className={"px-2 py-1 rounded text-xs border transition-all "+
-                        (active?"bg-teal-600 text-white border-teal-500":"bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-teal-500")}>
-                      {theme}
-                    </button>
-                  );
-                })}
+            {/* Lyrics & Content */}
+            <Section title={isEn?"Lyrics & Content":"Lyrics & Inhalt"}
+              onClear={function(){setLyricThemes([]);setLyricContent("");setOwnLyrics("");setTitleSugg("");setDescription("");}}
+              isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.lyricThemesTitle}</p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {THEMES.map(function(theme){
+                    var active=lyricThemes.includes(theme);
+                    return (
+                      <button key={theme} onClick={function(){toggle(lyricThemes,setLyricThemes,theme);}}
+                        className={"px-2 py-1 rounded text-xs border transition-all "+
+                          (active?"bg-teal-600 text-white border-teal-500":"bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-teal-500")}>
+                        {theme}
+                      </button>
+                    );
+                  })}
+                </div>
+                <textarea value={lyricContent}
+                  onChange={function(e){setLyricContent(e.target.value);}}
+                  placeholder={t.lyricContentPlaceholder} rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"/>
               </div>
-              <textarea value={lyricContent}
-                onChange={function(e){setLyricContent(e.target.value);}}
-                placeholder={t.lyricContentPlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"/>
-            </Section>
-
-            {/* Own Lyrics */}
-            <Section title={t.ownLyricsTitle} onClear={function(){setOwnLyrics("");}}
-              isOpen={openSections.ownLyrics} onToggle={function(){toggleSec("ownLyrics");}}>
-              <textarea value={ownLyrics}
-                onChange={function(e){setOwnLyrics(e.target.value);}}
-                placeholder={t.ownLyricsPlaceholder} rows={5}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
-            </Section>
-
-            {/* Title */}
-            <Section title={t.titleTitle} onClear={function(){setTitleSugg("");}}
-              isOpen={openSections.songTitle} onToggle={function(){toggleSec("songTitle");}}>
-              <p className="text-xs text-zinc-600 mb-2">{t.titleDesc}</p>
-              <input value={titleSugg} onChange={function(e){setTitleSugg(e.target.value);}}
-                placeholder={t.titlePlaceholder}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-            </Section>
-
-            {/* Free Description */}
-            <Section title={t.descTitle} onClear={function(){setDescription("");}}
-              isOpen={openSections.description} onToggle={function(){toggleSec("description");}}>
-              <textarea value={description}
-                onChange={function(e){setDescription(e.target.value);}}
-                placeholder={t.descPlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.ownLyricsTitle}</p>
+                <textarea value={ownLyrics}
+                  onChange={function(e){setOwnLyrics(e.target.value);}}
+                  placeholder={t.ownLyricsPlaceholder} rows={5}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
+              </div>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1">{t.titleTitle}</p>
+                <p className="text-xs text-zinc-600 mb-1.5">{t.titleDesc}</p>
+                <input value={titleSugg} onChange={function(e){setTitleSugg(e.target.value);}}
+                  placeholder={t.titlePlaceholder}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.descTitle}</p>
+                <textarea value={description}
+                  onChange={function(e){setDescription(e.target.value);}}
+                  placeholder={t.descPlaceholder} rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
+              </div>
             </Section>
 
             {/* Advanced */}
