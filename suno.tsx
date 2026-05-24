@@ -583,9 +583,9 @@ function SectionHeader({title, onClear}) {
     </div>
   );
 }
-function Section({title, onClear, isOpen, onToggle, children}) {
+function Section({id, title, onClear, isOpen, onToggle, children}) {
   return (
-    <div>
+    <div id={id?"sec-"+id:undefined} style={{scrollMarginTop:"54px"}}>
       <div onClick={onToggle}
         className="flex items-center justify-between -mx-1 px-1 py-1 rounded cursor-pointer select-none hover:bg-zinc-900/40">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
@@ -769,6 +769,33 @@ export default function App() {
       next[id] = !prev[id];
       return next;
     });
+  }
+  function navigateTo(id) {
+    setOpenSections(function(prev){
+      var next = Object.assign({}, prev);
+      next[id] = true;
+      return next;
+    });
+    setTimeout(function(){
+      var el = document.getElementById("sec-"+id);
+      if (el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    }, 60);
+  }
+  var [undoAction, setUndoAction] = useState(null);
+  var undoTimeoutRef = useRef(null);
+  function clearWithUndo(label, snapshotAndClear) {
+    var restore = snapshotAndClear();
+    setUndoAction({label: label, restore: restore});
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    undoTimeoutRef.current = setTimeout(function(){
+      setUndoAction(null);
+      undoTimeoutRef.current = null;
+    }, 5000);
+  }
+  function triggerUndo() {
+    if (undoAction && undoAction.restore) undoAction.restore();
+    setUndoAction(null);
+    if (undoTimeoutRef.current) { clearTimeout(undoTimeoutRef.current); undoTimeoutRef.current = null; }
   }
   var isEn = uiLang==="en";
   var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
@@ -1442,13 +1469,42 @@ export default function App() {
         {panel==="settings"&&(
           <div className="h-full overflow-y-auto p-4 space-y-5">
 
+            {/* Quick-Nav-Chips */}
+            <div className="sticky top-0 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-zinc-950 z-20 border-b border-zinc-800 mb-1">
+              <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+                {[
+                  {id:"smartFill",   label:isEn?"Smart Fill":"Smart"},
+                  {id:"artists",     label:isEn?"Artists":"Künstler"},
+                  {id:"genre",       label:"Genre"},
+                  {id:"mood",        label:"Mood"},
+                  {id:"energyTempo", label:"Tempo"},
+                  {id:"key",         label:isEn?"Key":"Tonart"},
+                  {id:"dynamics",    label:isEn?"Dynamics":"Dynamik"},
+                  {id:"vocals",      label:"Vocals"},
+                  {id:"production",  label:isEn?"Production":"Produktion"},
+                  {id:"eraLang",     label:"Era"},
+                  {id:"structure",   label:isEn?"Structure":"Struktur"},
+                  {id:"lyrics",      label:"Lyrics"},
+                  {id:"advanced",    label:isEn?"Advanced":"Erweitert"},
+                  {id:"exportImport",label:"Export"}
+                ].map(function(item){
+                  return (
+                    <button key={item.id} onClick={function(){navigateTo(item.id);}}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-zinc-700 text-zinc-400 whitespace-nowrap shrink-0 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Smart Fill — unified Search + Creative */}
             <Section title={isEn?"Smart Fill":"Smart-Eingabe"}
               onClear={function(){
                 setSearchQ("");setSearchInfo("");setSearchErr("");
                 setCreativeP("");setCreativeInfo("");setCreativeErr("");
               }}
-              isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}>
+              id="smartFill" isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}>
               <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-3">
                 <button onClick={function(){setSmartFillMode("artist");}}
                   className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
@@ -1524,8 +1580,12 @@ export default function App() {
 
             {/* Artists */}
             <Section title={t.artistTitle}
-              onClear={function(){setArtists([]);setAvailArtists(PRESET_ARTISTS.slice());setCustomArtist("");}}
-              isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}>
+              onClear={function(){clearWithUndo(t.artistTitle, function(){
+                var sa=artists, sav=availArtists, sca=customArtist;
+                setArtists([]); setAvailArtists(PRESET_ARTISTS.slice()); setCustomArtist("");
+                return function(){ setArtists(sa); setAvailArtists(sav); setCustomArtist(sca); };
+              });}}
+              id="artists" isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
               <div className="flex gap-2 mb-3">
                 <input value={customArtist}
@@ -1590,8 +1650,12 @@ export default function App() {
 
             {/* Genre */}
             <Section title={t.genreTitle}
-              onClear={function(){setGenres([]);setExtraGenres([]);setHiddenGenres([]);setShowHidden(false);}}
-              isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}>
+              onClear={function(){clearWithUndo(t.genreTitle, function(){
+                var sg=genres, seg=extraGenres, shg=hiddenGenres, ssh=showHidden;
+                setGenres([]); setExtraGenres([]); setHiddenGenres([]); setShowHidden(false);
+                return function(){ setGenres(sg); setExtraGenres(seg); setHiddenGenres(shg); setShowHidden(ssh); };
+              });}}
+              id="genre" isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}>
               <div className="flex gap-2 mb-3">
                 <input value={customGenre}
                   onChange={function(e){setCustomGenre(e.target.value);}}
@@ -1674,8 +1738,13 @@ export default function App() {
             </Section>
 
             {/* Mood */}
-            <Section title={t.moodTitle} onClear={function(){setMoods([]);}}
-              isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}>
+            <Section title={t.moodTitle}
+              onClear={function(){clearWithUndo(t.moodTitle, function(){
+                var sm=moods;
+                setMoods([]);
+                return function(){ setMoods(sm); };
+              });}}
+              id="mood" isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}>
               <div className="flex flex-wrap gap-1.5">
                 {MOODS.map(function(m){
                   var active=moods.includes(m);
@@ -1692,8 +1761,12 @@ export default function App() {
 
             {/* Energy & Tempo */}
             <Section title={t.energyTempoTitle}
-              onClear={function(){setEnergy("Medium");setTempoTerm("");setBpmMin("");setBpmMax("");}}
-              isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}>
+              onClear={function(){clearWithUndo(t.energyTempoTitle, function(){
+                var se=energy, st=tempoTerm, sb1=bpmMin, sb2=bpmMax;
+                setEnergy("Medium"); setTempoTerm(""); setBpmMin(""); setBpmMax("");
+                return function(){ setEnergy(se); setTempoTerm(st); setBpmMin(sb1); setBpmMax(sb2); };
+              });}}
+              id="energyTempo" isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}>
               <div className="flex gap-2 mb-3">
                 {["Low","Medium","High"].map(function(lv){
                   return (
@@ -1733,8 +1806,13 @@ export default function App() {
             </Section>
 
             {/* Key */}
-            <Section title={t.keyTitle} onClear={function(){setSongKey("");}}
-              isOpen={openSections.key} onToggle={function(){toggleSec("key");}}>
+            <Section title={t.keyTitle}
+              onClear={function(){clearWithUndo(t.keyTitle, function(){
+                var sk=songKey;
+                setSongKey("");
+                return function(){ setSongKey(sk); };
+              });}}
+              id="key" isOpen={openSections.key} onToggle={function(){toggleSec("key");}}>
               <div className="flex gap-2">
                 {["Major","Minor"].map(function(k){
                   return (
@@ -1749,8 +1827,13 @@ export default function App() {
             </Section>
 
             {/* Dynamics */}
-            <Section title={t.dynamicsTitle} onClear={function(){setDynamics([]);}}
-              isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}>
+            <Section title={t.dynamicsTitle}
+              onClear={function(){clearWithUndo(t.dynamicsTitle, function(){
+                var sd=dynamics;
+                setDynamics([]);
+                return function(){ setDynamics(sd); };
+              });}}
+              id="dynamics" isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}>
               <div className="flex flex-wrap gap-1.5">
                 {DYNAMICS.map(function(d){
                   var active=dynamics.includes(d);
@@ -1768,8 +1851,12 @@ export default function App() {
 
             {/* Vocals */}
             <Section title={t.vocalsTitle}
-              onClear={function(){setVocalType("");setVocalTone("");setAccent("");}}
-              isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}>
+              onClear={function(){clearWithUndo(t.vocalsTitle, function(){
+                var svt=vocalType, svn=vocalTone, sac=accent;
+                setVocalType(""); setVocalTone(""); setAccent("");
+                return function(){ setVocalType(svt); setVocalTone(svn); setAccent(sac); };
+              });}}
+              id="vocals" isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {VOCAL_TYPES.map(function(v){
                   var active=vocalType===v;
@@ -1812,8 +1899,13 @@ export default function App() {
             </Section>
 
             {/* Production */}
-            <Section title={t.productionTitle} onClear={function(){setProdFx([]);}}
-              isOpen={openSections.production} onToggle={function(){toggleSec("production");}}>
+            <Section title={t.productionTitle}
+              onClear={function(){clearWithUndo(t.productionTitle, function(){
+                var sp=prodFx;
+                setProdFx([]);
+                return function(){ setProdFx(sp); };
+              });}}
+              id="production" isOpen={openSections.production} onToggle={function(){toggleSec("production");}}>
               <div className="flex flex-wrap gap-1.5">
                 {PROD_FX.map(function(f){
                   var active=prodFx.includes(f);
@@ -1831,8 +1923,12 @@ export default function App() {
 
             {/* Era & Language */}
             <Section title={t.eraLangTitle}
-              onClear={function(){setEra("");setLang("English");}}
-              isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}>
+              onClear={function(){clearWithUndo(t.eraLangTitle, function(){
+                var ser=era, sln=lang;
+                setEra(""); setLang("English");
+                return function(){ setEra(ser); setLang(sln); };
+              });}}
+              id="eraLang" isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-zinc-500 mb-1">{t.eraLabel}</p>
@@ -1854,8 +1950,12 @@ export default function App() {
 
             {/* Structure */}
             <Section title={t.structureTitle}
-              onClear={function(){setStructure(DEF_STRUCT.slice());}}
-              isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}>
+              onClear={function(){clearWithUndo(t.structureTitle, function(){
+                var ss=structure;
+                setStructure(DEF_STRUCT.slice());
+                return function(){ setStructure(ss); };
+              });}}
+              id="structure" isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}>
               <div className="space-y-1 mb-2">
                 {structure.map(function(s,i){
                   return (
@@ -1899,8 +1999,12 @@ export default function App() {
 
             {/* Lyrics & Content */}
             <Section title={isEn?"Lyrics & Content":"Lyrics & Inhalt"}
-              onClear={function(){setLyricThemes([]);setLyricContent("");setOwnLyrics("");setTitleSugg("");setDescription("");}}
-              isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}>
+              onClear={function(){clearWithUndo(isEn?"Lyrics & Content":"Lyrics & Inhalt", function(){
+                var slt=lyricThemes, slc=lyricContent, sol=ownLyrics, sts=titleSugg, sds=description;
+                setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setTitleSugg(""); setDescription("");
+                return function(){ setLyricThemes(slt); setLyricContent(slc); setOwnLyrics(sol); setTitleSugg(sts); setDescription(sds); };
+              });}}
+              id="lyrics" isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}>
               <div className="mb-4">
                 <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.lyricThemesTitle}</p>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1945,8 +2049,13 @@ export default function App() {
 
             {/* Advanced */}
             <Section title={t.advancedTitle}
-              onClear={function(){setExcludeStyle("");setMaxMode(true);setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);setAutoAdvanced(true);}}
-              isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}>
+              onClear={function(){clearWithUndo(t.advancedTitle, function(){
+                var sex=excludeStyle, smm=maxMode, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced;
+                setExcludeStyle(""); setMaxMode(true); setInstrumental(false); setVoicesMode(false);
+                setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
+                return function(){ setExcludeStyle(sex); setMaxMode(smm); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); };
+              });}}
+              id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
@@ -2014,7 +2123,7 @@ export default function App() {
 
             {/* Export / Import */}
             <Section title={t.exportImport}
-              isOpen={openSections.exportImport} onToggle={function(){toggleSec("exportImport");}}>
+              id="exportImport" isOpen={openSections.exportImport} onToggle={function(){toggleSec("exportImport");}}>
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-zinc-800 rounded-lg">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
                 <p className="text-xs text-zinc-400">{t.autoSaved}</p>
@@ -2065,6 +2174,15 @@ export default function App() {
             </Section>
 
             <div className="sticky bottom-0 -mx-4 px-4 pt-2 pb-3 bg-zinc-950 border-t border-zinc-800 z-10">
+              {undoAction && (
+                <div className="mb-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-between gap-2">
+                  <p className="text-xs text-zinc-300 truncate">{undoAction.label}</p>
+                  <button onClick={triggerUndo}
+                    className="px-3 py-1 rounded text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shrink-0">
+                    {isEn?"Undo":"Rückgängig"}
+                  </button>
+                </div>
+              )}
               <button onClick={generate} disabled={loading}
                 className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
                   (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
