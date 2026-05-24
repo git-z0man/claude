@@ -846,6 +846,18 @@ export default function App() {
   var [creativeErr,      setCreativeErr]      = useState("");
   var [smartFillMode,    setSmartFillMode]    = useState("artist");
   var [output,           setOutput]           = useState(null);
+  var [history,          setHistory]          = useState(function(){
+    try { return JSON.parse(localStorage.getItem("sunoHistory") || "[]"); } catch(e) { return []; }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoHistory", JSON.stringify(history)); } catch(e) {}
+  }, [history]);
+  function pushHistory(out) {
+    if (!out || (!out.lyrics && !out.style && !out.title)) return;
+    var firstLine = (out.title || "").split("\n")[0].trim().substring(0, 60);
+    var entry = { ts: Date.now(), title: firstLine || (isEn?"(untitled)":"(ohne Titel)"), output: out };
+    setHistory(function(prev){ return [entry].concat(prev).slice(0, 10); });
+  }
   var [loading,          setLoading]          = useState(false);
   var [loadingLyrics,    setLoadingLyrics]    = useState(false);
   var [loadingStyle,     setLoadingStyle]     = useState(false);
@@ -1133,7 +1145,9 @@ export default function App() {
         "Create a complete optimized SUNO v5.5 song prompt. " +
         "Output exactly in the format with 4 separate code blocks."
       ]);
-      setOutput(parseOutput(txt)); setActiveTab("lyrics"); setPanel("output");
+      var parsed=parseOutput(txt);
+      setOutput(parsed); pushHistory(parsed);
+      setActiveTab("lyrics"); setPanel("output");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoading(false); }
   }
@@ -2198,6 +2212,15 @@ export default function App() {
                   </button>
                 </div>
               )}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[11px] text-zinc-500">
+                  📝 {isEn?"Lyrics in":"Lyrics auf"}: <strong className="text-zinc-300">{lang||"English"}</strong>
+                </span>
+                <button onClick={function(){navigateTo("eraLang");}}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300">
+                  {isEn?"change":"ändern"}
+                </button>
+              </div>
               <button onClick={generate} disabled={loading}
                 className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
                   (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
@@ -2231,6 +2254,31 @@ export default function App() {
             )}
             {output&&(
               <div className="p-4">
+                {history.length>1&&(
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
+                      {isEn?"History":"Verlauf"} ({history.length})
+                    </p>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+                      {history.map(function(entry, i){
+                        var isCurrent = output && entry.output && entry.output.lyrics===output.lyrics && entry.output.style===output.style;
+                        return (
+                          <button key={entry.ts}
+                            onClick={function(){setOutput(entry.output); setActiveTab("lyrics");}}
+                            className={"px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0 border transition-all "+
+                              (isCurrent?"bg-indigo-600 border-indigo-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-300")}>
+                            {i===0?"🎵 ":""}{entry.title}
+                          </button>
+                        );
+                      })}
+                      <button onClick={function(){if(confirm(isEn?"Clear history?":"Verlauf löschen?")) setHistory([]);}}
+                        title={isEn?"Clear history":"Verlauf löschen"}
+                        className="px-2 py-1 rounded-full text-[11px] shrink-0 border border-zinc-700 text-zinc-600 hover:border-red-600 hover:text-red-400">
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-1 bg-zinc-900 rounded-lg p-1 mb-4">
                   {tabs.map(function(tab){
                     return (
