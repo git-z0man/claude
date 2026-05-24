@@ -1127,7 +1127,8 @@ export default function App() {
     setTitleSugg(""); setExcludeStyle("");
     setMaxMode(true); setInstrumental(false); setVoicesMode(false);
     setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
-    setOutput(null); setError(""); setSearchQ(""); setSearchInfo("");
+    setOutput(history.length>0 ? history[0].output : null);
+    setError(""); setSearchQ(""); setSearchInfo("");
     setCreativeP(""); setCreativeInfo(""); setConfirmReset(false);
     storageSave({});
   }
