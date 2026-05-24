@@ -749,7 +749,7 @@ export default function App() {
     if (meta) meta.setAttribute("content", theme === "dark" ? "#09090b" : "#ffffff");
   }, [theme]);
   var DEFAULT_SECTIONS = {
-    search:true, creative:true, artists:true, genre:true, mood:true,
+    smartFill:true, artists:true, genre:true, mood:true,
     energyTempo:true, vocals:true,
     key:false, dynamics:false, production:false, eraLang:false,
     structure:false, lyrics:false, advanced:false, exportImport:false
@@ -817,6 +817,7 @@ export default function App() {
   var [creativeAnalyzing,setCreativeAnalyzing]= useState(false);
   var [creativeInfo,     setCreativeInfo]     = useState("");
   var [creativeErr,      setCreativeErr]      = useState("");
+  var [smartFillMode,    setSmartFillMode]    = useState("artist");
   var [output,           setOutput]           = useState(null);
   var [loading,          setLoading]          = useState(false);
   var [loadingLyrics,    setLoadingLyrics]    = useState(false);
@@ -1441,68 +1442,84 @@ export default function App() {
         {panel==="settings"&&(
           <div className="h-full overflow-y-auto p-4 space-y-5">
 
-            {/* Search */}
-            <Section title={t.searchTitle}
-              onClear={function(){setSearchQ("");setSearchInfo("");}}
-              isOpen={openSections.search} onToggle={function(){toggleSec("search");}}>
-              <p className="text-xs text-zinc-600 mb-2">{t.searchDesc}</p>
-              <div className="flex gap-2">
-                <input value={searchQ}
-                  onChange={function(e){setSearchQ(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter")analyzeSearch();}}
-                  placeholder={t.searchPlaceholder}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-                <button onClick={analyzeSearch} disabled={searching}
-                  className={"px-3 py-2 rounded text-xs font-medium flex items-center gap-1.5 transition-all "+
-                    (searching?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
-                  {searching
-                    ?<span className="w-3 h-3 border border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
-                    :"⚡"}
-                  {searching?t.analyzing:t.analyzeBtn}
+            {/* Smart Fill — unified Search + Creative */}
+            <Section title={isEn?"Smart Fill":"Smart-Eingabe"}
+              onClear={function(){
+                setSearchQ("");setSearchInfo("");setSearchErr("");
+                setCreativeP("");setCreativeInfo("");setCreativeErr("");
+              }}
+              isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}>
+              <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-3">
+                <button onClick={function(){setSmartFillMode("artist");}}
+                  className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                    (smartFillMode==="artist"?"bg-indigo-600 text-white":"text-zinc-500 hover:text-zinc-300")}>
+                  ⚡ {isEn?"Artist / Song":"Artist / Song"}
+                </button>
+                <button onClick={function(){setSmartFillMode("creative");}}
+                  className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                    (smartFillMode==="creative"?"bg-gradient-to-r from-pink-600 to-purple-600 text-white":"text-zinc-500 hover:text-zinc-300")}>
+                  ✨ {isEn?"Free Idea":"Freie Idee"}
                 </button>
               </div>
-              {searchInfo&&
-                <div className="mt-2 bg-indigo-950 border border-indigo-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-indigo-300">{searchInfo}</p>
-                  <p className="text-xs text-indigo-500 mt-0.5">{t.analyzedInfo}</p>
-                </div>}
-              {searchErr&&
-                <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400 font-semibold mb-0.5">{t.analysisFailed}</p>
-                  <p className="text-xs text-red-300">{searchErr}</p>
-                </div>}
-            </Section>
-
-            {/* Creative */}
-            <Section title={t.creativeTitle}
-              onClear={function(){setCreativeP("");setCreativeInfo("");setCreativeErr("");}}
-              isOpen={openSections.creative} onToggle={function(){toggleSec("creative");}}>
-              <p className="text-xs text-zinc-600 mb-2">{t.creativeDesc}</p>
-              <textarea value={creativeP}
-                onChange={function(e){setCreativeP(e.target.value);}}
-                onKeyDown={function(e){if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))analyzeCreative();}}
-                placeholder={t.creativePlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-pink-500 resize-none mb-2"/>
-              <button onClick={analyzeCreative}
-                disabled={creativeAnalyzing||!creativeP.trim()}
-                className={"w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all "+
-                  (creativeAnalyzing||!creativeP.trim()
-                    ?"bg-zinc-700 text-zinc-500 cursor-not-allowed"
-                    :"bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white")}>
-                {creativeAnalyzing
-                  ?<><span className="w-3.5 h-3.5 border border-zinc-500 border-t-pink-400 rounded-full animate-spin"/>{t.creativeAnalyzing}</>
-                  :<><span>✨</span>{t.creativeBtn}</>}
-              </button>
-              {creativeInfo&&
-                <div className="mt-2 bg-gradient-to-r from-pink-950 to-purple-950 border border-pink-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-pink-200 font-medium mb-0.5">{t.creativeInterpretation}</p>
-                  <p className="text-xs text-pink-300">{creativeInfo}</p>
-                  <p className="text-xs text-pink-500 mt-1">{t.creativeApplied}</p>
-                </div>}
-              {creativeErr&&
-                <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400">{creativeErr}</p>
-                </div>}
+              {smartFillMode==="artist" ? (
+                <>
+                  <p className="text-xs text-zinc-600 mb-2">{t.searchDesc}</p>
+                  <div className="flex gap-2">
+                    <input value={searchQ}
+                      onChange={function(e){setSearchQ(e.target.value);}}
+                      onKeyDown={function(e){if(e.key==="Enter")analyzeSearch();}}
+                      placeholder={t.searchPlaceholder}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                    <button onClick={analyzeSearch} disabled={searching||!searchQ.trim()}
+                      className={"px-3 py-2 rounded text-xs font-medium flex items-center gap-1.5 transition-all "+
+                        (searching||!searchQ.trim()?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
+                      {searching
+                        ?<span className="w-3 h-3 border border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
+                        :"⚡"}
+                      {searching?t.analyzing:t.analyzeBtn}
+                    </button>
+                  </div>
+                  {searchInfo&&
+                    <div className="mt-2 bg-indigo-950 border border-indigo-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-indigo-300">{searchInfo}</p>
+                      <p className="text-xs text-indigo-500 mt-0.5">{t.analyzedInfo}</p>
+                    </div>}
+                  {searchErr&&
+                    <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-red-400 font-semibold mb-0.5">{t.analysisFailed}</p>
+                      <p className="text-xs text-red-300">{searchErr}</p>
+                    </div>}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-zinc-600 mb-2">{t.creativeDesc}</p>
+                  <textarea value={creativeP}
+                    onChange={function(e){setCreativeP(e.target.value);}}
+                    onKeyDown={function(e){if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))analyzeCreative();}}
+                    placeholder={t.creativePlaceholder} rows={3}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-pink-500 resize-none mb-2"/>
+                  <button onClick={analyzeCreative}
+                    disabled={creativeAnalyzing||!creativeP.trim()}
+                    className={"w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all "+
+                      (creativeAnalyzing||!creativeP.trim()
+                        ?"bg-zinc-700 text-zinc-500 cursor-not-allowed"
+                        :"bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white")}>
+                    {creativeAnalyzing
+                      ?<><span className="w-3.5 h-3.5 border border-zinc-500 border-t-pink-400 rounded-full animate-spin"/>{t.creativeAnalyzing}</>
+                      :<><span>✨</span>{t.creativeBtn}</>}
+                  </button>
+                  {creativeInfo&&
+                    <div className="mt-2 bg-gradient-to-r from-pink-950 to-purple-950 border border-pink-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-pink-200 font-medium mb-0.5">{t.creativeInterpretation}</p>
+                      <p className="text-xs text-pink-300">{creativeInfo}</p>
+                      <p className="text-xs text-pink-500 mt-1">{t.creativeApplied}</p>
+                    </div>}
+                  {creativeErr&&
+                    <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-red-400">{creativeErr}</p>
+                    </div>}
+                </>
+              )}
             </Section>
 
             {/* Artists */}
@@ -1510,6 +1527,15 @@ export default function App() {
               onClear={function(){setArtists([]);setAvailArtists(PRESET_ARTISTS.slice());setCustomArtist("");}}
               isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}>
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
+              <div className="flex gap-2 mb-3">
+                <input value={customArtist}
+                  onChange={function(e){setCustomArtist(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter"){addArtist(customArtist);setCustomArtist("");}}}
+                  placeholder={t.artistAdd}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-purple-500"/>
+                <button onClick={function(){addArtist(customArtist);setCustomArtist("");}}
+                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white font-medium">+ Add</button>
+              </div>
               <div className="space-y-3 mb-3">
                 {ARTIST_GROUPS.map(function(grp){
                   var vis=grp.artists.filter(function(a){return availArtists.includes(a);});
@@ -1558,15 +1584,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <input value={customArtist}
-                  onChange={function(e){setCustomArtist(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter"){addArtist(customArtist);setCustomArtist("");}}}
-                  placeholder={t.artistAdd}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-purple-500"/>
-                <button onClick={function(){addArtist(customArtist);setCustomArtist("");}}
-                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white font-medium">+ Add</button>
-              </div>
               {artists.length>0&&
                 <p className="text-xs text-zinc-500 mt-1.5">{t.artistAnalyze}{artists.join(", ")}</p>}
             </Section>
@@ -1575,6 +1592,15 @@ export default function App() {
             <Section title={t.genreTitle}
               onClear={function(){setGenres([]);setExtraGenres([]);setHiddenGenres([]);setShowHidden(false);}}
               isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}>
+              <div className="flex gap-2 mb-3">
+                <input value={customGenre}
+                  onChange={function(e){setCustomGenre(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter"){addCustomGenre(customGenre);setCustomGenre("");}}}
+                  placeholder={t.genreAdd}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                <button onClick={function(){addCustomGenre(customGenre);setCustomGenre("");}}
+                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-xs text-white font-medium">+ Add</button>
+              </div>
               <div className="space-y-3 mb-2">
                 {GENRE_GROUPS.map(function(grp){
                   var vis=grp.genres.filter(function(g){return !hiddenGenres.includes(g);});
@@ -1645,15 +1671,6 @@ export default function App() {
               </div>
               {genres.length>0&&BPM_GUIDE[genres[0]]&&
                 <p className="text-xs text-zinc-500 mt-1">{t.genreTypical}{genres[0]}: {BPM_GUIDE[genres[0]]} BPM</p>}
-              <div className="flex gap-2 mt-2">
-                <input value={customGenre}
-                  onChange={function(e){setCustomGenre(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter"){addCustomGenre(customGenre);setCustomGenre("");}}}
-                  placeholder={t.genreAdd}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-                <button onClick={function(){addCustomGenre(customGenre);setCustomGenre("");}}
-                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-xs text-white font-medium">+ Add</button>
-              </div>
             </Section>
 
             {/* Mood */}
