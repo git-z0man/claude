@@ -649,13 +649,17 @@ function SectionHeader({title, onClear}) {
     </div>
   );
 }
-function Section({id, title, onClear, isOpen, onToggle, children}) {
+function Section({id, title, onClear, isOpen, onToggle, hasData, children}) {
+  var effectiveOpen = hasData || isOpen;
+  var canToggle = !hasData;
   return (
     <div id={id?"sec-"+id:undefined} style={{scrollMarginTop:"54px"}}>
-      <div onClick={onToggle}
-        className="flex items-center justify-between -mx-1 px-1 py-1 rounded cursor-pointer select-none hover:bg-zinc-900/40">
+      <div onClick={canToggle?onToggle:undefined}
+        className={"flex items-center justify-between -mx-1 px-1 py-1 rounded select-none "+(canToggle?"cursor-pointer hover:bg-zinc-900/40":"cursor-default")}>
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-          <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{isOpen?"▼":"▶"}</span>
+          {hasData
+            ? <span className="text-indigo-500 inline-block w-2 text-center" style={{fontSize:"10px"}}>●</span>
+            : <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{isOpen?"▼":"▶"}</span>}
           <span>{title}</span>
         </h2>
         {onClear && (
@@ -664,7 +668,7 @@ function Section({id, title, onClear, isOpen, onToggle, children}) {
           </span>
         )}
       </div>
-      {isOpen && <div className="mt-1.5">{children}</div>}
+      {effectiveOpen && <div className="mt-1.5">{children}</div>}
     </div>
   );
 }
@@ -1655,7 +1659,8 @@ export default function App() {
                 setSearchQ("");setSearchInfo("");setSearchErr("");
                 setCreativeP("");setCreativeInfo("");setCreativeErr("");
               }}
-              id="smartFill" isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}>
+              id="smartFill" isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}
+              hasData={!!(searchQ.trim()||creativeP.trim())}>
               <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-3">
                 <button onClick={function(){setSmartFillMode("artist");}}
                   className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
@@ -1783,7 +1788,8 @@ export default function App() {
                 setArtists([]); setAvailArtists(PRESET_ARTISTS.slice()); setCustomArtist("");
                 return function(){ setArtists(sa); setAvailArtists(sav); setCustomArtist(sca); };
               });}}
-              id="artists" isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}>
+              id="artists" isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}
+              hasData={artists.length>0}>
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
               <div className="flex gap-2 mb-3">
                 <input value={customArtist}
@@ -1853,7 +1859,8 @@ export default function App() {
                 setGenres([]); setExtraGenres([]); setHiddenGenres([]); setShowHidden(false);
                 return function(){ setGenres(sg); setExtraGenres(seg); setHiddenGenres(shg); setShowHidden(ssh); };
               });}}
-              id="genre" isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}>
+              id="genre" isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}
+              hasData={genres.length>0}>
               <div className="flex gap-2 mb-3">
                 <input value={customGenre}
                   onChange={function(e){setCustomGenre(e.target.value);}}
@@ -1942,7 +1949,8 @@ export default function App() {
                 setMoods([]);
                 return function(){ setMoods(sm); };
               });}}
-              id="mood" isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}>
+              id="mood" isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}
+              hasData={moods.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {MOODS.map(function(m){
                   var active=moods.includes(m);
@@ -1964,7 +1972,8 @@ export default function App() {
                 setEnergy("Medium"); setTempoTerm(""); setBpmMin(""); setBpmMax("");
                 return function(){ setEnergy(se); setTempoTerm(st); setBpmMin(sb1); setBpmMax(sb2); };
               });}}
-              id="energyTempo" isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}>
+              id="energyTempo" isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}
+              hasData={!!(energy!=="Medium"||tempoTerm||bpmMin||bpmMax)}>
               <div className="flex gap-2 mb-3">
                 {["Low","Medium","High"].map(function(lv){
                   return (
@@ -2010,7 +2019,8 @@ export default function App() {
                 setSongKey("");
                 return function(){ setSongKey(sk); };
               });}}
-              id="key" isOpen={openSections.key} onToggle={function(){toggleSec("key");}}>
+              id="key" isOpen={openSections.key} onToggle={function(){toggleSec("key");}}
+              hasData={!!songKey}>
               <div className="flex gap-2">
                 {["Major","Minor"].map(function(k){
                   return (
@@ -2031,7 +2041,8 @@ export default function App() {
                 setDynamics([]);
                 return function(){ setDynamics(sd); };
               });}}
-              id="dynamics" isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}>
+              id="dynamics" isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}
+              hasData={dynamics.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {DYNAMICS.map(function(d){
                   var active=dynamics.includes(d);
@@ -2054,7 +2065,8 @@ export default function App() {
                 setVocalType(""); setVocalTone(""); setAccent("");
                 return function(){ setVocalType(svt); setVocalTone(svn); setAccent(sac); };
               });}}
-              id="vocals" isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}>
+              id="vocals" isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}
+              hasData={!!(vocalType||vocalTone||accent)}>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {VOCAL_TYPES.map(function(v){
                   var active=vocalType===v;
@@ -2103,7 +2115,8 @@ export default function App() {
                 setProdFx([]);
                 return function(){ setProdFx(sp); };
               });}}
-              id="production" isOpen={openSections.production} onToggle={function(){toggleSec("production");}}>
+              id="production" isOpen={openSections.production} onToggle={function(){toggleSec("production");}}
+              hasData={prodFx.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {PROD_FX.map(function(f){
                   var active=prodFx.includes(f);
@@ -2126,7 +2139,8 @@ export default function App() {
                 setEra("");
                 return function(){ setEra(ser); };
               });}}
-              id="eraLang" isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}>
+              id="eraLang" isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}
+              hasData={!!era}>
               <select value={era} onChange={function(e){setEra(e.target.value);}}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
                 <option value="">{t.modern}</option>
@@ -2141,7 +2155,8 @@ export default function App() {
                 setStructure(DEF_STRUCT.slice());
                 return function(){ setStructure(ss); };
               });}}
-              id="structure" isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}>
+              id="structure" isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}
+              hasData={JSON.stringify(structure)!==JSON.stringify(DEF_STRUCT)}>
               <div className="space-y-1 mb-2">
                 {structure.map(function(s,i){
                   return (
@@ -2190,7 +2205,8 @@ export default function App() {
                 setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setTitleSugg(""); setDescription("");
                 return function(){ setLyricThemes(slt); setLyricContent(slc); setOwnLyrics(sol); setTitleSugg(sts); setDescription(sds); };
               });}}
-              id="lyrics" isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}>
+              id="lyrics" isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}
+              hasData={!!(lyricThemes.length||lyricContent||ownLyrics||titleSugg||description)}>
               <div className="mb-4">
                 <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.lyricThemesTitle}</p>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -2241,7 +2257,8 @@ export default function App() {
                 setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
                 return function(){ setExcludeStyle(sex); setMaxMode(smm); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); };
               });}}
-              id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}>
+              id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
+              hasData={!!(excludeStyle||!maxMode||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced)}>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
