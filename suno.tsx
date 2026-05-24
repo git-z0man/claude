@@ -1951,30 +1951,18 @@ export default function App() {
             </Section>
 
             {/* Era & Language */}
-            <Section title={t.eraLangTitle}
-              onClear={function(){clearWithUndo(t.eraLangTitle, function(){
-                var ser=era, sln=lang;
-                setEra(""); setLang("English");
-                return function(){ setEra(ser); setLang(sln); };
+            <Section title={t.eraLabel}
+              onClear={function(){clearWithUndo(t.eraLabel, function(){
+                var ser=era;
+                setEra("");
+                return function(){ setEra(ser); };
               });}}
               id="eraLang" isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-zinc-500 mb-1">{t.eraLabel}</p>
-                  <select value={era} onChange={function(e){setEra(e.target.value);}}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                    <option value="">{t.modern}</option>
-                    {ERAS.map(function(er){return <option key={er} value={er}>{er}</option>;})}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-xs text-zinc-500 mb-1">{t.langLabel}</p>
-                  <select value={lang} onChange={function(e){setLang(e.target.value);}}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                    {LANGUAGES.map(function(ln){return <option key={ln} value={ln}>{ln}</option>;})}
-                  </select>
-                </div>
-              </div>
+              <select value={era} onChange={function(e){setEra(e.target.value);}}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                <option value="">{t.modern}</option>
+                {ERAS.map(function(er){return <option key={er} value={er}>{er}</option>;})}
+              </select>
             </Section>
 
             {/* Structure */}
@@ -2212,14 +2200,14 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-[11px] text-zinc-500">
-                  📝 {isEn?"Lyrics in":"Lyrics auf"}: <strong className="text-zinc-300">{lang||"English"}</strong>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[11px] text-zinc-500 shrink-0">
+                  📝 {isEn?"Lyrics in":"Lyrics auf"}:
                 </span>
-                <button onClick={function(){navigateTo("eraLang");}}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300">
-                  {isEn?"change":"ändern"}
-                </button>
+                <select value={lang} onChange={function(e){setLang(e.target.value);}}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[11px] font-medium text-zinc-200 focus:outline-none focus:border-indigo-500">
+                  {LANGUAGES.map(function(ln){return <option key={ln} value={ln}>{ln}</option>;})}
+                </select>
               </div>
               <button onClick={generate} disabled={loading}
                 className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
