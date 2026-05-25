@@ -932,16 +932,41 @@ export default function App() {
   var [history,          setHistory]          = useState(function(){
     try { return JSON.parse(localStorage.getItem("sunoHistory") || "[]"); } catch(e) { return []; }
   });
+  var [currentEntryTs,   setCurrentEntryTs]   = useState(null);
+  var [showEntrySettings,setShowEntrySettings]= useState(false);
   useEffect(function(){
     try { localStorage.setItem("sunoHistory", JSON.stringify(history)); } catch(e) {}
   }, [history]);
   useEffect(function(){
-    if (!output && history.length > 0) setOutput(history[0].output);
+    if (!output && history.length > 0) {
+      setOutput(history[0].output);
+      setCurrentEntryTs(history[0].ts);
+    }
   }, []);
+  function snapshotSettings() {
+    return {
+      genres:genres, extraGenres:extraGenres, artists:artists,
+      moods:moods, energy:energy, tempoTerm:tempoTerm, bpmMin:bpmMin, bpmMax:bpmMax,
+      vocalType:vocalType, vocalTone:vocalTone, accent:accent,
+      dynamics:dynamics, songKey:songKey, prodFx:prodFx,
+      era:era, lang:lang, structure:structure,
+      lyricThemes:lyricThemes, lyricContent:lyricContent, ownLyrics:ownLyrics,
+      titleSugg:titleSugg, description:description,
+      excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
+      voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
+      autoAdvanced:autoAdvanced
+    };
+  }
   function pushHistory(out) {
     if (!out || (!out.lyrics && !out.style && !out.title)) return;
     var firstLine = (out.title || "").split("\n")[0].trim().substring(0, 60);
-    var entry = { ts: Date.now(), title: firstLine || (isEn?"(untitled)":"(ohne Titel)"), output: out };
+    var entry = {
+      ts: Date.now(),
+      title: firstLine || (isEn?"(untitled)":"(ohne Titel)"),
+      output: out,
+      settings: snapshotSettings()
+    };
+    setCurrentEntryTs(entry.ts);
     setHistory(function(prev){ return [entry].concat(prev).slice(0, 10); });
   }
   var [presets, setPresets] = useState(function(){
@@ -1140,7 +1165,8 @@ export default function App() {
     setTitleSugg(""); setExcludeStyle("");
     setMaxMode(true); setInstrumental(false); setVoicesMode(false);
     setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
-    setOutput(history.length>0 ? history[0].output : null);
+    if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
+    else { setOutput(null); setCurrentEntryTs(null); }
     setError(""); setSearchQ(""); setSearchInfo("");
     setCreativeP(""); setCreativeInfo(""); setConfirmReset(false);
     storageSave({});
@@ -2452,10 +2478,10 @@ export default function App() {
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
                       {history.map(function(entry, i){
-                        var isCurrent = output && entry.output && entry.output.lyrics===output.lyrics && entry.output.style===output.style;
+                        var isCurrent = currentEntryTs===entry.ts;
                         return (
                           <button key={entry.ts}
-                            onClick={function(){setOutput(entry.output); setActiveTab("lyrics");}}
+                            onClick={function(){setOutput(entry.output); setCurrentEntryTs(entry.ts); setActiveTab("lyrics");}}
                             className={"px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0 border transition-all "+
                               (isCurrent?"bg-indigo-600 border-indigo-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-300")}>
                             {i===0?"🎵 ":""}{entry.title}
@@ -2470,6 +2496,65 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {(function(){
+                  var entry = history.find(function(e){return e.ts===currentEntryTs;});
+                  if (!entry || !entry.settings) return null;
+                  var s = entry.settings;
+                  var items = [];
+                  if (s.genres&&s.genres.length) items.push([isEn?"Genres":"Genres", s.genres.join(", ")]);
+                  if (s.artists&&s.artists.length) items.push([isEn?"Artists":"Künstler", s.artists.join(", ")]);
+                  if (s.moods&&s.moods.length) items.push([isEn?"Mood":"Mood", s.moods.join(", ")]);
+                  if (s.energy&&s.energy!=="Medium") items.push([isEn?"Energy":"Energie", s.energy]);
+                  if (s.tempoTerm) items.push([isEn?"Tempo":"Tempo", s.tempoTerm]);
+                  if (s.bpmMin||s.bpmMax) items.push(["BPM", (s.bpmMin||"?")+"-"+(s.bpmMax||"?")]);
+                  if (s.songKey) items.push([isEn?"Key":"Tonart", s.songKey]);
+                  if (s.dynamics&&s.dynamics.length) items.push([isEn?"Dynamics":"Dynamik", s.dynamics.join(", ")]);
+                  if (s.vocalType) items.push(["Vocals", s.vocalType]);
+                  if (s.vocalTone) items.push([isEn?"Vocal tone":"Vocal-Ton", s.vocalTone]);
+                  if (s.accent) items.push([isEn?"Accent":"Akzent", s.accent.split(",")[0]]);
+                  if (s.prodFx&&s.prodFx.length) items.push([isEn?"Production":"Produktion", s.prodFx.join(", ")]);
+                  if (s.era) items.push(["Era", s.era]);
+                  if (s.lang&&s.lang!=="English") items.push([isEn?"Language":"Sprache", s.lang]);
+                  if (s.structure&&s.structure.length) items.push([isEn?"Structure":"Struktur", s.structure.join(" → ")]);
+                  if (s.lyricThemes&&s.lyricThemes.length) items.push([isEn?"Themes":"Themen", s.lyricThemes.join(", ")]);
+                  if (s.lyricContent) items.push([isEn?"Content":"Inhalt", s.lyricContent]);
+                  if (s.ownLyrics) items.push([isEn?"Own lyrics":"Eigene Lyrics", "✓ ("+s.ownLyrics.length+" "+(isEn?"chars":"Zeichen")+")"]);
+                  if (s.titleSugg) items.push([isEn?"Title hint":"Titelvorgabe", s.titleSugg]);
+                  if (s.description) items.push([isEn?"Notes":"Notizen", s.description]);
+                  if (s.excludeStyle) items.push([isEn?"Exclude":"Ausschluss", s.excludeStyle]);
+                  if (s.maxMode===false) items.push(["MAX Mode", "off"]);
+                  if (s.instrumental) items.push(["Instrumental", "✓"]);
+                  if (s.voicesMode) items.push(["Voices Mode", "✓"]);
+                  if (s.autoAdvanced) items.push([isEn?"Weirdness/Style":"Weirdness/Style", "AUTO"]);
+                  else {
+                    if (s.weirdness!==undefined) items.push(["Weirdness", s.weirdness+"%"]);
+                    if (s.styleInf!==undefined) items.push(["Style Influence", s.styleInf+"%"]);
+                  }
+                  if (!items.length) return null;
+                  return (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden mb-3">
+                      <button onClick={function(){setShowEntrySettings(!showEntrySettings);}}
+                        className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-zinc-800/50">
+                        <span className="text-xs font-medium text-zinc-300">
+                          📋 {isEn?"Settings used":"Verwendete Einstellungen"} <span className="text-zinc-500 ml-1">({items.length})</span>
+                        </span>
+                        <span className="text-zinc-600 text-[10px]">{showEntrySettings?"▼":"▶"}</span>
+                      </button>
+                      {showEntrySettings && (
+                        <div className="px-3 pb-3 pt-1 border-t border-zinc-800 space-y-1">
+                          {items.map(function(it){
+                            return (
+                              <div key={it[0]} className="flex gap-2 text-xs">
+                                <span className="text-zinc-500 shrink-0" style={{minWidth:"7rem"}}>{it[0]}:</span>
+                                <span className="text-zinc-300 break-words">{it[1]}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-1 bg-zinc-900 rounded-lg p-1 mb-4">
                   {tabs.map(function(tab){
                     return (
