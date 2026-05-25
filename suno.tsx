@@ -30,9 +30,10 @@ MAX MODE (when enabled):
 - Style block LAST line must be: [Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)
 
 AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
-- Weirdness: 15-30 Conventional, 30-45 Twist, AVOID 45-55, 58-65 Creative, 65-78 Unusual, 80-95 Experimental.
-- Style Influence: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
-- Pick based on genres, mood and inputs. Output the chosen integer in # 3. ADVANCED OPTIONS.
+- You MUST replace AUTO with a concrete integer 0-100 of YOUR choice based on the song's genres, mood and inputs. NEVER output the literal word "AUTO" in the # 3. ADVANCED OPTIONS block.
+- Weirdness ranges to pick from: 15-30 Conventional, 30-45 Twist, AVOID 45-55, 58-65 Creative, 65-78 Unusual, 80-95 Experimental.
+- Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
+- Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
 
 LYRICS QUALITY RULES (NON-NEGOTIABLE — these define whether the song sounds AI-generic or actually written):
 - CONCRETE over ABSTRACT: never write "my heart breaks" — write the specific moment, object or gesture that carries the feeling. "Her toothbrush is still in the cup" beats "I miss her".
@@ -2336,35 +2337,56 @@ export default function App() {
                   );
                 })}
               </div>
-              <div className="mb-4" style={{opacity: autoAdvanced ? 0.5 : 1}}>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
-                  <span className="text-xs font-semibold text-white">{autoAdvanced ? "AUTO" : weirdness+"%"}</span>
-                </div>
-                <input type="range" min="0" max="100" value={weirdness}
-                  disabled={autoAdvanced}
-                  onChange={function(e){setWeirdness(Number(e.target.value));}}
-                  className="w-full accent-indigo-500 disabled:cursor-not-allowed"/>
-                <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
-                  <span>{t.weirdnessLeft}</span>
-                  <span className="text-red-600">{t.weirdnessAvoid}</span>
-                  <span>{t.weirdnessRight}</span>
-                </div>
-              </div>
-              <div style={{opacity: autoAdvanced ? 0.5 : 1}}>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs text-zinc-400">{t.styleInfluenceLabel}</label>
-                  <span className="text-xs font-semibold text-white">{autoAdvanced ? "AUTO" : styleInf+"%"}</span>
-                </div>
-                <input type="range" min="0" max="100" value={styleInf}
-                  disabled={autoAdvanced}
-                  onChange={function(e){setStyleInf(Number(e.target.value));}}
-                  className="w-full accent-purple-500 disabled:cursor-not-allowed"/>
-                <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
-                  <span>{t.styleLeft}</span>
-                  <span>{t.styleRight}</span>
-                </div>
-              </div>
+              {(function(){
+                var adv = (output && output.advanced) || "";
+                var wm = adv.match(/Weirdness[:\s]+(\d+)/i);
+                var sm = adv.match(/Style Influence[:\s]+(\d+)/i);
+                var autoWeird = autoAdvanced && wm ? Number(wm[1]) : null;
+                var autoStyle = autoAdvanced && sm ? Number(sm[1]) : null;
+                return (
+                  <>
+                    <div className="mb-4" style={{opacity: autoAdvanced ? 0.7 : 1}}>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
+                        <span className="text-xs font-semibold text-white">
+                          {autoAdvanced
+                            ? (autoWeird!==null ? "AUTO → "+autoWeird+"%" : "AUTO")
+                            : weirdness+"%"}
+                        </span>
+                      </div>
+                      <input type="range" min="0" max="100"
+                        value={autoAdvanced && autoWeird!==null ? autoWeird : weirdness}
+                        disabled={autoAdvanced}
+                        onChange={function(e){setWeirdness(Number(e.target.value));}}
+                        className="w-full accent-indigo-500 disabled:cursor-not-allowed"/>
+                      <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
+                        <span>{t.weirdnessLeft}</span>
+                        <span className="text-red-600">{t.weirdnessAvoid}</span>
+                        <span>{t.weirdnessRight}</span>
+                      </div>
+                    </div>
+                    <div style={{opacity: autoAdvanced ? 0.7 : 1}}>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-zinc-400">{t.styleInfluenceLabel}</label>
+                        <span className="text-xs font-semibold text-white">
+                          {autoAdvanced
+                            ? (autoStyle!==null ? "AUTO → "+autoStyle+"%" : "AUTO")
+                            : styleInf+"%"}
+                        </span>
+                      </div>
+                      <input type="range" min="0" max="100"
+                        value={autoAdvanced && autoStyle!==null ? autoStyle : styleInf}
+                        disabled={autoAdvanced}
+                        onChange={function(e){setStyleInf(Number(e.target.value));}}
+                        className="w-full accent-purple-500 disabled:cursor-not-allowed"/>
+                      <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
+                        <span>{t.styleLeft}</span>
+                        <span>{t.styleRight}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </Section>
 
             {/* Export / Import */}
