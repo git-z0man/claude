@@ -34,6 +34,19 @@ AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
 - Style Influence: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
 - Pick based on genres, mood and inputs. Output the chosen integer in # 3. ADVANCED OPTIONS.
 
+LYRICS QUALITY RULES (NON-NEGOTIABLE — these define whether the song sounds AI-generic or actually written):
+- CONCRETE over ABSTRACT: never write "my heart breaks" — write the specific moment, object or gesture that carries the feeling. "Her toothbrush is still in the cup" beats "I miss her".
+- One picturable image per verse minimum: a named place, an object you could touch, a piece of overheard dialogue, a specific time of day.
+- BANNED CLICHÉ RHYME PAIRS: love/above, heart/apart, fire/desire, night/light, sky/high, eyes/lies, dream/seem, tears/years, true/you, soul/whole, away/stay, tonight/feel-right, alone/own, pain/rain, free/me, hold/cold, mine/time. Find unexpected rhymes or use near-rhyme/assonance.
+- NO empty intensifiers: "so", "very", "really", "just" as filler is forbidden. Make the chosen verb or noun do the work.
+- VERBS LIFT: prefer "she slammed the door" over "she was angry"; "the radio cut out mid-chorus" over "the music stopped".
+- CHORUS HOOK: must contain ONE quotable line a stranger could repeat after one listen — built from specifics, not abstractions ("we danced like the rent was paid" beats "we danced all night").
+- NO filler syllables ("baby", "yeah", "oh", "whoa") UNLESS the genre rhythmically requires them AND they add groove — never as padding.
+- TWIST WORN PHRASES: if a cliché appears, undermine or invert it. "Forever lasted three weeks." "All roads lead home, I took the wrong exit."
+- VERSES MUST ADVANCE: each verse adds new image, new event, or new realization. Never paraphrase the previous verse.
+- ANCHOR characters and scenes: avoid bare "she", "you", "the one" — name a moment, a city, an object, a song title, a brand, a season when possible.
+- READ ALOUD CHECK: every line should sound like something a human would actually sing, not a Hallmark card paraphrase.
+
 STYLE FORMAT:
 genre: ...
 instruments: ...
@@ -1142,7 +1155,7 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-sonnet-4-5",
+        model:"claude-opus-4-7",
         max_tokens:2000,
         system:sysPr,
         messages:[{role:"user",content:userMsg}]
