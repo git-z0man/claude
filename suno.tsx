@@ -1157,7 +1157,7 @@ export default function App() {
       body:JSON.stringify({
         model:"claude-opus-4-7",
         max_tokens:2000,
-        system:sysPr,
+        system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
       })
     });
