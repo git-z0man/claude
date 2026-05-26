@@ -244,7 +244,7 @@ function parseJson(txt) {
 }
 
 async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) {
-  var body = { model: "claude-sonnet-4-20250514", max_tokens: maxTokens || 800, messages };
+  var body = { model: "claude-sonnet-4-6", max_tokens: maxTokens || 800, messages };
   if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
 
   // Combine user abort signal + optional timeout into one AbortController
@@ -1301,7 +1301,7 @@ async function checkApiStatus() {
         "anthropic-version":"2023-06-01",
         "anthropic-dangerous-direct-browser-access":"true"
       },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 10, messages: [{ role: "user", content: "Hi" }] })
+      body: JSON.stringify({ model: "claude-haiku-4-5", max_tokens: 10, messages: [{ role: "user", content: "Hi" }] })
     });
     return res.status !== 401 && res.status !== 403;
   } catch(e) { return false; }
