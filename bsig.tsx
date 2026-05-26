@@ -1,5 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 
+function MI({ name, size, color, fill, weight }) {
+  return <span className="mi" style={{ fontSize: size || 20, color: color || "inherit", fontVariationSettings: ("'FILL' " + (fill ? 1 : 0) + ", 'wght' " + (weight || 300) + ", 'opsz' 24"), verticalAlign: "middle", display: "inline-block" }}>{name}</span>;
+}
+
 const BSIG_BASE     = "https://www.gesetze-im-internet.de/bsig_2025/";
 const REUSCHLAW     = "https://bsi-gesetz.de/erwaegungsgruende/";
 const BT_DRSACHE    = "https://dserver.bundestag.de/btd/21/015/2101501.pdf";
@@ -399,8 +403,8 @@ function mk(l) {
     langBtn:  de ? "EN" : "DE",
     hint:     de ? "Die Anlage 2 Nr. 5 des BSIG 2025 (in Kraft seit 6. Dezember 2025) erfasst Hersteller von Maschinen, elektrischen Ausrüstungen und Fahrzeugen — DESTATIS WZ 2008: 26.xx bis 30.99." : "Annex 2 No. 5 of BSIG 2025 (in force since 6 December 2025) covers manufacturers of machinery, electrical equipment and vehicles — DESTATIS WZ 2008: 26.xx to 30.99.",
     modeL:    de ? "Kennen Sie Ihre WZ-Nummer(n)?" : "Do you know your WZ/NACE code(s)?",
-    modeYes:  de ? "🔢  Ja — WZ-Nummer(n) direkt eingeben" : "🔢  Yes — enter WZ code(s) directly",
-    modeNo:   de ? "🔍  Nein — Erweiterte Analyse" : "🔍  No — Extended Analysis",
+    modeYes:  de ? "Ja — WZ-Nummer(n) direkt eingeben" : "Yes — enter WZ code(s) directly",
+    modeNo:   de ? "Nein — Erweiterte Analyse" : "No — Extended Analysis",
     modeNoHint: de ? "KI-Analyse · erfordert ein Claude-Konto (Anthropic)" : "AI analysis · requires a Claude account (Anthropic)",
     wzL:      de ? "WZ-Nummer(n) (DESTATIS 2008)" : "WZ code(s) (DESTATIS 2008)",
     wzPh:     de ? "z.B. 28.41" : "e.g. 28.41",
@@ -465,24 +469,24 @@ function mk(l) {
     mspBasis:  de ? "Rechtsgrundlage: § 2 Nr. 26 BSIG 2025 — Anlage 1 Nr. 6.1.10 — BT-Drucksache 21/1501" : "Legal basis: § 2 No. 26 BSIG 2025 — Annex 1 No. 6.1.10 — BT-Drucksache 21/1501",
     mspQ:      de ? "Gilt für Ihr Unternehmen eine oder mehrere der folgenden Konstellationen? (Mehrfachauswahl möglich)" : "Does one or more of the following apply to your company? (Multiple selection possible)",
     mspOpts: de ? [
-      { id: 0, icon: "🏭", label: "IT-Dienstleistungen im Konzernverbund", desc: "Wir erbringen IT-Leistungen für andere verbundene Unternehmen im Konzern (z.B. Rechenzentrumsbetrieb, ERP-Betrieb, Netzwerkinfrastruktur, Softwarelizenzen) — unabhängig davon, ob wir selbst IT-Dienste von einer Konzern- oder Muttergesellschaft beziehen." },
-      { id: 1, icon: "🔧", label: "IT-gestützte Dienste für Kunden", desc: "Wir bieten Kunden vertraglich IT-gestützte Leistungen an, z.B. Fernwartung mit SLAs, proaktives Monitoring (Condition Monitoring), Vor-Ort-Serviceeinsätze mit IT-Bezug bei Kundenanlagen." },
-      { id: 2, icon: "⬆️", label: "Abhängig von Konzern-IT der Mutter", desc: "Eine übergeordnete Mutter-/Konzerngesellschaft erbringt zentrale IT-Dienste für unser Unternehmen. Wichtig: Dies führt meist zur IT-Unselbständigkeit — bitte den nachfolgenden Prüfschritt beachten." },
-      { id: 3, icon: "✖️", label: "Keine dieser Konstellationen", desc: "Wir betreiben unsere IT ausschließlich für uns selbst und bieten keine IT-Dienste für Dritte oder verbundene Unternehmen an.", exclusive: true },
+      { id: 0, icon: "factory", label: "IT-Dienstleistungen im Konzernverbund", desc: "Wir erbringen IT-Leistungen für andere verbundene Unternehmen im Konzern (z.B. Rechenzentrumsbetrieb, ERP-Betrieb, Netzwerkinfrastruktur, Softwarelizenzen) — unabhängig davon, ob wir selbst IT-Dienste von einer Konzern- oder Muttergesellschaft beziehen." },
+      { id: 1, icon: "build", label: "IT-gestützte Dienste für Kunden", desc: "Wir bieten Kunden vertraglich IT-gestützte Leistungen an, z.B. Fernwartung mit SLAs, proaktives Monitoring (Condition Monitoring), Vor-Ort-Serviceeinsätze mit IT-Bezug bei Kundenanlagen." },
+      { id: 2, icon: "arrow_upward", label: "Abhängig von Konzern-IT der Mutter", desc: "Eine übergeordnete Mutter-/Konzerngesellschaft erbringt zentrale IT-Dienste für unser Unternehmen. Wichtig: Dies führt meist zur IT-Unselbständigkeit — bitte den nachfolgenden Prüfschritt beachten." },
+      { id: 3, icon: "close", label: "Keine dieser Konstellationen", desc: "Wir betreiben unsere IT ausschließlich für uns selbst und bieten keine IT-Dienste für Dritte oder verbundene Unternehmen an.", exclusive: true },
     ] : [
-      { id: 0, icon: "🏭", label: "IT services within the group", desc: "We provide IT services to other affiliated companies within the group (e.g. data centre operations, ERP, network infrastructure, software licences) — regardless of whether we ourselves receive IT services from a parent or group company." },
-      { id: 1, icon: "🔧", label: "IT-based services for customers", desc: "We contractually provide customers with IT-based services, e.g. remote maintenance with SLAs, proactive monitoring (condition monitoring), on-site service with IT relevance at customer sites." },
-      { id: 2, icon: "⬆️", label: "Dependent on parent group IT", desc: "A parent or group company centrally provides IT services to our entity. Important: This usually leads to IT non-independence — please refer to the subsequent check step." },
-      { id: 3, icon: "✖️", label: "None of the above", desc: "We operate our IT exclusively for ourselves and do not provide IT services to third parties or affiliated companies.", exclusive: true },
+      { id: 0, icon: "factory", label: "IT services within the group", desc: "We provide IT services to other affiliated companies within the group (e.g. data centre operations, ERP, network infrastructure, software licences) — regardless of whether we ourselves receive IT services from a parent or group company." },
+      { id: 1, icon: "build", label: "IT-based services for customers", desc: "We contractually provide customers with IT-based services, e.g. remote maintenance with SLAs, proactive monitoring (condition monitoring), on-site service with IT relevance at customer sites." },
+      { id: 2, icon: "arrow_upward", label: "Dependent on parent group IT", desc: "A parent or group company centrally provides IT services to our entity. Important: This usually leads to IT non-independence — please refer to the subsequent check step." },
+      { id: 3, icon: "close", label: "None of the above", desc: "We operate our IT exclusively for ourselves and do not provide IT services to third parties or affiliated companies.", exclusive: true },
     ],
     mspAlerts: de ? [
       { title: "MSP-Einstufungsrisiko: IT-Dienstleistungen im Konzernverbund", col: "#991b1b", bg: "#fef2f2", bdr: "#fca5a5", text: "Ihre Gesellschaft könnte als Managed Service Provider nach Anlage 1 Nr. 6.1.10 BSIG 2025 einzustufen sein — unabhängig davon, ob sie gleichzeitig selbst IT-Dienste von einer übergeordneten Konzerngesellschaft bezieht. Das Gesetz stellt auf die einzelne Rechtspersönlichkeit ab: Erbringt eine Gesellschaft relevante IT-Leistungen für andere verbundene Unternehmen, gelten diese als \"Kunden\". Eine MSP-Einstufung führt bei Überschreitung der Schwellenwerte für mittlere Unternehmen regelmäßig zur Einstufung als besonders wichtige Einrichtung (§ 28 Abs. 1 BSIG 2025).", hint: "Rechtsberatung dringend empfohlen." },
       { title: "MSP-Einstufungsrisiko: IT-gestützte Kundendienste", col: "#991b1b", bg: "#fef2f2", bdr: "#fca5a5", text: "Unternehmen, die Kunden vertraglich IT-gestützte Dienste erbringen, können als Managed Service Provider nach § 2 Nr. 26 BSIG 2025 einzustufen sein. Auch hier führt die MSP-Einstufung bei Überschreitung der mittleren Schwellenwerte zur Einstufung als besonders wichtige Einrichtung.", hint: "Prüfung empfohlen: § 2 Nr. 26 i.V.m. Anlage 1 Nr. 6.1.10 BSIG 2025." },
-      { title: "Hinweis: Separate MSP-Prüfung der Konzernmutter erforderlich", col: "#92400e", bg: "#fffbeb", bdr: "#fcd34d", text: "Die IT-Dienste erbringende Konzern- oder Muttergesellschaft sollte separat auf eine MSP-Einstufung nach Anlage 1 Nr. 6.1.10 BSIG 2025 geprüft werden. Für Ihr Unternehmen ist zudem die IT-Selbständigkeit zu prüfen (nachfolgender Prüfschritt).", hint: null },
+      { title: "Hinweis: Separate MSP-Prüfung der Konzernmutter erforderlich", col: "#B45309", bg: "#FFF7E6", bdr: "#FBBF24", text: "Die IT-Dienste erbringende Konzern- oder Muttergesellschaft sollte separat auf eine MSP-Einstufung nach Anlage 1 Nr. 6.1.10 BSIG 2025 geprüft werden. Für Ihr Unternehmen ist zudem die IT-Selbständigkeit zu prüfen (nachfolgender Prüfschritt).", hint: null },
     ] : [
       { title: "MSP classification risk: Central group IT service provider", col: "#991b1b", bg: "#fef2f2", bdr: "#fca5a5", text: "Your entity may qualify as a Managed Service Provider under Annex 1 No. 6.1.10 BSIG 2025. The law refers to individual legal entities — the other group companies are treated as \"customers\". An MSP classification regularly leads to classification as a particularly important entity if the thresholds for medium-sized enterprises are exceeded (§ 28 Para. 1 BSIG 2025).", hint: "Legal advice strongly recommended." },
       { title: "MSP classification risk: IT-based customer services", col: "#991b1b", bg: "#fef2f2", bdr: "#fca5a5", text: "Companies contractually providing customers with IT-based services may qualify as Managed Service Providers under § 2 No. 26 BSIG 2025. MSP classification leads to classification as a particularly important entity if medium-sized thresholds are exceeded.", hint: "Review recommended: § 2 No. 26 in conjunction with Annex 1 No. 6.1.10 BSIG 2025." },
-      { title: "Note: Separate MSP review of parent company required", col: "#92400e", bg: "#fffbeb", bdr: "#fcd34d", text: "The group or parent company providing IT services should separately be assessed for MSP classification under Annex 1 No. 6.1.10 BSIG 2025. For your entity, IT independence should also be assessed (see next check step).", hint: null },
+      { title: "Note: Separate MSP review of parent company required", col: "#B45309", bg: "#FFF7E6", bdr: "#FBBF24", text: "The group or parent company providing IT services should separately be assessed for MSP classification under Annex 1 No. 6.1.10 BSIG 2025. For your entity, IT independence should also be assessed (see next check step).", hint: null },
     ],
     mspHigherTier: de ? "Wichtig: Eine MSP-Einstufung (Anlage 1 Nr. 6.1.10) hat bei Überschreitung der Schwellenwerte für mittlere Unternehmen regelmäßig eine Höherstufung zur besonders wichtigen Einrichtung zur Folge (§ 28 Abs. 1 Nr. 1 BSIG 2025)." : "Important: An MSP classification (Annex 1 No. 6.1.10) regularly results in classification as a particularly important entity if the thresholds for medium-sized enterprises are exceeded (§ 28 Para. 1 No. 1 BSIG 2025).",
     negBlockedTitle: de ? "Vernachlässigbarkeitsprüfung — nicht anwendbar" : "Negligibility Check — not applicable",
@@ -634,39 +638,39 @@ function mk(l) {
     resTitle:  de ? "Weiterführende Quellen & Hilfen" : "Further Resources & Guidance",
     resGroups: de ? [
       { label: "Gesetz & Begründung", items: [
-        { icon: "⚖️", title: "BSIG 2025 — Verabschiedetes Gesetz", sub: "Volltext auf gesetze-im-internet.de", href: BSIG_BASE },
-        { icon: "📋", title: "Erwägungsgründe (reuschlaw)", sub: "bsi-gesetz.de — strukturierte Übersicht", href: REUSCHLAW },
-        { icon: "📄", title: "BT-Drucksache 21/1501", sub: "Offizielle Gesetzesbegründung", href: BT_DRSACHE },
-        { icon: "📚", title: "Vernachlässigbarkeit — Langversion (beck-online)", sub: "Vollständiges Prüfschema", href: BECK_NEG_URL },
+        { icon: "balance", title: "BSIG 2025 — Verabschiedetes Gesetz", sub: "Volltext auf gesetze-im-internet.de", href: BSIG_BASE },
+        { icon: "format_list_bulleted", title: "Erwägungsgründe (reuschlaw)", sub: "bsi-gesetz.de — strukturierte Übersicht", href: REUSCHLAW },
+        { icon: "description", title: "BT-Drucksache 21/1501", sub: "Offizielle Gesetzesbegründung", href: BT_DRSACHE },
+        { icon: "menu_book", title: "Vernachlässigbarkeit — Langversion (beck-online)", sub: "Vollständiges Prüfschema", href: BECK_NEG_URL },
       ]},
       { label: "BSI — Regulierungsbehörde", items: [
-        { icon: "🛡️", title: "BSI-Infopakete für regulierte Einrichtungen", sub: "Leitfäden, Checklisten, Formulare", href: BSI_INFOPAKET },
+        { icon: "security", title: "BSI-Infopakete für regulierte Einrichtungen", sub: "Leitfäden, Checklisten, Formulare", href: BSI_INFOPAKET },
       ]},
       { label: "VDMA — Branchenverband Maschinenbau", items: [
-        { icon: "🏭", title: "VDMA-Hilfen für betroffene Maschinenbauer", sub: "Praxisleitfäden, Muster, Ansprechpartner", href: VDMA_HILFEN },
-        { icon: "📅", title: "VDMA-Veranstaltungen zu NIS-2", sub: "Seminare, Webinare, Workshops", href: VDMA_EVENTS },
+        { icon: "factory", title: "VDMA-Hilfen für betroffene Maschinenbauer", sub: "Praxisleitfäden, Muster, Ansprechpartner", href: VDMA_HILFEN },
+        { icon: "event", title: "VDMA-Veranstaltungen zu NIS-2", sub: "Seminare, Webinare, Workshops", href: VDMA_EVENTS },
       ]},
       { label: "DESTATIS — WZ-Klassifikation", items: [
-        { icon: "📊", title: "WZ 2008 — Vollständige Klassifikation (PDF)", sub: "Amtliche DESTATIS-Ausgabe", href: DESTATIS_PDF },
-        { icon: "📑", title: "WZ 2008 — Alphabetisches Stichwortverzeichnis (XLSX)", sub: "Suche nach Produkten / Tätigkeiten", href: DESTATIS_XLSX },
+        { icon: "analytics", title: "WZ 2008 — Vollständige Klassifikation (PDF)", sub: "Amtliche DESTATIS-Ausgabe", href: DESTATIS_PDF },
+        { icon: "list_alt", title: "WZ 2008 — Alphabetisches Stichwortverzeichnis (XLSX)", sub: "Suche nach Produkten / Tätigkeiten", href: DESTATIS_XLSX },
       ]},
     ] : [
       { label: "Law & Explanatory Memorandum", items: [
-        { icon: "⚖️", title: "BSIG 2025 — Enacted Law", sub: "Full text at gesetze-im-internet.de", href: BSIG_BASE },
-        { icon: "📋", title: "Recitals overview (reuschlaw)", sub: "bsi-gesetz.de — structured overview", href: REUSCHLAW },
-        { icon: "📄", title: "BT-Drucksache 21/1501", sub: "Official explanatory memorandum", href: BT_DRSACHE },
-        { icon: "📚", title: "Negligibility — Long version (beck-online)", sub: "Full assessment schema", href: BECK_NEG_URL },
+        { icon: "balance", title: "BSIG 2025 — Enacted Law", sub: "Full text at gesetze-im-internet.de", href: BSIG_BASE },
+        { icon: "format_list_bulleted", title: "Recitals overview (reuschlaw)", sub: "bsi-gesetz.de — structured overview", href: REUSCHLAW },
+        { icon: "description", title: "BT-Drucksache 21/1501", sub: "Official explanatory memorandum", href: BT_DRSACHE },
+        { icon: "menu_book", title: "Negligibility — Long version (beck-online)", sub: "Full assessment schema", href: BECK_NEG_URL },
       ]},
       { label: "BSI — Regulatory Authority", items: [
-        { icon: "🛡️", title: "BSI Information Packages for Regulated Entities", sub: "Guides, checklists, forms", href: BSI_INFOPAKET },
+        { icon: "security", title: "BSI Information Packages for Regulated Entities", sub: "Guides, checklists, forms", href: BSI_INFOPAKET },
       ]},
       { label: "VDMA — Machinery Industry Association", items: [
-        { icon: "🏭", title: "VDMA Guidance for Affected Machinery Manufacturers", sub: "Practical guides, templates, contacts", href: VDMA_HILFEN },
-        { icon: "📅", title: "VDMA NIS-2 Events", sub: "Seminars, webinars, workshops", href: VDMA_EVENTS },
+        { icon: "factory", title: "VDMA Guidance for Affected Machinery Manufacturers", sub: "Practical guides, templates, contacts", href: VDMA_HILFEN },
+        { icon: "event", title: "VDMA NIS-2 Events", sub: "Seminars, webinars, workshops", href: VDMA_EVENTS },
       ]},
       { label: "DESTATIS — WZ Classification", items: [
-        { icon: "📊", title: "WZ 2008 — Full Classification (PDF)", sub: "Official DESTATIS edition", href: DESTATIS_PDF },
-        { icon: "📑", title: "WZ 2008 — Alphabetical Keyword Index (XLSX)", sub: "Search by product / activity", href: DESTATIS_XLSX },
+        { icon: "analytics", title: "WZ 2008 — Full Classification (PDF)", sub: "Official DESTATIS edition", href: DESTATIS_PDF },
+        { icon: "list_alt", title: "WZ 2008 — Alphabetical Keyword Index (XLSX)", sub: "Search by product / activity", href: DESTATIS_XLSX },
       ]},
     ],
     mspHintTitle: de ? "KI-Ersthinweis: Managed Service Provider erkannt" : "AI first hint: Managed Service Provider detected",
@@ -686,23 +690,23 @@ function mk(l) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 var S = {
-  lbl:  { fontWeight: 700, fontSize: 11.5, color: "#374151", marginBottom: 6, textTransform: "uppercase", letterSpacing: .6, display: "block" },
-  inp:  { width: "100%", padding: "10px 14px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none" },
-  pri:  { background: "#1a365d", color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", fontWeight: 700, fontSize: 14, display: "inline-flex", alignItems: "center", gap: 8 },
-  sec:  { background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 8, padding: "10px 18px", cursor: "pointer", fontWeight: 700, fontSize: 14 },
-  pill: function(bg, col) { return { display: "inline-flex", alignItems: "center", gap: 5, background: bg, borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 700, color: col }; },
-  link: function(col) { return { fontSize: 12.5, color: col || "#1d4ed8", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }; },
-  card: function(border, bg) { return { background: bg || "#fff", borderRadius: 10, border: "1.5px solid " + (border || "#e5e7eb"), padding: "14px 16px" }; },
-  numInp: { padding: "8px 12px", borderRadius: 7, border: "1.5px solid #e5e7eb", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none", width: "100%", textAlign: "right" },
+  lbl:  { fontWeight: 600, fontSize: 11.5, color: "#222F5C", marginBottom: 6, textTransform: "uppercase", letterSpacing: .6, display: "block", fontFamily: "'Jost', 'Poppins', sans-serif" },
+  inp:  { width: "100%", padding: "10px 14px", borderRadius: 4, border: "1.5px solid #E3E3E6", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none" },
+  pri:  { background: "#222F5C", color: "#fff", border: "none", borderRadius: 4, padding: "10px 24px", cursor: "pointer", fontWeight: 600, fontSize: 14, display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "'Jost', 'Poppins', sans-serif" },
+  sec:  { background: "#E3E3E6", color: "#222F5C", border: "none", borderRadius: 4, padding: "10px 18px", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: "'Jost', 'Poppins', sans-serif" },
+  pill: function(bg, col) { return { display: "inline-flex", alignItems: "center", gap: 5, background: bg, borderRadius: 3, padding: "3px 10px", fontSize: 12, fontWeight: 600, color: col, fontFamily: "'Jost', 'Poppins', sans-serif" }; },
+  link: function(col) { return { fontSize: 12.5, color: col || "#324C9C", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }; },
+  card: function(border, bg) { return { background: bg || "#fff", borderRadius: 6, border: "1.5px solid " + (border || "#E3E3E6"), padding: "14px 16px" }; },
+  numInp: { padding: "8px 12px", borderRadius: 4, border: "1.5px solid #E3E3E6", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none", width: "100%", textAlign: "right" },
 };
 
 var CONF_COL = { hoch: "#38a169", mittel: "#d69e2e", niedrig: "#e53e3e", high: "#38a169", medium: "#d69e2e", low: "#e53e3e" };
 var SRC_META = {
-  northdata:            { icon: "🏢", bg: "#dbeafe", col: "#1d4ed8" },
-  "handelsregister.ai": { icon: "🏛️", bg: "#ede9fe", col: "#6d28d9" },
-  destatis:             { icon: "📊", bg: "#dcfce7", col: "#166534" },
-  products:             { icon: "⚙️", bg: "#fef9c3", col: "#854d0e" },
-  direct:               { icon: "✏️", bg: "#f3f4f6", col: "#374151" },
+  northdata:            { icon: "business",        bg: "#dbeafe", col: "#324C9C" },
+  "handelsregister.ai": { icon: "account_balance", bg: "#ede9fe", col: "#324C9C" },
+  destatis:             { icon: "analytics",       bg: "#ECFDF3", col: "#166534" },
+  products:             { icon: "settings",        bg: "#fef9c3", col: "#854d0e" },
+  direct:               { icon: "edit",            bg: "#f3f4f6", col: "#374151" },
 };
 
 function TrashIcon() {
@@ -736,19 +740,19 @@ function ProgressStepper({ step, labels }) {
     <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
       {labels.map(function(lbl, i) {
         var done = i < step, current = i === step;
-        var col = done ? "#38a169" : current ? "#1a365d" : "#9ca3af";
-        var bg  = done ? "#dcfce7" : current ? "#dbeafe" : "#f3f4f6";
+        var col = done ? "#38a169" : current ? "#222F5C" : "#9ca3af";
+        var bg  = done ? "#ECFDF3" : current ? "#dbeafe" : "#f3f4f6";
         return (
           <div key={i} style={{ display: "flex", alignItems: "center", flex: i < labels.length - 1 ? 1 : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 24, height: 24, borderRadius: "50%", background: bg, border: "2px solid " + col, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {done ? <span style={{ fontSize: 13, color: "#166534" }}>✓</span>
+                {done ? <MI name="check" size={14} color="#166534"/>
                       : current ? <Spin />
                       : <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af" }}>{i + 1}</span>}
               </div>
               <span style={{ fontSize: 12, fontWeight: current ? 700 : 400, color: col, whiteSpace: "nowrap" }}>{lbl}</span>
             </div>
-            {i < labels.length - 1 && <div style={{ flex: 1, height: 2, background: done ? "#86efac" : "#e5e7eb", margin: "0 8px" }}/>}
+            {i < labels.length - 1 && <div style={{ flex: 1, height: 2, background: done ? "#86efac" : "#E3E3E6", margin: "0 8px" }}/>}
           </div>
         );
       })}
@@ -761,8 +765,8 @@ function WzHelpAccordion({ t, lang, open, setOpen }) {
     <div style={{ borderRadius: 8, border: "1px solid #dbeafe", overflow: "hidden" }}>
       <button onClick={function() { setOpen(function(o) { return !o; }); }} aria-expanded={open}
         style={{ width: "100%", background: open ? "#eff6ff" : "#f8fafc", border: "none", padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>ℹ️ {t.wzHelp.trigger}</span>
-        <span style={{ fontSize: 14, color: "#1d4ed8", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#324C9C", display: "inline-flex", alignItems: "center", gap: 6 }}><MI name="info" size={16} color="#324C9C"/>{t.wzHelp.trigger}</span>
+        <span style={{ fontSize: 14, color: "#324C9C", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </button>
       {open && (
         <div style={{ background: "#fff", padding: "14px 16px", borderTop: "1px solid #dbeafe" }}>
@@ -773,7 +777,7 @@ function WzHelpAccordion({ t, lang, open, setOpen }) {
               {[["28.41", "Werkzeugmaschinen"], ["26.51", "Messtechnik"], ["27.12", "Schaltanlagen"]].map(function(ex) {
                 return (
                   <div key={ex[0]} style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: 7, padding: "4px 10px", display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ fontWeight: 900, fontSize: 14, color: "#1a365d", fontFamily: "monospace" }}>{ex[0]}</span>
+                    <span style={{ fontWeight: 900, fontSize: 14, color: "#222F5C", fontFamily: "monospace" }}>{ex[0]}</span>
                     <span style={{ fontSize: 11, color: "#6b7280" }}>{ex[1]}</span>
                   </div>
                 );
@@ -783,11 +787,11 @@ function WzHelpAccordion({ t, lang, open, setOpen }) {
           <div style={{ background: "#f0fdf4", borderRadius: 7, padding: "10px 13px", marginBottom: 12, borderLeft: "3px solid #4ade80" }}>
             <p style={{ fontSize: 13, color: "#14532d", margin: 0, lineHeight: 1.6 }}>{t.wzHelp.stat}</p>
           </div>
-          <div style={{ background: "#fffbeb", borderRadius: 7, padding: "10px 13px", marginBottom: 12, borderLeft: "3px solid #f59e0b" }}>
-            <p style={{ fontSize: 13, color: "#78350f", margin: 0, lineHeight: 1.65, fontWeight: 500 }}>💡 {t.wzHelp.tip}</p>
+          <div style={{ background: "#FFF7E6", borderRadius: 7, padding: "10px 13px", marginBottom: 12, borderLeft: "3px solid #f59e0b" }}>
+            <p style={{ fontSize: 13, color: "#B45309", margin: 0, lineHeight: 1.65, fontWeight: 500, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="lightbulb" size={16} color="#F97F08"/><span>{t.wzHelp.tip}</span></p>
           </div>
           <div style={{ background: "#fff1f2", borderRadius: 7, padding: "10px 13px", marginBottom: 10, borderLeft: "3px solid #f87171" }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", margin: "0 0 5px" }}>⚠️ {lang === "de" ? "Achtung: Meldedaten können veraltet sein" : "Caution: Reported data may be outdated"}</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", margin: "0 0 5px", display: "flex", alignItems: "center", gap: 6 }}><MI name="warning" size={14} color="#991b1b"/>{lang === "de" ? "Achtung: Meldedaten können veraltet sein" : "Caution: Reported data may be outdated"}</p>
             <p style={{ fontSize: 12.5, color: "#7f1d1d", margin: 0, lineHeight: 1.65 }}>{t.wzHelp.warn}</p>
           </div>
           <p style={{ fontSize: 11, color: "#9ca3af", margin: 0, lineHeight: 1.5 }}>{t.wzHelp.src}</p>
@@ -801,22 +805,22 @@ function ResourcesSection({ t, compact }) {
   return (
     <div style={{ padding: compact ? "16px 0 0" : "0", background: "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 10 : 14 }}>
-        <span style={{ fontSize: compact ? 15 : 17 }}>📚</span>
-        <span style={{ fontWeight: 800, fontSize: compact ? 13 : 14, color: "#1a365d" }}>{t.resTitle}</span>
+        <MI name="menu_book" size={compact ? 16 : 20} color="#222F5C"/>
+        <span style={{ fontWeight: 800, fontSize: compact ? 13 : 14, color: "#222F5C" }}>{t.resTitle}</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: compact ? 12 : 16 }}>
         {t.resGroups.map(function(grp, gi) {
           return (
             <div key={gi}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .5, marginBottom: 6, borderBottom: "1px solid #e5e7eb", paddingBottom: 3 }}>{grp.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .5, marginBottom: 6, borderBottom: "1px solid #E3E3E6", paddingBottom: 3 }}>{grp.label}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 6 }}>
                 {grp.items.map(function(item, ii) {
                   return (
                     <a key={ii} href={item.href} target="_blank" rel="noreferrer"
-                      style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: compact ? "7px 10px" : "9px 12px", borderRadius: 8, background: "#fff", border: "1px solid #e5e7eb", textDecoration: "none" }}>
-                      <span style={{ fontSize: compact ? 15 : 18, flexShrink: 0, lineHeight: 1.3 }}>{item.icon}</span>
+                      style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: compact ? "7px 10px" : "9px 12px", borderRadius: 8, background: "#fff", border: "1px solid #E3E3E6", textDecoration: "none" }}>
+                      <MI name={item.icon} size={compact ? 16 : 20} color="#222F5C"/>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: compact ? 12.5 : 13, color: "#1a365d" }}>{item.title}</div>
+                        <div style={{ fontWeight: 600, fontSize: compact ? 12.5 : 13, color: "#222F5C" }}>{item.title}</div>
                         <div style={{ fontSize: compact ? 11 : 12, color: "#6b7280", marginTop: 1 }}>{item.sub}</div>
                       </div>
                       <span style={{ marginLeft: "auto", fontSize: 12, color: "#9ca3af", flexShrink: 0, paddingTop: 2 }}>↗</span>
@@ -838,44 +842,44 @@ function SrcSummaryCard({ t, compData, companyName }) {
   var num = compData.nace_code ? parseFloat(compData.nace_code) : null;
   var wzInScope = num !== null && num >= 26 && num < 31;
   return (
-    <div style={{ padding: "20px 24px", background: "#f8fafc", borderBottom: "1px solid #e5e7eb" }}>
+    <div style={{ padding: "20px 24px", background: "#f8fafc", borderBottom: "1px solid #E3E3E6" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 16 }}>🔎</span>
-        <span style={{ fontWeight: 800, fontSize: 14, color: "#1a365d" }}>{t.srcCompTitle}</span>
+        <MI name="search" size={18} color="#222F5C"/>
+        <span style={{ fontWeight: 800, fontSize: 14, color: "#222F5C" }}>{t.srcCompTitle}</span>
       </div>
       <p style={{ fontSize: 12.5, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.5 }}>{t.srcCompNote}</p>
       {compData.gegenstand && (
-        <div style={{ background: "#fff", borderRadius: 9, border: "1.5px solid #e5e7eb", padding: "12px 14px", marginBottom: 12 }}>
+        <div style={{ background: "#fff", borderRadius: 9, border: "1.5px solid #E3E3E6", padding: "12px 14px", marginBottom: 12 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .5, marginBottom: 6 }}>{t.colGegenstand}</div>
           <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.65, borderLeft: "3px solid #bfdbfe", paddingLeft: 10 }}>{compData.gegenstand}</p>
         </div>
       )}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
         {compData.nace_found && compData.nace_code ? (
-          <div style={{ background: wzInScope ? "#ecfdf5" : "#f9fafb", border: "1.5px solid " + (wzInScope ? "#86efac" : "#e5e7eb"), borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
-            <div style={{ fontWeight: 900, fontSize: 26, color: wzInScope ? "#166534" : "#1a365d", lineHeight: 1 }}>{compData.nace_code}</div>
-            <div style={{ fontSize: 10, background: "#dcfce7", color: "#166534", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-block" }}>✓ {t.nacePresentBadge}</div>
+          <div style={{ background: wzInScope ? "#ecfdf5" : "#f9fafb", border: "1.5px solid " + (wzInScope ? "#86efac" : "#E3E3E6"), borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
+            <div style={{ fontWeight: 900, fontSize: 26, color: wzInScope ? "#166534" : "#222F5C", lineHeight: 1 }}>{compData.nace_code}</div>
+            <div style={{ fontSize: 10, background: "#ECFDF3", color: "#166534", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="check" size={12} color="#166534"/>{t.nacePresentBadge}</div>
             {WZ_LABELS[compData.nace_code] && <div style={{ fontSize: 10.5, color: "#374151", marginTop: 5, lineHeight: 1.35 }}>{WZ_LABELS[compData.nace_code]}</div>}
           </div>
         ) : (
-          <div style={{ background: "#fffbeb", border: "1.5px solid #fde047", borderRadius: 8, padding: "10px 14px", textAlign: "center", minWidth: 110 }}>
-            <div style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", borderRadius: 4, padding: "3px 7px", fontWeight: 700, display: "inline-block", marginBottom: 4 }}>⚠ {t.naceAbsentBadge}</div>
+          <div style={{ background: "#FFF7E6", border: "1.5px solid #FBBF24", borderRadius: 8, padding: "10px 14px", textAlign: "center", minWidth: 110 }}>
+            <div style={{ fontSize: 11, background: "#FFF7E6", color: "#B45309", borderRadius: 4, padding: "3px 7px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 4 }}><MI name="warning" size={13} color="#F97F08"/>{t.naceAbsentBadge}</div>
           </div>
         )}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {[compData.rechtsform, compData.ort].filter(Boolean).map(function(m, i) {
-              return <span key={i} style={{ fontSize: 10.5, background: "#eff6ff", color: "#1d4ed8", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #bfdbfe" }}>{m}</span>;
+              return <span key={i} style={{ fontSize: 10.5, background: "#eff6ff", color: "#324C9C", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #bfdbfe" }}>{m}</span>;
             })}
-            {compData.hr_nummer && <span style={{ fontSize: 10.5, background: "#faf5ff", color: "#6d28d9", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>{compData.hr_nummer}</span>}
-            {compData.amtsgericht && <span style={{ fontSize: 10.5, background: "#faf5ff", color: "#6d28d9", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>AG {compData.amtsgericht}</span>}
+            {compData.hr_nummer && <span style={{ fontSize: 10.5, background: "#faf5ff", color: "#324C9C", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>{compData.hr_nummer}</span>}
+            {compData.amtsgericht && <span style={{ fontSize: 10.5, background: "#faf5ff", color: "#324C9C", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>AG {compData.amtsgericht}</span>}
           </div>
           {compData.products && (
-            <div style={{ fontSize: 11.5, color: "#374151", background: "#fef9c3", borderRadius: 6, padding: "5px 9px", border: "1px solid #fde047", lineHeight: 1.5 }}>
-              ⚙️ {compData.products}
+            <div style={{ fontSize: 11.5, color: "#374151", background: "#fef9c3", borderRadius: 4, padding: "5px 9px", border: "1px solid #FBBF24", lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <MI name="settings" size={14} color="#B45309"/><span>{compData.products}</span>
             </div>
           )}
-          <a href={ndUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#1d4ed8", textDecoration: "none", width: "fit-content" }}>
+          <a href={ndUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#324C9C", textDecoration: "none", width: "fit-content" }}>
             <ExtIcon/> Northdata ↗
           </a>
         </div>
@@ -907,22 +911,22 @@ function MspCheck({ t, lang, mspSels, setMspSels }) {
     });
   }
   return (
-    <div style={{ padding: "20px 24px", background: "#fffbeb", borderBottom: "1px solid #fde68a", borderTop: "2px solid #f59e0b" }}>
+    <div style={{ padding: "20px 24px", background: "#FFF7E6", borderBottom: "1px solid #fde68a", borderTop: "2px solid #f59e0b" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 18 }}>🏗️</span>
-        <div style={{ fontWeight: 800, fontSize: 14, color: "#92400e" }}>{t.mspTitle}</div>
+        <MI name="domain" size={20} color="#222F5C"/>
+        <div style={{ fontWeight: 800, fontSize: 14, color: "#B45309" }}>{t.mspTitle}</div>
         {mspSels.some(function(s) { return s; }) && (
-          <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "#dcfce7", color: "#166534", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>
-            ✓ {lang === "de" ? "Prüfung abgeschlossen" : "Check complete"}
+          <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, background: "#ECFDF3", color: "#166534", borderRadius: 4, padding: "3px 10px", fontSize: 12, fontWeight: 700, border: "1px solid #86efac" }}>
+            <MI name="check" size={14} color="#166534"/>{lang === "de" ? "Prüfung abgeschlossen" : "Check complete"}
           </span>
         )}
       </div>
-      <p style={{ fontSize: 13, color: "#78350f", margin: "0 0 10px", lineHeight: 1.6 }}>{t.mspIntro}</p>
+      <p style={{ fontSize: 13, color: "#B45309", margin: "0 0 10px", lineHeight: 1.6 }}>{t.mspIntro}</p>
       <div style={{ background: "#fff7ed", borderRadius: 8, padding: "11px 14px", borderLeft: "3px solid #f59e0b", marginBottom: 10 }}>
-        <p style={{ fontSize: 13, color: "#78350f", margin: "0 0 8px", lineHeight: 1.65 }}><strong>📖 {t.mspDef}</strong></p>
-        <p style={{ fontSize: 13, color: "#78350f", margin: 0, lineHeight: 1.65 }}>{t.mspKonzern}</p>
+        <p style={{ fontSize: 13, color: "#B45309", margin: "0 0 8px", lineHeight: 1.65, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="auto_stories" size={16} color="#B45309"/><strong>{t.mspDef}</strong></p>
+        <p style={{ fontSize: 13, color: "#B45309", margin: 0, lineHeight: 1.65 }}>{t.mspKonzern}</p>
       </div>
-      <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#92400e"), { fontSize: 12, marginBottom: 14, display: "inline-flex" })}>⚖️ {t.mspBasis} ↗</a>
+      <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#B45309"), { fontSize: 12, marginBottom: 14, display: "inline-flex", gap: 6 })}><MI name="balance" size={14} color="#B45309"/>{t.mspBasis} ↗</a>
       <div style={Object.assign({}, S.lbl, { marginTop: 12 })}>{t.mspQ}</div>
       {t.mspOpts.map(function(opt, i) {
         var sel = mspSels[i], isNone = opt.exclusive;
@@ -930,13 +934,13 @@ function MspCheck({ t, lang, mspSels, setMspSels }) {
           <div key={i} role="checkbox" aria-checked={sel} tabIndex={0}
             onClick={function(e) { handleClick(e, i, opt.exclusive); }}
             onKeyDown={function(e) { if (e.key === " " || e.key === "Enter") handleClick(e, i, opt.exclusive); }}
-            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderRadius: 9, border: "1.5px solid " + (sel ? (isNone ? "#d1d5db" : "#f59e0b") : "#e5e7eb"), background: sel ? (isNone ? "#f9fafb" : "#fffbeb") : "#fff", marginBottom: 8, cursor: "pointer", userSelect: "none" }}>
+            style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", borderRadius: 9, border: "1.5px solid " + (sel ? (isNone ? "#d1d5db" : "#f59e0b") : "#E3E3E6"), background: sel ? (isNone ? "#f9fafb" : "#FFF7E6") : "#fff", marginBottom: 8, cursor: "pointer", userSelect: "none" }}>
             <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 2, border: "2px solid " + (sel ? (isNone ? "#6b7280" : "#f59e0b") : "#9ca3af"), background: sel ? (isNone ? "#6b7280" : "#f59e0b") : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {sel && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: sel ? 700 : 500, color: "#111827", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}>
-                <span>{opt.icon}</span>{opt.label}
+                <MI name={opt.icon} size={18} color="#222F5C"/>{opt.label}
               </div>
               <div style={{ fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>{opt.desc}</div>
             </div>
@@ -947,7 +951,7 @@ function MspCheck({ t, lang, mspSels, setMspSels }) {
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           {hasMspRisk && (
             <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fff1f2", border: "1.5px solid #fda4af" }}>
-              <p style={{ fontSize: 12.5, color: "#9f1239", margin: 0, lineHeight: 1.6, fontWeight: 600 }}>⚡ {t.mspHigherTier}</p>
+              <p style={{ fontSize: 12.5, color: "#9f1239", margin: 0, lineHeight: 1.6, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="bolt" size={14} color="#F97F08"/><span>{t.mspHigherTier}</span></p>
             </div>
           )}
           {[0, 1, 2].filter(function(i) { return mspSels[i]; }).map(function(i) {
@@ -961,8 +965,8 @@ function MspCheck({ t, lang, mspSels, setMspSels }) {
             );
           })}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <a href={BSIG_BASE + "__2.html"} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#92400e"), { fontSize: 12 })}>⚖️ § 2 Nr. 26 BSIG 2025 ↗</a>
-            <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#92400e"), { fontSize: 12 })}>📄 BT-Drucksache 21/1501 ↗</a>
+            <a href={BSIG_BASE + "__2.html"} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#B45309"), { fontSize: 12, gap: 4 })}><MI name="balance" size={14} color="#B45309"/>§ 2 Nr. 26 BSIG 2025 ↗</a>
+            <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#B45309"), { fontSize: 12, gap: 4 })}><MI name="description" size={14} color="#B45309"/>BT-Drucksache 21/1501 ↗</a>
           </div>
         </div>
       )}
@@ -974,16 +978,16 @@ function NegligibilityBlocked({ t }) {
   return (
     <div style={{ padding: "20px 24px", background: "#fef2f2", borderBottom: "1px solid #fca5a5", borderTop: "2px solid #dc2626" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 18 }}>🚫</span>
+        <MI name="block" size={20} color="#991b1b"/>
         <div style={{ fontWeight: 800, fontSize: 14, color: "#991b1b" }}>{t.negBlockedTitle}</div>
       </div>
       <p style={{ fontSize: 13.5, color: "#991b1b", margin: "0 0 12px", lineHeight: 1.65, fontWeight: 600 }}>{t.negBlockedText}</p>
-      <div style={{ background: "#fff", borderRadius: 9, border: "1.5px solid #fca5a5", padding: "13px 15px", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: .5, marginBottom: 7 }}>📖 Gesetzesbegründung BSIG 2025</div>
+      <div style={{ background: "#fff", borderRadius: 4, border: "1.5px solid #fca5a5", padding: "13px 15px", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: .5, marginBottom: 7, display: "flex", alignItems: "center", gap: 6 }}><MI name="auto_stories" size={14} color="#991b1b"/>Gesetzesbegründung BSIG 2025</div>
         <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.7, borderLeft: "3px solid #fca5a5", paddingLeft: 11 }}>{t.negBlockedReason}</p>
       </div>
-      <div style={{ background: "#fffbeb", borderRadius: 8, border: "1px solid #fde68a", padding: "10px 13px", marginBottom: 10 }}>
-        <p style={{ fontSize: 12.5, color: "#92400e", margin: 0, lineHeight: 1.6 }}>⚠️ {t.negBlockedNote}</p>
+      <div style={{ background: "#FFF7E6", borderRadius: 4, border: "1px solid #fde68a", padding: "10px 13px", marginBottom: 10 }}>
+        <p style={{ fontSize: 12.5, color: "#B45309", margin: 0, lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={14} color="#F97F08"/><span>{t.negBlockedNote}</span></p>
       </div>
       <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{t.negBlockedSrc} — <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={{ color: "#991b1b", fontWeight: 600 }}>BT-Drucksache 21/1501 ↗</a></p>
     </div>
@@ -1005,30 +1009,30 @@ function NegligibilityInteractive({ t }) {
     });
   }, []);
   return (
-    <div style={{ padding: "20px 24px", background: "#f0f4ff", borderBottom: "1px solid #c7d2fe", borderTop: "2px solid #4f46e5" }}>
+    <div style={{ padding: "20px 24px", background: "#f0f4ff", borderBottom: "1px solid #c7d2fe", borderTop: "2px solid #324C9C" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 18 }}>🔬</span>
-        <div style={{ fontWeight: 800, fontSize: 14, color: "#3730a3" }}>{t.negTitle}</div>
+        <MI name="biotech" size={20} color="#222F5C"/>
+        <div style={{ fontWeight: 800, fontSize: 14, color: "#222F5C" }}>{t.negTitle}</div>
       </div>
-      <p style={{ fontSize: 13, color: "#3730a3", margin: "0 0 4px", lineHeight: 1.6 }}>{t.negIntro}</p>
+      <p style={{ fontSize: 13, color: "#222F5C", margin: "0 0 4px", lineHeight: 1.6 }}>{t.negIntro}</p>
       <p style={{ fontSize: 11, color: "#6366f1", margin: "0 0 16px" }}>
-        {t.negSrc} — <a href={BECK_NEG_URL} target="_blank" rel="noreferrer" style={{ color: "#4f46e5", fontWeight: 600 }}>beck-online ↗</a>
+        {t.negSrc} — <a href={BECK_NEG_URL} target="_blank" rel="noreferrer" style={{ color: "#324C9C", fontWeight: 600 }}>beck-online ↗</a>
       </p>
       {steps.slice(0, visibleCount).map(function(step, i) {
         var borderCol = answers[i] === false ? "#f87171" : answers[i] === true ? "#86efac" : "#c7d2fe";
         return (
           <div key={i} style={{ marginBottom: 12, background: "#fff", borderRadius: 10, border: "1.5px solid " + borderCol, overflow: "hidden" }}>
             <div style={{ background: "#eef2ff", padding: "10px 14px", borderBottom: "1px solid #c7d2fe", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ background: "#4f46e5", color: "#fff", borderRadius: "50%", width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ fontWeight: 700, fontSize: 13, color: "#3730a3" }}>{step.label}</span>
+              <span style={{ background: "#324C9C", color: "#fff", borderRadius: "50%", width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: "#222F5C" }}>{step.label}</span>
             </div>
             <div style={{ padding: "12px 14px" }}>
               <p style={{ fontSize: 13, color: "#111827", margin: "0 0 6px", lineHeight: 1.6, fontWeight: 500 }}>{step.q}</p>
               <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>{step.hint}</p>
               {step.warn && (
-                <div style={{ background: "#fefce8", border: "1px solid #fde047", borderRadius: 7, padding: "9px 12px", marginBottom: 10 }}>
+                <div style={{ background: "#FFF7E6", border: "1px solid #FBBF24", borderRadius: 7, padding: "9px 12px", marginBottom: 10 }}>
                   {step.warn.split("\n").map(function(line, li) {
-                    return <p key={li} style={{ fontSize: 12, color: "#78350f", margin: li === 0 ? "0 0 4px" : 0, lineHeight: 1.55 }}>{line}</p>;
+                    return <p key={li} style={{ fontSize: 12, color: "#B45309", margin: li === 0 ? "0 0 4px" : 0, lineHeight: 1.55 }}>{line}</p>;
                   })}
                 </div>
               )}
@@ -1036,7 +1040,7 @@ function NegligibilityInteractive({ t }) {
                 {[true, false].map(function(val, vi) {
                   var sel = answers[i] === val;
                   var col = val ? "#166534" : "#991b1b";
-                  var bg  = val ? (sel ? "#dcfce7" : "#f0fdf4") : (sel ? "#fee2e2" : "#fff5f5");
+                  var bg  = val ? (sel ? "#ECFDF3" : "#f0fdf4") : (sel ? "#FEF0F0" : "#fff5f5");
                   var bdr = val ? (sel ? "#4ade80" : "#bbf7d0") : (sel ? "#fca5a5" : "#fecaca");
                   return (
                     <button key={vi} onClick={function() { setAnswer(i, val); }} aria-pressed={sel}
@@ -1053,12 +1057,12 @@ function NegligibilityInteractive({ t }) {
           </div>
         );
       })}
-      {anyNo && !allYes && <div style={{ padding: "12px 14px", borderRadius: 8, background: "#fee2e2", border: "1.5px solid #fca5a5", marginTop: 4 }}>
-        <p style={{ fontSize: 13, color: "#991b1b", margin: 0, lineHeight: 1.6, fontWeight: 600 }}>⚠️ {t.negResultPos}</p>
+      {anyNo && !allYes && <div style={{ padding: "12px 14px", borderRadius: 8, background: "#FEF0F0", border: "1.5px solid #fca5a5", marginTop: 4 }}>
+        <p style={{ fontSize: 13, color: "#991b1b", margin: 0, lineHeight: 1.6, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={16} color="#991b1b"/><span>{t.negResultPos}</span></p>
       </div>}
       {allYes && <div style={{ padding: "12px 14px", borderRadius: 8, background: "#f0fff4", border: "1.5px solid #86efac", marginTop: 4 }}>
-        <p style={{ fontSize: 13, color: "#166534", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600 }}>✅ {t.negResultNeg}</p>
-        <a href={BECK_NEG_URL} target="_blank" rel="noreferrer" style={S.link("#166534")}>📚 Langversion Prüfschema (beck-online) ↗</a>
+        <p style={{ fontSize: 13, color: "#166534", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="check_circle" size={16} color="#166534"/><span>{t.negResultNeg}</span></p>
+        <a href={BECK_NEG_URL} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#166534"), { gap: 4 })}><MI name="menu_book" size={14} color="#166534"/>Langversion Prüfschema (beck-online) ↗</a>
       </div>}
     </div>
   );
@@ -1089,7 +1093,7 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
     return (
       <div style={{ padding: "20px 24px", background: "#fef2f2", borderBottom: "1px solid #fca5a5", borderTop: "2px solid #dc2626" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: 18 }}>🚫</span>
+          <MI name="block" size={20} color="#991b1b"/>
           <div style={{ fontWeight: 800, fontSize: 14, color: "#991b1b" }}>{t.itIndepBlockedTitle}</div>
         </div>
         <p style={{ fontSize: 13.5, color: "#991b1b", margin: "0 0 12px", lineHeight: 1.65, fontWeight: 600 }}>{t.itIndepBlockedText}</p>
@@ -1101,16 +1105,16 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
       </div>
     );
   }
-  var resCol  = { yes: "#166534", partial: "#92400e", no: "#991b1b" };
-  var resBg   = { yes: "#dcfce7", partial: "#fffbeb", no: "#fee2e2" };
-  var resBdr  = { yes: "#86efac", partial: "#fcd34d", no: "#fca5a5" };
-  var resIcon = { yes: "✅", partial: "⚠️", no: "🚫" };
+  var resCol  = { yes: "#166534", partial: "#B45309", no: "#991b1b" };
+  var resBg   = { yes: "#ECFDF3", partial: "#FFF7E6", no: "#FEF0F0" };
+  var resBdr  = { yes: "#86efac", partial: "#FBBF24", no: "#fca5a5" };
+  var resIcon = { yes: "check_circle", partial: "warning", no: "block" };
   var resTxt  = { yes: td.resultIndep, partial: td.resultPartial, no: td.resultNotIndep };
   function setAns(key, val) { setAnswers(function(prev) { var n = Object.assign({}, prev); n[key] = val; return n; }); }
   return (
     <div style={{ padding: "20px 24px", background: "#f0fdfa", borderBottom: "1px solid #99f6e4", borderTop: "2px solid #0d9488" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 18 }}>🔒</span>
+        <MI name="lock" size={20} color="#222F5C"/>
         <div style={{ fontWeight: 800, fontSize: 14, color: "#0f766e" }}>{td.title}</div>
       </div>
       <p style={{ fontSize: 13, color: "#134e4a", margin: "0 0 4px", lineHeight: 1.6 }}>{td.intro}</p>
@@ -1119,8 +1123,8 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
         var isRF = sec.isRedFlag;
         return (
           <div key={sec.id} style={{ marginBottom: 12, background: "#fff", borderRadius: 10, border: "1.5px solid " + (isRF ? "#fca5a5" : "#99f6e4"), overflow: "hidden" }}>
-            <div style={{ background: isRF ? "#fee2e2" : "#ccfbf1", padding: "9px 14px", borderBottom: "1px solid " + (isRF ? "#fca5a5" : "#99f6e4"), display: "flex", alignItems: "center", gap: 7 }}>
-              {isRF && <span style={{ fontSize: 13 }}>🚨</span>}
+            <div style={{ background: isRF ? "#FEF0F0" : "#ccfbf1", padding: "9px 14px", borderBottom: "1px solid " + (isRF ? "#fca5a5" : "#99f6e4"), display: "flex", alignItems: "center", gap: 7 }}>
+              {isRF && <MI name="emergency_home" size={16} color="#991b1b"/>}
               <span style={{ fontWeight: 700, fontSize: 13, color: isRF ? "#991b1b" : "#0f766e" }}>{sec.label}</span>
             </div>
             <div style={{ padding: "12px 14px" }}>
@@ -1134,7 +1138,7 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
                       {[true, false].map(function(val) {
                         var sel = ans === val, isGood = isRF ? val === false : val === true;
                         var col = isGood ? "#166534" : "#991b1b";
-                        var bg  = isGood ? (sel ? "#dcfce7" : "#f0fdf4") : (sel ? "#fee2e2" : "#fff5f5");
+                        var bg  = isGood ? (sel ? "#ECFDF3" : "#f0fdf4") : (sel ? "#FEF0F0" : "#fff5f5");
                         var bdr = isGood ? (sel ? "#4ade80" : "#bbf7d0") : (sel ? "#fca5a5" : "#fecaca");
                         var lbl = val ? (isRF ? td.yesRF : td.yes) : (isRF ? td.noRF : td.no);
                         return (
@@ -1157,11 +1161,11 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
       })}
       {resultType !== null && (
         <div style={{ padding: "12px 14px", borderRadius: 8, background: resBg[resultType], border: "1.5px solid " + resBdr[resultType], marginTop: 4 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px", color: resCol[resultType] }}>{resIcon[resultType]} {resTxt[resultType]}</p>
+          <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px", color: resCol[resultType], display: "flex", alignItems: "center", gap: 6 }}><MI name={resIcon[resultType]} size={16} color={resCol[resultType]}/> {resTxt[resultType]}</p>
           {redFlag && <p style={{ fontSize: 12, color: "#991b1b", margin: 0, lineHeight: 1.5 }}>{td.redFlagNote}</p>}
           {!redFlag && resultType === "no" && anyOverHalf && <p style={{ fontSize: 12, color: "#991b1b", margin: 0, lineHeight: 1.5 }}>{td.reasonOverHalf}</p>}
           {!redFlag && resultType === "no" && !anyOverHalf && allSecsHaveNeg && <p style={{ fontSize: 12, color: "#991b1b", margin: 0, lineHeight: 1.5 }}>{td.reasonAllSecs}</p>}
-          {resultType === "partial" && <p style={{ fontSize: 12, color: "#92400e", margin: 0, lineHeight: 1.5 }}>{td.reasonPartial}</p>}
+          {resultType === "partial" && <p style={{ fontSize: 12, color: "#B45309", margin: 0, lineHeight: 1.5 }}>{td.reasonPartial}</p>}
         </div>
       )}
     </div>
@@ -1194,28 +1198,35 @@ function ThresholdCheck({ t, mspSels, itResult }) {
   var meetsBWE = total.emp >= 250 || (total.turn > 50 && total.bal > 43);
   var meetsWE  = total.emp >= 50  || (total.turn > 10 && total.bal > 10);
   var classification = hasOwnData ? (!meetsWE ? "below" : meetsBWE && hasMsp ? "bwE" : "wE") : null;
-  var clsColors = { bwE: { bg: "#eff6ff", bdr: "#3b82f6", col: "#1d4ed8", icon: "🔵" }, wE: { bg: "#f0fdf4", bdr: "#86efac", col: "#166534", icon: "🟢" }, below: { bg: "#f9fafb", bdr: "#e5e7eb", col: "#374151", icon: "⚪" } };
+  var clsColors = { bwE: { bg: "#eff6ff", bdr: "#3b82f6", col: "#324C9C", icon: "shield" }, wE: { bg: "#f0fdf4", bdr: "#86efac", col: "#166534", icon: "verified" }, below: { bg: "#f9fafb", bdr: "#E3E3E6", col: "#374151", icon: "radio_button_unchecked" } };
   function addPartner() { setPartners(function(p) { return p.concat([{ emp: "", turn: "", bal: "", pct: "" }]); }); }
   function removePartner(i) { setPartners(function(p) { return p.filter(function(_, j) { return j !== i; }); }); }
   function setPartnerField(i, field, val) { setPartners(function(p) { var n2 = p.slice(); n2[i] = Object.assign({}, n2[i]); n2[i][field] = val; return n2; }); }
   function fmt(v)  { return v > 0 ? v.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "—"; }
   function fmtI(v) { return v > 0 ? Math.round(v).toLocaleString("de-DE") : "—"; }
   return (
-    <div style={{ padding: "20px 24px", background: "#faf5ff", borderBottom: "1px solid #e9d5ff", borderTop: "2px solid #7c3aed" }}>
+    <div style={{ padding: "20px 24px", background: "#faf5ff", borderBottom: "1px solid #e9d5ff", borderTop: "2px solid #324C9C" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 18 }}>📐</span>
-        <div style={{ fontWeight: 800, fontSize: 14, color: "#6d28d9" }}>{td.title}</div>
+        <MI name="square_foot" size={20} color="#324C9C"/>
+        <div style={{ fontWeight: 800, fontSize: 14, color: "#324C9C" }}>{td.title}</div>
       </div>
       <p style={{ fontSize: 13, color: "#4c1d95", margin: "0 0 4px", lineHeight: 1.6 }}>{td.intro}</p>
-      <p style={{ fontSize: 11, color: "#7c3aed", margin: "0 0 16px" }}>{td.basis}</p>
-      {itResult !== null && (
-        <div style={{ padding: "8px 12px", borderRadius: 7, marginBottom: 14, background: itIndep && !hasGroupMembership ? "#f0fdf4" : itPartial || (itIndep && hasGroupMembership) ? "#fffbeb" : "#fee2e2", border: "1px solid " + (itIndep && !hasGroupMembership ? "#86efac" : itPartial || (itIndep && hasGroupMembership) ? "#fcd34d" : "#fca5a5"), fontSize: 12.5, color: itIndep && !hasGroupMembership ? "#166534" : itPartial || (itIndep && hasGroupMembership) ? "#92400e" : "#991b1b" }}>
-          {itIndep && !hasGroupMembership ? "✅ " + td.itIndepNote : itIndep && hasGroupMembership ? "⚠️ " + (de ? "IT-Selbständigkeit bestätigt, jedoch Konzernzugehörigkeit festgestellt — Daten verbundener Unternehmen werden zur Vollständigkeit empfohlen." : "IT independence confirmed, but group membership identified — affiliated company data is recommended for completeness.") : itPartial ? "⚠️ " + td.itPartialNote : "🚫 " + td.affNote}
-        </div>
-      )}
-      {itResult === null && <div style={{ padding: "8px 12px", borderRadius: 7, marginBottom: 14, background: "#fffbeb", border: "1px solid #fcd34d", fontSize: 12.5, color: "#92400e" }}>⚠️ {td.itUnknownNote}</div>}
+      <p style={{ fontSize: 11, color: "#324C9C", margin: "0 0 16px" }}>{td.basis}</p>
+      {itResult !== null && (() => {
+        var isOk = itIndep && !hasGroupMembership;
+        var isWarn = itPartial || (itIndep && hasGroupMembership);
+        var icon = isOk ? "check_circle" : isWarn ? "warning" : "block";
+        var col = isOk ? "#166534" : isWarn ? "#B45309" : "#991b1b";
+        var msg = isOk ? td.itIndepNote : (itIndep && hasGroupMembership) ? (de ? "IT-Selbständigkeit bestätigt, jedoch Konzernzugehörigkeit festgestellt — Daten verbundener Unternehmen werden zur Vollständigkeit empfohlen." : "IT independence confirmed, but group membership identified — affiliated company data is recommended for completeness.") : itPartial ? td.itPartialNote : td.affNote;
+        return (
+          <div style={{ padding: "8px 12px", borderRadius: 4, marginBottom: 14, background: isOk ? "#f0fdf4" : isWarn ? "#FFF7E6" : "#FEF0F0", border: "1px solid " + (isOk ? "#86efac" : isWarn ? "#FBBF24" : "#fca5a5"), fontSize: 12.5, color: col, display: "flex", alignItems: "flex-start", gap: 6 }}>
+            <MI name={icon} size={16} color={isWarn ? "#F97F08" : col}/><span>{msg}</span>
+          </div>
+        );
+      })()}
+      {itResult === null && <div style={{ padding: "8px 12px", borderRadius: 4, marginBottom: 14, background: "#FFF7E6", border: "1px solid #FBBF24", fontSize: 12.5, color: "#B45309", display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={16} color="#F97F08"/><span>{td.itUnknownNote}</span></div>}
       <div style={{ background: "#fff", borderRadius: 10, border: "1.5px solid #e9d5ff", padding: "16px", marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#6d28d9", marginBottom: 4 }}>{td.ownDataTitle}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#324C9C", marginBottom: 4 }}>{td.ownDataTitle}</div>
         <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.5 }}>{td.ownDataNote}</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[{ label: td.empLabel, val: ownEmp, set: setOwnEmp, ph: td.empPh, step: 1 }, { label: td.turnLabel, val: ownTurn, set: setOwnTurn, ph: td.turnPh }, { label: td.balLabel, val: ownBal, set: setOwnBal, ph: td.balPh }].map(function(f, i) { return (
@@ -1226,7 +1237,7 @@ function ThresholdCheck({ t, mspSels, itResult }) {
       {includeAffiliated && (
         <>
           <div style={{ background: "#fff", borderRadius: 10, border: "1.5px solid #fca5a5", padding: "16px", marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#991b1b", marginBottom: 4 }}>🔗 {td.affTitle}</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#991b1b", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><MI name="link" size={16} color="#991b1b"/>{td.affTitle}</div>
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.5 }}>{td.affNote}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               {[{ label: td.empLabel, val: affEmp, set: setAffEmp, ph: td.empPh, step: 1 }, { label: td.turnLabel, val: affTurn, set: setAffTurn, ph: td.turnPh }, { label: td.balLabel, val: affBal, set: setAffBal, ph: td.balPh }].map(function(f, i) { return (
@@ -1236,12 +1247,12 @@ function ThresholdCheck({ t, mspSels, itResult }) {
           </div>
           {affEmpty && hasOwnData && (
             <div style={{ padding: "10px 14px", background: "#fff7ed", border: "1.5px solid #fb923c", borderRadius: 8, marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 9 }}>
-              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-              <p style={{ fontSize: 12.5, color: "#92400e", margin: 0, lineHeight: 1.6 }}>{de ? "Konzernzugehörigkeit festgestellt — bitte Daten der verbundenen Unternehmen eintragen." : "Group membership identified — please enter data for affiliated companies."}</p>
+              <MI name="warning" size={18} color="#F97F08"/>
+              <p style={{ fontSize: 12.5, color: "#B45309", margin: 0, lineHeight: 1.6 }}>{de ? "Konzernzugehörigkeit festgestellt — bitte Daten der verbundenen Unternehmen eintragen." : "Group membership identified — please enter data for affiliated companies."}</p>
             </div>
           )}
           <div style={{ background: "#fff", borderRadius: 10, border: "1.5px solid #fde68a", padding: "14px 16px", marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#92400e", marginBottom: 4 }}>🤝 {td.partTitle}</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><MI name="handshake" size={16} color="#F97F08"/>{td.partTitle}</div>
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>{td.partNote}</p>
             {partners.map(function(p, i) { return (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 80px 36px", gap: 8, marginBottom: 8, alignItems: "end" }}>
@@ -1254,21 +1265,21 @@ function ThresholdCheck({ t, mspSels, itResult }) {
                 </button>
               </div>
             ); })}
-            <button onClick={addPartner} style={{ fontSize: 13, fontWeight: 600, color: "#92400e", background: "#fffbeb", border: "1.5px dashed #fcd34d", borderRadius: 7, padding: "7px 14px", cursor: "pointer", width: "100%" }}>{td.addPartner}</button>
+            <button onClick={addPartner} style={{ fontSize: 13, fontWeight: 600, color: "#B45309", background: "#FFF7E6", border: "1.5px dashed #FBBF24", borderRadius: 7, padding: "7px 14px", cursor: "pointer", width: "100%" }}>{td.addPartner}</button>
           </div>
         </>
       )}
       {hasOwnData && (
         <div style={{ background: "#f5f3ff", borderRadius: 10, border: "1.5px solid #c4b5fd", padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#6d28d9", marginBottom: 10 }}>{td.totalTitle}</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#324C9C", marginBottom: 10 }}>{td.totalTitle}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             {[{ label: td.totalEmp, val: fmtI(total.emp), thresh1: "≥ 50", thresh2: "≥ 250", met1: total.emp >= 50, met2: total.emp >= 250 }, { label: td.totalTurn, val: fmt(total.turn), thresh1: "> 10 M€", thresh2: "> 50 M€", met1: total.turn > 10, met2: total.turn > 50 }, { label: td.totalBal, val: fmt(total.bal), thresh1: "> 10 M€", thresh2: "> 43 M€", met1: total.bal > 10, met2: total.bal > 43 }].map(function(item, i) { return (
               <div key={i} style={{ background: "#fff", borderRadius: 8, padding: "10px 12px", border: "1px solid #e9d5ff" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: .4, marginBottom: 4 }}>{item.label}</div>
-                <div style={{ fontWeight: 900, fontSize: 20, color: "#1a365d", marginBottom: 6 }}>{item.val}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#324C9C", textTransform: "uppercase", letterSpacing: .4, marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: "#222F5C", marginBottom: 6 }}>{item.val}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <span style={{ fontSize: 11, background: item.met1 ? "#dcfce7" : "#f3f4f6", color: item.met1 ? "#166534" : "#9ca3af", borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>wE {item.thresh1} {item.met1 ? "✓" : "✗"}</span>
-                  <span style={{ fontSize: 11, background: item.met2 ? "#dbeafe" : "#f3f4f6", color: item.met2 ? "#1d4ed8" : "#9ca3af", borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>bwE {item.thresh2} {item.met2 ? "✓" : "✗"}</span>
+                  <span style={{ fontSize: 11, background: item.met1 ? "#ECFDF3" : "#f3f4f6", color: item.met1 ? "#166534" : "#9ca3af", borderRadius: 4, padding: "1px 6px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>wE {item.thresh1} <MI name={item.met1 ? "check" : "close"} size={12} color={item.met1 ? "#166534" : "#9ca3af"}/></span>
+                  <span style={{ fontSize: 11, background: item.met2 ? "#dbeafe" : "#f3f4f6", color: item.met2 ? "#324C9C" : "#9ca3af", borderRadius: 4, padding: "1px 6px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>bwE {item.thresh2} <MI name={item.met2 ? "check" : "close"} size={12} color={item.met2 ? "#324C9C" : "#9ca3af"}/></span>
                 </div>
               </div>
             ); })}
@@ -1278,12 +1289,12 @@ function ThresholdCheck({ t, mspSels, itResult }) {
       {classification ? (
         <div>
           <div style={{ background: clsColors[classification].bg, border: "2px solid " + clsColors[classification].bdr, borderRadius: 10, padding: "14px 16px", marginBottom: 10 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: clsColors[classification].col, marginBottom: 6 }}>{clsColors[classification].icon} {classification === "bwE" ? td.resultBWE : classification === "wE" ? td.resultWE : td.resultBelow}</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: clsColors[classification].col, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}><MI name={clsColors[classification].icon} size={18} color={clsColors[classification].col}/> {classification === "bwE" ? td.resultBWE : classification === "wE" ? td.resultWE : td.resultBelow}</div>
             <p style={{ fontSize: 13, color: clsColors[classification].col, margin: 0, lineHeight: 1.65 }}>{classification === "bwE" ? td.resultBWEText : classification === "wE" ? td.resultWEText : td.resultBelowText}</p>
-            {classification === "wE" && meetsBWE && !hasMsp && <div style={{ marginTop: 10, padding: "8px 12px", background: "#fff", borderRadius: 7, border: "1px solid #bfdbfe" }}><p style={{ fontSize: 12, color: "#1d4ed8", margin: 0, lineHeight: 1.55 }}>ℹ️ {td.capNote}</p></div>}
+            {classification === "wE" && meetsBWE && !hasMsp && <div style={{ marginTop: 10, padding: "8px 12px", background: "#fff", borderRadius: 4, border: "1px solid #bfdbfe" }}><p style={{ fontSize: 12, color: "#324C9C", margin: 0, lineHeight: 1.55, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="info" size={14} color="#324C9C"/><span>{td.capNote}</span></p></div>}
           </div>
           <div style={{ padding: "9px 12px", background: "#faf5ff", borderRadius: 7, border: "1px solid #e9d5ff" }}>
-            <p style={{ fontSize: 12, color: "#6d28d9", margin: 0, lineHeight: 1.55 }}>⏱️ {td.stabilityNote}</p>
+            <p style={{ fontSize: 12, color: "#324C9C", margin: 0, lineHeight: 1.55 }}>⏱️ {td.stabilityNote}</p>
           </div>
         </div>
       ) : (!hasOwnData && <div style={{ padding: "10px 14px", background: "#f9fafb", borderRadius: 8, border: "1px dashed #d1d5db" }}><p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{td.noDataNote}</p></div>)}
@@ -1316,7 +1327,7 @@ function ApiStatusBar({ lang, onReset }) {
   }
   useEffect(function() { doCheck(); }, []);
   var cfgs = {
-    checking: { dot: "#f59e0b", bg: "#fffbeb", bdr: "#fde68a", col: "#92400e", label: de ? "Claude wird geprüft …" : "Checking Claude …", pulse: true },
+    checking: { dot: "#f59e0b", bg: "#FFF7E6", bdr: "#fde68a", col: "#B45309", label: de ? "Claude wird geprüft …" : "Checking Claude …", pulse: true },
     ok:       { dot: "#22c55e", bg: "#f0fdf4", bdr: "#bbf7d0", col: "#166534", label: de ? "Claude verfügbar" : "Claude available", pulse: false },
     error:    { dot: "#ef4444", bg: "#fff1f2", bdr: "#fecdd3", col: "#991b1b", label: de ? "Claude nicht erreichbar" : "Claude unavailable", pulse: false },
   };
@@ -1330,7 +1341,7 @@ function ApiStatusBar({ lang, onReset }) {
       <span style={{ fontSize: 13, fontWeight: 600, color: c.col, flex: 1 }}>{c.label}</span>
       {status === "error" && (
         <button onClick={doCheck}
-          style={{ background: "#fee2e2", border: "1.5px solid #fca5a5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12, color: "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
+          style={{ background: "#FEF0F0", border: "1.5px solid #fca5a5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12, color: "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
           ↺ {de ? "Erneut prüfen" : "Retry"}
         </button>
       )}
@@ -1466,7 +1477,7 @@ export default function App() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {(used || []).map(function(k) {
           var m = SRC_META[k] || { icon: "•", bg: "#f3f4f6", col: "#374151" };
-          return <span key={k} style={S.pill(m.bg, m.col)}>{m.icon} {srcMap[k] || k}</span>;
+          return <span key={k} style={S.pill(m.bg, m.col)}><MI name={m.icon} size={13} color={m.col}/> {srcMap[k] || k}</span>;
         })}
       </div>
     );
@@ -1479,13 +1490,13 @@ export default function App() {
       : ["WZ classification", "MSP/Group structure", "Negligibility", "IT independence", "Thresholds"];
     return (
       <div style={{ padding: "10px 24px", background: "#f0f4ff", borderBottom: "1px solid #c7d2fe", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#4f46e5", textTransform: "uppercase", letterSpacing: .4, marginRight: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#324C9C", textTransform: "uppercase", letterSpacing: .4, marginRight: 4, flexShrink: 0 }}>
           {de ? "Prüfreihenfolge:" : "Check order:"}
         </span>
         {steps.map(function(s, i) {
           return (
             <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 11, background: i === 1 ? "#fef3c7" : i === 2 && hasMspRisk ? "#fee2e2" : "#e0e7ff", color: i === 1 ? "#92400e" : i === 2 && hasMspRisk ? "#991b1b" : "#3730a3", borderRadius: 4, padding: "2px 7px", fontWeight: 700 }}>
+              <span style={{ fontSize: 11, background: i === 1 ? "#FFF7E6" : i === 2 && hasMspRisk ? "#FEF0F0" : "#e0e7ff", color: i === 1 ? "#B45309" : i === 2 && hasMspRisk ? "#991b1b" : "#222F5C", borderRadius: 4, padding: "2px 7px", fontWeight: 700 }}>
                 {i + 1}. {s}
               </span>
               {i < steps.length - 1 && <span style={{ fontSize: 10, color: "#9ca3af" }}>→</span>}
@@ -1505,35 +1516,35 @@ export default function App() {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
           <div style={{ background: "#f0f4ff", borderRadius: 10, padding: "14px 20px", minWidth: 150 }}>
             <div style={Object.assign({}, S.lbl, { marginBottom: 4 })}>{t.wzLabelSingle}</div>
-            <div style={{ fontWeight: 900, fontSize: 30, color: "#1a365d", lineHeight: 1 }}>{result.primary_wz}</div>
+            <div style={{ fontWeight: 900, fontSize: 30, color: "#222F5C", lineHeight: 1 }}>{result.primary_wz}</div>
                             <div style={{ fontSize: 12, color: "#374151", marginTop: 5, lineHeight: 1.4 }}>{result.primary_label}</div>
           </div>
           {!result.directMode && compData && (
-            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 16px", border: "1.5px solid #e5e7eb", flex: 1, minWidth: 160 }}>
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 16px", border: "1.5px solid #E3E3E6", flex: 1, minWidth: 160 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .5, marginBottom: 8 }}>
                 {lang === "de" ? "Analysiertes Unternehmen" : "Analysed company"}
               </div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: "#1a365d", marginBottom: 4, lineHeight: 1.3 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#222F5C", marginBottom: 4, lineHeight: 1.3 }}>
                 {comp || compData.gegenstand || "—"}
               </div>
               {compData.ort && (
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12 }}>📍</span>
+                  <MI name="location_on" size={14} color="#324C9C"/>
                   <span style={{ fontSize: 13, color: "#374151" }}>{compData.ort}</span>
                 </div>
               )}
               {compData.rechtsform && (
-                <span style={{ fontSize: 11, background: "#eff6ff", color: "#1d4ed8", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #bfdbfe", marginRight: 5 }}>{compData.rechtsform}</span>
+                <span style={{ fontSize: 11, background: "#eff6ff", color: "#324C9C", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #bfdbfe", marginRight: 5 }}>{compData.rechtsform}</span>
               )}
               {compData.hr_nummer && (
-                <span style={{ fontSize: 11, background: "#faf5ff", color: "#6d28d9", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>
+                <span style={{ fontSize: 11, background: "#faf5ff", color: "#324C9C", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>
                   {compData.hr_nummer}{compData.amtsgericht ? " · AG " + compData.amtsgericht : ""}
                 </span>
               )}
               {compData.northdata_url && (
                 <div style={{ marginTop: 8 }}>
                   <a href={compData.northdata_url} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    style={{ fontSize: 11, fontWeight: 700, color: "#324C9C", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
                     <ExtIcon/> Northdata ↗
                   </a>
                 </div>
@@ -1552,7 +1563,7 @@ export default function App() {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {result.alternative_wz.map(function(wz, i) {
                   var label = typeof wz === "object" ? (wz.wz || wz.label || JSON.stringify(wz)) : String(wz);
-                  return <span key={i} style={S.pill("#e5e7eb", "#374151")}>{label}</span>;
+                  return <span key={i} style={S.pill("#E3E3E6", "#374151")}>{label}</span>;
                 })}
               </div>
             </div>
@@ -1568,15 +1579,15 @@ export default function App() {
           {entries.map(function(entry, i) {
             var col = entry.in_scope ? "#166534" : "#6b7280";
             var bg  = entry.in_scope ? "#f0fdf4" : "#f9fafb";
-            var bdr = entry.in_scope ? "#86efac" : "#e5e7eb";
+            var bdr = entry.in_scope ? "#86efac" : "#E3E3E6";
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: bg, border: "1.5px solid " + bdr, borderRadius: 9, padding: "10px 14px" }}>
-                <span style={{ fontWeight: 900, fontSize: 20, color: entry.in_scope ? "#1a365d" : "#9ca3af", fontFamily: "monospace", minWidth: 52 }}>{entry.wz}</span>
+                <span style={{ fontWeight: 900, fontSize: 20, color: entry.in_scope ? "#222F5C" : "#9ca3af", fontFamily: "monospace", minWidth: 52 }}>{entry.wz}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.4 }}>{entry.label || "—"}</div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, background: entry.in_scope ? "#dcfce7" : "#f3f4f6", color: col, borderRadius: 5, padding: "3px 9px", whiteSpace: "nowrap", flexShrink: 0 }}>
-                  {entry.in_scope ? "✓ " + t.wzInScope : "✗ " + t.wzOutScope}
+                <span style={{ fontSize: 11, fontWeight: 700, background: entry.in_scope ? "#ECFDF3" : "#f3f4f6", color: col, borderRadius: 4, padding: "3px 9px", whiteSpace: "nowrap", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <MI name={entry.in_scope ? "check" : "close"} size={13} color={col}/>{entry.in_scope ? t.wzInScope : t.wzOutScope}
                 </span>
               </div>
             );
@@ -1587,8 +1598,8 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", maxWidth: 780, margin: "0 auto", background: "#fff", minHeight: "100vh", boxShadow: "0 0 0 1px #e5e7eb" }}>
-      <div style={{ background: "linear-gradient(135deg,#1a365d 0%,#2d4e8a 60%,#1e3a5f 100%)", color: "#fff", padding: "22px 32px 20px" }}>
+    <div style={{ fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", maxWidth: 780, margin: "0 auto", background: "#fff", minHeight: "100vh", boxShadow: "0 0 0 1px #E3E3E6" }}>
+      <div style={{ background: "linear-gradient(135deg,#222F5C 0%,#2d4e8a 60%,#1e3a5f 100%)", color: "#fff", padding: "22px 32px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#93c5fd", textTransform: "uppercase", marginBottom: 3 }}>BSI Compliance Tool</div>
@@ -1617,9 +1628,11 @@ export default function App() {
                   <div key={m} role="button" tabIndex={0}
                     onClick={function() { setMode(m); setResult(null); clearErrors(); setCompData(null); setStep(-1); setMspSels([false,false,false,false]); setItResult(null); setWzHelpOpen(false); }}
                     onKeyDown={function(e) { if (e.key === "Enter") setMode(m); }}
-                    style={{ flex: 1, minWidth: 200, padding: "14px 18px", borderRadius: 10, border: "2px solid " + (sel ? "#1a365d" : "#e5e7eb"), background: sel ? "#eff6ff" : "#fafafa", cursor: "pointer", fontWeight: sel ? 700 : 400, fontSize: 14, color: sel ? "#1a365d" : "#374151", lineHeight: 1.4 }}>
-                    {i === 0 ? t.modeYes : t.modeNo}
-                    {i === 1 && <div style={{ fontSize: 11, color: "#6d28d9", marginTop: 5, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><span>🤖</span>{t.modeNoHint}</div>}
+                    style={{ flex: 1, minWidth: 200, padding: "14px 18px", borderRadius: 4, border: "2px solid " + (sel ? "#222F5C" : "#E3E3E6"), background: sel ? "#eff6ff" : "#fafafa", cursor: "pointer", fontWeight: sel ? 700 : 400, fontSize: 14, color: sel ? "#222F5C" : "#374151", lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
+                    <MI name={i === 0 ? "pin" : "search"} size={18} color={sel ? "#222F5C" : "#6b7280"}/>
+                    <span>{i === 0 ? t.modeYes : t.modeNo}
+                      {i === 1 && <div style={{ fontSize: 11, color: "#324C9C", marginTop: 5, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><MI name="smart_toy" size={14} color="#324C9C"/>{t.modeNoHint}</div>}
+                    </span>
                   </div>
                 );
               })}
@@ -1650,7 +1663,7 @@ export default function App() {
               );
             })}
             <button onClick={addWzInput}
-              style={{ fontSize: 12.5, fontWeight: 600, color: "#1d4ed8", background: "#eff6ff", border: "1.5px dashed #bfdbfe", borderRadius: 7, padding: "6px 13px", cursor: "pointer", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              style={{ fontSize: 12.5, fontWeight: 600, color: "#324C9C", background: "#eff6ff", border: "1.5px dashed #bfdbfe", borderRadius: 7, padding: "6px 13px", cursor: "pointer", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
               {t.addWz}
             </button>
             <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{t.wzHint}</p>
@@ -1659,7 +1672,7 @@ export default function App() {
 
         {mode === "analyze" && !result && (
           <div>
-            <div style={Object.assign({}, S.card("#e5e7eb", "#f8fafc"), { marginBottom: 14, padding: "20px 22px" })}>
+            <div style={Object.assign({}, S.card("#E3E3E6", "#f8fafc"), { marginBottom: 14, padding: "20px 22px" })}>
               <div style={{ marginBottom: 16 }}>
                 <label htmlFor="comp-input" style={S.lbl}>{t.compL}</label>
                 <input id="comp-input" value={comp} onChange={function(e) { setComp(e.target.value); }} placeholder={t.compPh}
@@ -1677,7 +1690,7 @@ export default function App() {
                   <label htmlFor="prod-input" style={S.lbl}>{t.prodL}</label>
                   {prod.trim() && !busy && (
                     <button onClick={function() { setProd(""); }} title={t.prodClear}
-                      style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "4px 7px", cursor: "pointer", color: "#9ca3af", display: "inline-flex", alignItems: "center" }}>
+                      style={{ background: "none", border: "1px solid #E3E3E6", borderRadius: 6, padding: "4px 7px", cursor: "pointer", color: "#9ca3af", display: "inline-flex", alignItems: "center" }}>
                       <TrashIcon/>
                     </button>
                   )}
@@ -1691,18 +1704,18 @@ export default function App() {
             {busy && (
               <div style={{ marginBottom: 14 }}>
                 <ProgressStepper step={step} labels={[t.step1, t.step2]}/>
-                <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 9, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ background: "#FFF7E6", border: "1.5px solid #fde68a", borderRadius: 9, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                   <Spin/>
-                  <span style={{ fontSize: 13, color: "#78350f", flex: 1, lineHeight: 1.5 }}>{step === 0 ? t.step1Hint : t.step2Hint}</span>
+                  <span style={{ fontSize: 13, color: "#B45309", flex: 1, lineHeight: 1.5 }}>{step === 0 ? t.step1Hint : t.step2Hint}</span>
                   <button onClick={cancelAnalysis}
-                    style={{ background: "#fee2e2", color: "#991b1b", border: "1.5px solid #fca5a5", borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    style={{ background: "#FEF0F0", color: "#991b1b", border: "1.5px solid #fca5a5", borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap", flexShrink: 0 }}>
                     {t.cancelBtn}
                   </button>
                 </div>
               </div>
             )}
-            {errors.phase1 && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 8, background: "#fee2e2", padding: "8px 12px", borderRadius: 6 }}>⚠️ {errors.phase1}</p>}
-            {errors.phase2 && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 8, background: "#fee2e2", padding: "8px 12px", borderRadius: 6 }}>⚠️ {errors.phase2}</p>}
+            {errors.phase1 && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 8, background: "#FEF0F0", padding: "8px 12px", borderRadius: 4, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={16} color="#dc2626"/><span>{errors.phase1}</span></p>}
+            {errors.phase2 && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 8, background: "#FEF0F0", padding: "8px 12px", borderRadius: 4, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={16} color="#dc2626"/><span>{errors.phase2}</span></p>}
             {!busy && <button onClick={handleAnalyze} style={S.pri}>{t.analyzeBtn}</button>}
           </div>
         )}
@@ -1711,16 +1724,16 @@ export default function App() {
 
         {/* ── Quellen in der Anfangsübersicht ── */}
         {!result && (
-          <div style={{ marginTop: 28, borderRadius: 10, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
+          <div style={{ marginTop: 28, borderRadius: 10, border: "1.5px solid #E3E3E6", overflow: "hidden" }}>
             <div style={{ background: "#f0f4ff", padding: "12px 18px", borderBottom: "1px solid #c7d2fe", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 15 }}>📚</span>
-              <span style={{ fontWeight: 800, fontSize: 13, color: "#1a365d" }}>{t.resTitle}</span>
+              <MI name="menu_book" size={18} color="#222F5C"/>
+              <span style={{ fontWeight: 800, fontSize: 13, color: "#222F5C" }}>{t.resTitle}</span>
             </div>
             <div style={{ padding: "16px 18px", background: "#fff" }}>
               <ResourcesSection t={t} compact={true}/>
             </div>
-            <div style={{ padding: "10px 18px", background: "#fefce8", borderTop: "1px solid #fde047" }}>
-              <p style={{ fontSize: 11.5, color: "#713f12", margin: 0 }}>⚠️ {t.disclaimer}</p>
+            <div style={{ padding: "10px 18px", background: "#FFF7E6", borderTop: "1px solid #FBBF24" }}>
+              <p style={{ fontSize: 11.5, color: "#713f12", margin: 0, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={14} color="#F97F08"/><span>{t.disclaimer}</span></p>
             </div>
           </div>
         )}
@@ -1728,8 +1741,8 @@ export default function App() {
         {result && (
           <>
             {result.skippedClassification && (
-              <div style={{ background: "#dcfce7", border: "1px solid #86efac", borderRadius: 7, padding: "6px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#166534", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                ⚡ {t.callsSaved}
+              <div style={{ background: "#ECFDF3", border: "1px solid #86efac", borderRadius: 4, padding: "6px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#166534", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <MI name="bolt" size={14} color="#166534"/>{t.callsSaved}
               </div>
             )}
 
@@ -1738,7 +1751,7 @@ export default function App() {
               {/* ── WZ Result header ── */}
               <div style={{ background: result.in_scope ? "#f0fff4" : "#fff5f5", padding: "20px 24px", borderBottom: "1px solid " + scC + "25" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{result.in_scope ? "✅" : "⚠️"}</span>
+                  <MI name={result.in_scope ? "verified" : "warning"} size={28} color={result.in_scope ? "#166534" : "#F97F08"}/>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 17, color: scC, marginBottom: 5 }}>{result.in_scope ? t.inScopeH : t.outScopeH}</div>
                     <p style={{ fontSize: 13.5, color: "#374151", margin: 0, lineHeight: 1.65 }}>{result.in_scope ? t.inScopeB : t.outScopeB}</p>
@@ -1757,9 +1770,9 @@ export default function App() {
                   </div>
                 )}
                 {result.northdataOverride && (
-                  <div style={{ marginTop: 10, padding: "11px 14px", background: "#fffbeb", borderRadius: 8, border: "1.5px solid #f59e0b" }}>
-                    <div style={{ fontWeight: 700, fontSize: 12, color: "#92400e", marginBottom: 4 }}>⚡ {lang === "de" ? "Zweistufige Prüfung — KI übersteuert Northdata" : "Two-stage check — AI overrides Northdata"}</div>
-                    <p style={{ fontSize: 12.5, color: "#78350f", margin: 0, lineHeight: 1.6 }}>
+                  <div style={{ marginTop: 10, padding: "11px 14px", background: "#FFF7E6", borderRadius: 8, border: "1.5px solid #f59e0b" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><MI name="bolt" size={14} color="#F97F08"/>{lang === "de" ? "Zweistufige Prüfung — KI übersteuert Northdata" : "Two-stage check — AI overrides Northdata"}</div>
+                    <p style={{ fontSize: 12.5, color: "#B45309", margin: 0, lineHeight: 1.6 }}>
                       {lang === "de"
                         ? "Northdata/Handelsregister weist WZ " + result.northdataWz + " aus (außerhalb des BSIG-Bereichs). Die KI-Produktanalyse ergibt jedoch eine Klassifikation im Anwendungsbereich — bitte intern verifizieren."
                         : "Northdata/commercial register shows WZ " + result.northdataWz + " (outside BSIG scope). However, the AI product analysis results in an in-scope classification — please verify internally."}
@@ -1768,9 +1781,9 @@ export default function App() {
                 )}
                 {!result.directMode && (
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ padding: "10px 14px", background: "#fefce8", borderRadius: 8, border: "1px solid #fde047", marginBottom: 10 }}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: "#854d0e", marginBottom: 3 }}>⚠️ {t.aiWzNoteTitle}</div>
-                      <p style={{ fontSize: 12.5, color: "#78350f", margin: 0, lineHeight: 1.55 }}>{t.aiWzNote}</p>
+                    <div style={{ padding: "10px 14px", background: "#FFF7E6", borderRadius: 8, border: "1px solid #FBBF24", marginBottom: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: "#854d0e", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><MI name="warning" size={14} color="#F97F08"/>{t.aiWzNoteTitle}</div>
+                      <p style={{ fontSize: 12.5, color: "#B45309", margin: 0, lineHeight: 1.55 }}>{t.aiWzNote}</p>
                     </div>
                     <WzHelpAccordion t={t} lang={lang} open={wzHelpResultOpen} setOpen={setWzHelpResultOpen}/>
                   </div>
@@ -1779,23 +1792,23 @@ export default function App() {
 
               {result.is_msp_hint && (
                 <div style={{ padding: "14px 18px", background: "#fff7ed", borderBottom: "2px solid #f97316", display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>🤖</span>
+                  <MI name="smart_toy" size={24} color="#324C9C"/>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800, fontSize: 14, color: "#c2410c", marginBottom: 5 }}>{t.mspHintTitle}</div>
                     <p style={{ fontSize: 13, color: "#7c2d12", margin: "0 0 8px", lineHeight: 1.65 }}>{t.mspHintText}</p>
                     {result.msp_hint_reason && (
-                      <div style={{ background: "#fff", borderRadius: 7, border: "1px solid #fed7aa", padding: "7px 12px", marginBottom: 8, fontSize: 12.5, color: "#9a3412", fontStyle: "italic", lineHeight: 1.5 }}>
-                        💬 {result.msp_hint_reason}
+                      <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #fed7aa", padding: "7px 12px", marginBottom: 8, fontSize: 12.5, color: "#9a3412", fontStyle: "italic", lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                        <MI name="chat" size={14} color="#c2410c"/><span>{result.msp_hint_reason}</span>
                       </div>
                     )}
-                    <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#c2410c"), { fontSize: 12 })}>⚖️ {t.mspHintBasis} ↗</a>
+                    <a href={BT_DRSACHE} target="_blank" rel="noreferrer" style={Object.assign({}, S.link("#c2410c"), { fontSize: 12, gap: 4 })}><MI name="balance" size={14} color="#c2410c"/>{t.mspHintBasis} ↗</a>
                   </div>
                 </div>
               )}
               {!result.directMode && compData && <SrcSummaryCard t={t} compData={compData} companyName={comp}/>}
 
               <div style={{ padding: "12px 24px", background: "#f0fdf4", borderBottom: "1px solid #bbf7d0", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: .4 }}>📊 DESTATIS WZ 2008</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6 }}><MI name="analytics" size={14} color="#166534"/>DESTATIS WZ 2008</span>
                 <a href={DESTATIS_PDF}  target="_blank" rel="noreferrer" style={S.link("#166534")}>{t.destPDF} ↗</a>
                 <a href={DESTATIS_XLSX} target="_blank" rel="noreferrer" style={S.link("#166534")}>{t.destXLSX} ↗</a>
               </div>
@@ -1811,10 +1824,13 @@ export default function App() {
                 <div style={S.lbl}>{t.nextSteps}</div>
                 {(result.in_scope ? t.stepsIn : t.stepsOut).map(function(s, i) {
                   var isDone = s.startsWith("✅");
+                  var text = isDone ? s.replace(/^✅\s*/, "") : s;
                   return (
-                    <div key={i} style={{ display: "flex", gap: 12, marginBottom: 9 }}>
-                      <span style={{ color: isDone ? "#166534" : "#1a365d", fontWeight: 800, minWidth: 20, fontSize: 13, flexShrink: 0 }}>{isDone ? "" : (i + 1) + "."}</span>
-                      <span style={{ fontSize: 13, color: isDone ? "#166534" : "#374151", lineHeight: 1.6 }}>{s}</span>
+                    <div key={i} style={{ display: "flex", gap: 12, marginBottom: 9, alignItems: "flex-start" }}>
+                      {isDone
+                        ? <MI name="check_circle" size={18} color="#166534"/>
+                        : <span style={{ color: "#222F5C", fontWeight: 800, minWidth: 20, fontSize: 13, flexShrink: 0 }}>{(i + 1) + "."}</span>}
+                      <span style={{ fontSize: 13, color: isDone ? "#166534" : "#374151", lineHeight: 1.6 }}>{text}</span>
                     </div>
                   );
                 })}
@@ -1825,8 +1841,8 @@ export default function App() {
                 <ResourcesSection t={t} compact={false}/>
               </div>
 
-              <div style={{ padding: "12px 24px", background: "#fefce8", borderTop: "2px solid #fde047" }}>
-                <p style={{ fontSize: 12, color: "#713f12", margin: 0, lineHeight: 1.5 }}>⚠️ {t.disclaimer}</p>
+              <div style={{ padding: "12px 24px", background: "#FFF7E6", borderTop: "2px solid #FBBF24" }}>
+                <p style={{ fontSize: 12, color: "#713f12", margin: 0, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={14} color="#F97F08"/><span>{t.disclaimer}</span></p>
               </div>
             </div>
             <div style={{ marginTop: 16 }}><button onClick={reset} style={S.sec}>{t.reset}</button></div>

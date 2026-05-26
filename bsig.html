@@ -6,12 +6,17 @@
   <meta name="theme-color" content="#09090b" />
   <title>BSIG 2025 Scope Checker</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%234f46e5'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='34'%3E%E2%9A%96%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
   <style>
-    html, body { background: #09090b; color: #fafafa; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    html, body { background: #09090b; color: #fafafa; margin: 0; font-family: "Poppins", system-ui, -apple-system, sans-serif; }
+    .mi { font-family: "Material Symbols Outlined"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; vertical-align: middle; font-variation-settings: 'wght' 300, 'opsz' 24; }
     #root { min-height: 100vh; }
     .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; gap: 1rem; text-align: center; }
     .boot h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
@@ -156,7 +161,7 @@
           return React.createElement(
             "button",
             { className: "settings-fab", onClick, title: "API-Key Einstellungen", "aria-label": "API-Key Einstellungen" },
-            "⚙"
+            React.createElement("span", { className: "mi", style: { fontSize: 18 } }, "settings")
           );
         }
 

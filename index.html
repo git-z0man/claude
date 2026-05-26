@@ -18,6 +18,10 @@
     a.card .icon { font-size: 2rem; line-height: 1; }
     a.card .title { font-size: 1.05rem; font-weight: 600; }
     a.card .desc { font-size: 13px; color: #a1a1aa; line-height: 1.5; }
+    a.card-bsig { background: #222F5C; border-color: #324C9C; }
+    a.card-bsig:hover { border-color: #F97F08; }
+    a.card-bsig .desc { color: #c7d2fe; }
+    a.card-bsig .badge { display: inline-block; align-self: flex-start; margin-top: 0.25rem; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #F97F08; background: rgba(249,127,8,0.12); padding: 2px 8px; border-radius: 3px; }
     .foot { color: #52525b; font-size: 12px; text-align: center; max-width: 32rem; line-height: 1.55; margin-top: 1rem; }
     .foot a { color: #a5b4fc; }
   </style>
@@ -27,10 +31,11 @@
     <h1>Claude Tools</h1>
     <p class="sub">Kleine Browser-Apps mit Anthropic-API-Anbindung. Du brauchst einen eigenen API-Key, der ausschließlich in deinem Browser gespeichert wird.</p>
     <div class="cards">
-      <a class="card" href="./bsig.html">
+      <a class="card card-bsig" href="./bsig.html">
         <span class="icon">⚖️</span>
         <span class="title">BSIG 2025 Scope Checker</span>
         <span class="desc">Prüft für deutsche Maschinen-/Elektronikhersteller, ob sie unter das BSIG 2025 (NIS-2-Umsetzung) fallen — inklusive WZ-Klassifikation, MSP-Hinweisen und Erheblichkeitsschwelle.</span>
+        <span class="badge">VDMA Corporate Design</span>
       </a>
       <a class="card" href="./suno.html">
         <span class="icon">🎵</span>
