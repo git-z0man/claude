@@ -35,6 +35,23 @@
     .boot input { color: #fafafa; -webkit-text-fill-color: #fafafa; }
     .modal input { color: #fafafa; -webkit-text-fill-color: #fafafa; }
     input::placeholder, textarea::placeholder { color: #9ca3af; -webkit-text-fill-color: #9ca3af; }
+
+    /* Mobile fixes: bsig.tsx was designed for desktop. Stack 3-col input grids vertically and reflow the 5-col partner row so all fields are reachable. The :not([style*="80px"]) filter excludes the partner row from the 3-col rule (only the partner row's inline style contains "80px"). */
+    @media (max-width: 700px) {
+      div[style*="grid-template-columns: 1fr 1fr 1fr"]:not([style*="80px"]) {
+        grid-template-columns: 1fr !important;
+      }
+      div[style*="grid-template-columns: 1fr 1fr 1fr 80px 36px"] {
+        grid-template-columns: 1fr 1fr 1fr !important;
+      }
+      .settings-fab {
+        opacity: 0.5;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+      }
+      .settings-fab:hover, .settings-fab:active, .settings-fab:focus { opacity: 1; }
+    }
   </style>
 </head>
 <body>
