@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090b" />
+  <title>SUNO Song Creator</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%234f46e5'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='36'%3E%F0%9F%8E%B5%3C/text%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+  <style>
+    html, body { background: #09090b; color: #fafafa; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    #root { min-height: 100vh; }
+    .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; gap: 1rem; text-align: center; }
+    .boot h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
+    .boot .hint { color: #a1a1aa; font-size: 13px; max-width: 26rem; line-height: 1.55; }
+    .boot .err { color: #fda4af; font-size: 13px; max-width: 26rem; }
+    .boot input { background: #27272a; border: 1px solid #3f3f46; color: #fafafa; padding: 0.625rem 0.875rem; border-radius: 0.5rem; width: 100%; max-width: 26rem; font-size: 16px; box-sizing: border-box; }
+    .boot input:focus { outline: none; border-color: #6366f1; }
+    .boot button { background: #4f46e5; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 14px; }
+    .boot button:hover { background: #6366f1; }
+    .boot button.ghost { background: transparent; color: #a1a1aa; border: 1px solid #3f3f46; font-weight: 500; }
+    .boot button.danger { background: #7f1d1d; }
+    .boot a { color: #a5b4fc; text-decoration: underline; }
+    .spin { width: 1.75rem; height: 1.75rem; border: 2px solid #27272a; border-top-color: #6366f1; border-radius: 9999px; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .settings-fab { position: fixed; top: env(safe-area-inset-top, 8px); right: 8px; z-index: 9999; background: rgba(24,24,27,0.85); color: #d4d4d8; border: 1px solid #3f3f46; border-radius: 9999px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; backdrop-filter: blur(4px); }
+    .settings-fab:hover { color: #fff; border-color: #6366f1; }
+    .modal-bg { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+    .modal { background: #18181b; color: #fafafa; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 24rem; display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #27272a; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="boot">
+      <div class="spin"></div>
+      <div class="hint">SUNO Song Creator wird geladen…</div>
+    </div>
+  </div>
+
+  <script>
+    const KEY_STORAGE = "anthropicApiKey";
+    const getKey = () => { try { return localStorage.getItem(KEY_STORAGE) || ""; } catch { return ""; } };
+    const setKey = (k) => { try { k ? localStorage.setItem(KEY_STORAGE, k) : localStorage.removeItem(KEY_STORAGE); } catch {} };
+
+    function renderKeyGate(errMsg) {
+      const root = document.getElementById("root");
+      root.innerHTML = `
+        <div class="boot">
+          <h1>🎵 SUNO Song Creator</h1>
+          <div class="hint">
+            Diese App nutzt die Anthropic-API. Du brauchst einen eigenen
+            <strong>API-Key</strong>, der nur in <strong>deinem Browser</strong>
+            (localStorage) gespeichert wird — nirgends sonst.
+          </div>
+          <div class="hint">
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Key erstellen</a>
+            &middot;
+            <a href="https://console.anthropic.com/settings/limits" target="_blank" rel="noopener">Spend Limit setzen</a>
+            (empfohlen: 5 €/Monat als Sicherheitsnetz).
+          </div>
+          <input id="keyin" type="password" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-..." />
+          <button id="keysave">Speichern &amp; Starten</button>
+          ${errMsg ? `<div class="err">${errMsg}</div>` : ""}
+          <div class="hint" style="margin-top:1rem; color:#52525b;">
+            Du kannst den Key später jederzeit über das ⚙-Symbol oben rechts ändern oder löschen.
+          </div>
+        </div>
+      `;
+      const input = document.getElementById("keyin");
+      const save = () => {
+        const v = input.value.trim();
+        if (!v.startsWith("sk-ant-")) {
+          renderKeyGate("Sieht nicht aus wie ein gültiger Anthropic-Key. Sollte mit „sk-ant-“ beginnen.");
+          return;
+        }
+        setKey(v);
+        boot();
+      };
+      document.getElementById("keysave").addEventListener("click", save);
+      input.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+      input.focus();
+    }
+
+    function renderError(msg) {
+      document.getElementById("root").innerHTML = `
+        <div class="boot">
+          <div style="font-weight:600; font-size:1.1rem;">App konnte nicht geladen werden</div>
+          <div class="err">${msg}</div>
+          <div style="display:flex; gap:0.5rem;">
+            <button onclick="location.reload()">Neu laden</button>
+            <button class="danger" onclick="localStorage.removeItem('anthropicApiKey'); location.reload();">Key entfernen</button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function boot() {
+      if (!getKey()) { renderKeyGate(); return; }
+
+      try {
+        const res = await fetch("./suno.tsx", { cache: "no-cache" });
+        if (!res.ok) throw new Error("suno.tsx konnte nicht geladen werden (HTTP " + res.status + ").");
+        let src = await res.text();
+
+        // Adapt the artifact source for standalone use (3 minimal edits):
+        // 1) Replace ES-module import with destructuring from global React (preserve which hooks are imported).
+        src = src.replace(
+          /^import \{([^}]+)\} from "react";\s*/m,
+          "var {$1} = React;\n"
+        );
+        // 2) Drop the default export keyword.
+        src = src.replace(/export default function App/, "function App");
+        // 3) Inject x-api-key header into every Anthropic fetch call.
+        src = src.replace(
+          /"anthropic-dangerous-direct-browser-access":"true"/g,
+          '"anthropic-dangerous-direct-browser-access":"true","x-api-key":(localStorage.getItem("anthropicApiKey")||"")'
+        );
+
+        const out = Babel.transform(src, {
+          presets: [
+            ["typescript", { isTSX: true, allExtensions: true, onlyRemoveTypeImports: true }],
+            "react"
+          ],
+          filename: "suno.tsx"
+        });
+
+        const factory = new Function("React", out.code + "\nreturn App;");
+        const App = factory(React);
+
+        function SettingsFab({ onClick }) {
+          return React.createElement(
+            "button",
+            { className: "settings-fab", onClick, title: "API-Key Einstellungen", "aria-label": "API-Key Einstellungen" },
+            "⚙"
+          );
+        }
+
+        function SettingsModal({ onClose }) {
+          const [k, setK] = React.useState(getKey());
+          const save = () => { setKey(k.trim()); location.reload(); };
+          const clear = () => { setKey(""); location.reload(); };
+          return React.createElement(
+            "div",
+            { className: "modal-bg", onClick: onClose },
+            React.createElement(
+              "div",
+              { className: "modal", onClick: e => e.stopPropagation() },
+              React.createElement("div", { style: { fontWeight: 600, fontSize: "1rem" } }, "Anthropic API-Key"),
+              React.createElement("div", { style: { fontSize: "12px", color: "#a1a1aa", lineHeight: 1.5 } },
+                "Nur lokal in diesem Browser gespeichert. Bei Bedarf jederzeit löschen."
+              ),
+              React.createElement("input", {
+                type: "password",
+                value: k,
+                onChange: e => setK(e.target.value),
+                placeholder: "sk-ant-...",
+                autoComplete: "off",
+                spellCheck: false,
+                style: {
+                  background: "#27272a", color: "white",
+                  border: "1px solid #3f3f46", borderRadius: "0.5rem",
+                  padding: "0.5rem 0.75rem", fontSize: "16px"
+                }
+              }),
+              React.createElement(
+                "div",
+                { style: { display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "0.5rem" } },
+                React.createElement("button", {
+                  onClick: clear,
+                  style: { background: "#7f1d1d", color: "white", border: "none", borderRadius: "0.5rem", padding: "0.5rem 0.75rem", fontSize: "13px", cursor: "pointer" }
+                }, "Key löschen"),
+                React.createElement("button", {
+                  onClick: onClose,
+                  style: { background: "transparent", color: "#a1a1aa", border: "1px solid #3f3f46", borderRadius: "0.5rem", padding: "0.5rem 0.75rem", fontSize: "13px", cursor: "pointer" }
+                }, "Abbrechen"),
+                React.createElement("button", {
+                  onClick: save,
+                  style: { background: "#4f46e5", color: "white", border: "none", borderRadius: "0.5rem", padding: "0.5rem 0.75rem", fontSize: "13px", cursor: "pointer", fontWeight: 600 }
+                }, "Speichern")
+              )
+            )
+          );
+        }
+
+        function Shell() {
+          const [showSettings, setShowSettings] = React.useState(false);
+          return React.createElement(
+            React.Fragment, null,
+            React.createElement(App),
+            React.createElement(SettingsFab, { onClick: () => setShowSettings(true) }),
+            showSettings && React.createElement(SettingsModal, { onClose: () => setShowSettings(false) })
+          );
+        }
+
+        const rootEl = document.getElementById("root");
+        rootEl.innerHTML = "";
+        ReactDOM.createRoot(rootEl).render(React.createElement(Shell));
+      } catch (err) {
+        console.error(err);
+        renderError(String(err && err.message || err));
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
