@@ -1124,7 +1124,7 @@ function ITIndependenceCheck({ t, mspSels, onResult }) {
         return (
           <div key={sec.id} style={{ marginBottom: 12, background: "#fff", borderRadius: 10, border: "1.5px solid " + (isRF ? "#fca5a5" : "#99f6e4"), overflow: "hidden" }}>
             <div style={{ background: isRF ? "#FEF0F0" : "#ccfbf1", padding: "9px 14px", borderBottom: "1px solid " + (isRF ? "#fca5a5" : "#99f6e4"), display: "flex", alignItems: "center", gap: 7 }}>
-              {isRF && <MI name="emergency_home" size={16} color="#991b1b"/>}
+              {isRF && <MI name="priority_high" size={16} color="#991b1b"/>}
               <span style={{ fontWeight: 700, fontSize: 13, color: isRF ? "#991b1b" : "#0f766e" }}>{sec.label}</span>
             </div>
             <div style={{ padding: "12px 14px" }}>
@@ -1294,7 +1294,7 @@ function ThresholdCheck({ t, mspSels, itResult }) {
             {classification === "wE" && meetsBWE && !hasMsp && <div style={{ marginTop: 10, padding: "8px 12px", background: "#fff", borderRadius: 4, border: "1px solid #bfdbfe" }}><p style={{ fontSize: 12, color: "#324C9C", margin: 0, lineHeight: 1.55, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="info" size={14} color="#324C9C"/><span>{td.capNote}</span></p></div>}
           </div>
           <div style={{ padding: "9px 12px", background: "#faf5ff", borderRadius: 7, border: "1px solid #e9d5ff" }}>
-            <p style={{ fontSize: 12, color: "#324C9C", margin: 0, lineHeight: 1.55 }}>⏱️ {td.stabilityNote}</p>
+            <p style={{ fontSize: 12, color: "#324C9C", margin: 0, lineHeight: 1.55, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="schedule" size={14} color="#324C9C"/><span>{td.stabilityNote}</span></p>
           </div>
         </div>
       ) : (!hasOwnData && <div style={{ padding: "10px 14px", background: "#f9fafb", borderRadius: 8, border: "1px dashed #d1d5db" }}><p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{td.noDataNote}</p></div>)}
@@ -1476,7 +1476,7 @@ export default function App() {
     return (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {(used || []).map(function(k) {
-          var m = SRC_META[k] || { icon: "•", bg: "#f3f4f6", col: "#374151" };
+          var m = SRC_META[k] || { icon: "circle", bg: "#f3f4f6", col: "#374151" };
           return <span key={k} style={S.pill(m.bg, m.col)}><MI name={m.icon} size={13} color={m.col}/> {srcMap[k] || k}</span>;
         })}
       </div>
@@ -1827,9 +1827,9 @@ export default function App() {
                   var text = isDone ? s.replace(/^✅\s*/, "") : s;
                   return (
                     <div key={i} style={{ display: "flex", gap: 12, marginBottom: 9, alignItems: "flex-start" }}>
-                      {isDone
-                        ? <MI name="check_circle" size={18} color="#166534"/>
-                        : <span style={{ color: "#222F5C", fontWeight: 800, minWidth: 20, fontSize: 13, flexShrink: 0 }}>{(i + 1) + "."}</span>}
+                      <span style={{ color: isDone ? "#166534" : "#222F5C", fontWeight: 800, minWidth: 20, fontSize: 13, flexShrink: 0, display: "inline-flex", justifyContent: "center" }}>
+                        {isDone ? <MI name="check_circle" size={16} color="#166534"/> : ((i + 1) + ".")}
+                      </span>
                       <span style={{ fontSize: 13, color: isDone ? "#166534" : "#374151", lineHeight: 1.6 }}>{text}</span>
                     </div>
                   );
