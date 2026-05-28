@@ -35,18 +35,11 @@ AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
 - Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
 - Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
 
-LYRICS QUALITY RULES (NON-NEGOTIABLE — these define whether the song sounds AI-generic or actually written):
-- CONCRETE over ABSTRACT: never write "my heart breaks" — write the specific moment, object or gesture that carries the feeling. "Her toothbrush is still in the cup" beats "I miss her".
-- One picturable image per verse minimum: a named place, an object you could touch, a piece of overheard dialogue, a specific time of day.
-- BANNED CLICHÉ RHYME PAIRS: love/above, heart/apart, fire/desire, night/light, sky/high, eyes/lies, dream/seem, tears/years, true/you, soul/whole, away/stay, tonight/feel-right, alone/own, pain/rain, free/me, hold/cold, mine/time. Find unexpected rhymes or use near-rhyme/assonance.
-- NO empty intensifiers: "so", "very", "really", "just" as filler is forbidden. Make the chosen verb or noun do the work.
-- VERBS LIFT: prefer "she slammed the door" over "she was angry"; "the radio cut out mid-chorus" over "the music stopped".
-- CHORUS HOOK: must contain ONE quotable line a stranger could repeat after one listen — built from specifics, not abstractions ("we danced like the rent was paid" beats "we danced all night").
-- NO filler syllables ("baby", "yeah", "oh", "whoa") UNLESS the genre rhythmically requires them AND they add groove — never as padding.
-- TWIST WORN PHRASES: if a cliché appears, undermine or invert it. "Forever lasted three weeks." "All roads lead home, I took the wrong exit."
-- VERSES MUST ADVANCE: each verse adds new image, new event, or new realization. Never paraphrase the previous verse.
-- ANCHOR characters and scenes: avoid bare "she", "you", "the one" — name a moment, a city, an object, a song title, a brand, a season when possible.
-- READ ALOUD CHECK: every line should sound like something a human would actually sing, not a Hallmark card paraphrase.
+LYRICS QUALITY (non-negotiable):
+- CONCRETE over abstract: "her toothbrush is still in the cup" beats "I miss her". One picturable image per verse minimum — named place, touchable object, overheard line, or specific time of day.
+- BANNED rhyme pairs: love/above, heart/apart, fire/desire, night/light, sky/high, eyes/lies, dream/seem, tears/years, true/you, soul/whole, away/stay, alone/own, pain/rain, free/me, hold/cold, mine/time. Use unexpected rhymes, near-rhyme or assonance.
+- CHORUS hook: one quotable line a stranger could recall after one listen, built from specifics. "We danced like the rent was paid" beats "we danced all night".
+- VERSES advance: each one adds new image, event or realization — never paraphrase the previous. Anchor scenes with names, places, objects, seasons; avoid bare "she/you/the one".
 
 STYLE FORMAT:
 genre: ...
@@ -920,6 +913,7 @@ export default function App() {
   var [weirdness,        setWeirdness]        = useState(62);
   var [styleInf,         setStyleInf]         = useState(70);
   var [autoAdvanced,     setAutoAdvanced]     = useState(true);
+  var [modelMode,        setModelMode]        = useState("premium");
   var [searchQ,          setSearchQ]          = useState("");
   var [searching,        setSearching]        = useState(false);
   var [searchInfo,       setSearchInfo]       = useState("");
@@ -955,7 +949,7 @@ export default function App() {
       titleSugg:titleSugg, description:description,
       excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
-      autoAdvanced:autoAdvanced
+      autoAdvanced:autoAdvanced, modelMode:modelMode
     };
   }
   function pushHistory(out) {
@@ -1016,7 +1010,7 @@ export default function App() {
       lyricThemes:lyricThemes, lyricContent:lyricContent,
       excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
-      autoAdvanced:autoAdvanced
+      autoAdvanced:autoAdvanced, modelMode:modelMode
     };
     setPresets(function(prev){ return prev.concat([{id:Date.now(), name:n, settings:snap}]); });
     setNewPresetName("");
@@ -1096,6 +1090,7 @@ export default function App() {
       if (s.weirdness!=null)               setWeirdness(s.weirdness);
       if (s.styleInf!=null)                setStyleInf(s.styleInf);
       if (s.autoAdvanced!=null)            setAutoAdvanced(s.autoAdvanced);
+      if (s.modelMode)                     setModelMode(s.modelMode);
     }
     setInitialized(true);
   },[]);
@@ -1110,14 +1105,15 @@ export default function App() {
         vocalType, vocalTone, accent, dynamics, songKey, prodFx,
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
-        maxMode, instrumental, voicesMode, weirdness, styleInf, autoAdvanced
+        maxMode, instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
+        modelMode
       });
     }, 300);
     return function(){ clearTimeout(id); };
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
-     excludeStyle,maxMode,instrumental,voicesMode,weirdness,styleInf,autoAdvanced]);
+     excludeStyle,maxMode,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,modelMode]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -1166,6 +1162,7 @@ export default function App() {
     setTitleSugg(""); setExcludeStyle("");
     setMaxMode(true); setInstrumental(false); setVoicesMode(false);
     setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
+    setModelMode("premium");
     if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
     else { setOutput(null); setCurrentEntryTs(null); }
     setError(""); setSearchQ(""); setSearchInfo("");
@@ -1182,7 +1179,7 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-opus-4-8",
+        model: modelMode==="fast" ? "claude-sonnet-4-6" : "claude-opus-4-8",
         max_tokens:2000,
         system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
@@ -1434,6 +1431,7 @@ export default function App() {
     x += '  <weirdness>'+weirdness+'</weirdness>\n';
     x += '  <styleInf>'+styleInf+'</styleInf>\n';
     x += '  <autoAdvanced>'+autoAdvanced+'</autoAdvanced>\n';
+    x += '  <modelMode>'+esc(modelMode)+'</modelMode>\n';
     x += '</SunoSongSettings>';
     return x;
   }
@@ -1482,6 +1480,7 @@ export default function App() {
         var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
         var si=getT("styleInf");      if(si) setStyleInf(Number(si));
         var aa=getT("autoAdvanced");  if(aa) setAutoAdvanced(aa==="true");
+        var mm2=getT("modelMode");    if(mm2) setModelMode(mm2);
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
       }catch(err){
@@ -2296,13 +2295,33 @@ export default function App() {
             {/* Advanced */}
             <Section title={t.advancedTitle}
               onClear={function(){clearWithUndo(t.advancedTitle, function(){
-                var sex=excludeStyle, smm=maxMode, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced;
+                var sex=excludeStyle, smm=maxMode, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
                 setExcludeStyle(""); setMaxMode(true); setInstrumental(false); setVoicesMode(false);
-                setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
-                return function(){ setExcludeStyle(sex); setMaxMode(smm); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); };
+                setWeirdness(62); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
+                return function(){ setExcludeStyle(sex); setMaxMode(smm); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); };
               });}}
               id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
-              hasData={!!(excludeStyle||!maxMode||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced)}>
+              hasData={!!(excludeStyle||!maxMode||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium")}>
+              <div className="mb-3">
+                <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
+                <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+                  <button onClick={function(){setModelMode("fast");}}
+                    className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                      (modelMode==="fast"?"bg-emerald-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 4.6</span>
+                  </button>
+                  <button onClick={function(){setModelMode("premium");}}
+                    className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                      (modelMode==="premium"?"bg-indigo-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                    💎 {isEn?"Premium":"Premium"} <span className="opacity-70">· Opus 4.8</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1 leading-snug">
+                  {modelMode==="fast"
+                    ? (isEn?"~5× cheaper per song. Solid pop/standard genres.":"~5× günstiger pro Song. Solide für Pop / Standardgenres.")
+                    : (isEn?"Top-tier creative writing. Best for nuance & originality.":"Stärkstes Modell für Kreativtexte. Mehr Originalität.")}
+                </p>
+              </div>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
@@ -2451,7 +2470,7 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <span className="text-[11px] text-zinc-500 shrink-0">
                   📝 {isEn?"Lyrics in":"Lyrics auf"}:
                 </span>
@@ -2459,6 +2478,11 @@ export default function App() {
                   className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[11px] font-medium text-zinc-200 focus:outline-none focus:border-indigo-500">
                   {LANGUAGES.map(function(ln){return <option key={ln} value={ln}>{ln}</option>;})}
                 </select>
+                <span className="text-[11px] text-zinc-600 shrink-0">·</span>
+                <button onClick={function(){navigateTo("advanced");}}
+                  className="text-[11px] text-zinc-400 hover:text-indigo-300 shrink-0">
+                  {modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"}
+                </button>
               </div>
               <button onClick={generate} disabled={loading}
                 className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
@@ -2547,6 +2571,7 @@ export default function App() {
                   if (s.maxMode===false) items.push(["MAX Mode", "off"]);
                   if (s.instrumental) items.push(["Instrumental", "✓"]);
                   if (s.voicesMode) items.push(["Voices Mode", "✓"]);
+                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"]);
                   if (s.autoAdvanced) items.push([isEn?"Weirdness/Style":"Weirdness/Style", "AUTO"]);
                   else {
                     if (s.weirdness!==undefined) items.push(["Weirdness", s.weirdness+"%"]);
