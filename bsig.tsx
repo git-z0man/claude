@@ -248,7 +248,7 @@ function parseJson(txt) {
 }
 
 async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) {
-  var body = { model: "claude-sonnet-4-6", max_tokens: maxTokens || 800, messages };
+  var body = { model: "claude-haiku-4-5", max_tokens: maxTokens || 800, messages };
   if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
 
   // Combine user abort signal + optional timeout into one AbortController
@@ -357,9 +357,6 @@ async function analyzeWZ(company, products, compData, lang, signal) {
       };
     }
   }
-  var ndOutOfScope = compData && compData.nace_found && compData.nace_code;
-  var naceHint = (compData && compData.nace_code && !ndOutOfScope) ? compData.nace_code : null;
-  var wzList   = relevantWzLabels(naceHint);
   var de = lang === "de";
   var contextParts = [];
   if (compData) {
@@ -377,10 +374,23 @@ async function analyzeWZ(company, products, compData, lang, signal) {
     ? "\nMSP-ERKENNUNG: is_msp_hint=true bei MSP-Merkmalen (IT-Systemhaus, Cloud, Remote-Monitoring, Helpdesk, IT-Outsourcing) mit kurzer msp_hint_reason. Sonst false/null.\nWICHTIG: reasoning max. 2 Saetze. Antworte NUR mit gueltigem JSON ohne Zeilenumbrueche oder Sonderzeichen ausser UTF-8.\n"
     : "\nMSP DETECTION: is_msp_hint=true for MSP indicators (IT systems house, cloud, remote monitoring, helpdesk, IT outsourcing) with short msp_hint_reason. Otherwise false/null.\nIMPORTANT: reasoning max. 2 sentences. Reply ONLY with valid JSON, no line breaks in string values.\n";
   var prodStr = products || (compData && compData.products) || "-";
-  var prompt = de
-    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019. Bestimme WZ fuer: " + company + "\nProdukte: " + prodStr + contextParts.join("") + scopeRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + wzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\nAntworte NUR als JSON: " + exJson)
-    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019. Determine WZ for: " + company + "\nProducts: " + prodStr + contextParts.join("") + scopeRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + wzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\nReply ONLY as JSON: " + exJson);
-  var txt    = await callClaude([{ role: "user", content: prompt }], false, 2500, signal, 30000);
+  // Static block — identical across all calls in the same language, so it is
+  // marked cache_control: ephemeral. After the first call writes the cache,
+  // subsequent calls within 5 min pay only ~10 % of the input cost on this
+  // prefix. Uses the full WZ list (relevantWzLabels(null)) so the prefix is
+  // stable regardless of the per-call NACE hint.
+  var fullWzList = relevantWzLabels(null);
+  var staticPrefix = de
+    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + fullWzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\n\nAntworte NUR als JSON nach diesem Schema: " + exJson)
+    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + fullWzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\n\nReply ONLY as JSON matching this schema: " + exJson);
+  var variableSuffix = de
+    ? ("Bestimme WZ fuer: " + company + "\nProdukte: " + prodStr + contextParts.join(""))
+    : ("Determine WZ for: " + company + "\nProducts: " + prodStr + contextParts.join(""));
+  var msgContent = [
+    { type: "text", text: staticPrefix, cache_control: { type: "ephemeral" } },
+    { type: "text", text: variableSuffix }
+  ];
+  var txt    = await callClaude([{ role: "user", content: msgContent }], false, 2500, signal, 30000);
   var parsed = parseJson(txt);
   // Normalize alternative_wz: API may return objects instead of strings
   if (Array.isArray(parsed.alternative_wz)) {
