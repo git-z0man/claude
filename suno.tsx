@@ -7,12 +7,15 @@ var SYSTEM_PROMPT = `You are a professional SUNO v5.5 songwriter. Output exactly
 CORE RULES:
 - Structure tags on own lines only, NEVER inline in lyrics.
 - Style field: HARD LIMIT 1000 chars. No artist names. Sonic descriptors only.
+- Lyrics field: HARD LIMIT 5000 chars.
+- Title field: HARD LIMIT 100 chars.
 - Rule of 5: max 5 elements per tag bracket. With pipe separator: max 6-7.
 - RHYME: Every verse/chorus/bridge needs clear AABB or ABAB scheme.
-- Non-English: add [Textual Particularity] CRITICAL: Maintain pronunciation.
+- Non-English: write lyrics natively in the target language. For tricky pronunciation, respell words phonetically inline (e.g. "cafe" -> "kah-FAY") instead of inventing bracket tags.
 - CRITICAL: Write ALL lyrics in the Song language specified. Never default to German or any other language.
 - BPM and Key go in Style field ONLY.
 - Front-load Style field: most important genre and mood in first 20-30 words.
+- Suno reads descriptive words, not parameter syntax. NEVER invent colon/percent-style pseudo-tags like [Reverb: 30%], [Bass: 80%], [Stereo Width: Wide], [Vocal Tone: X]. Use plain descriptive adjectives instead (e.g. "reverb-heavy", "punchy bass", "wide stereo image"). Quality comes from model version and the Weirdness/Style Influence sliders - there is no hidden bracket "max quality" mode.
 
 v5.5 PRECISION RULES:
 - Use SPECIFIC descriptors. v5.5 responds to nuance. 5-7 specific tags.
@@ -25,13 +28,9 @@ INSTRUMENTAL MODE (when requested):
 - Style: include no vocals, no singing, no humming, no choir, no voice
 - Lyrics: use only [Instrumental] tags, leave text empty
 
-MAX MODE (when enabled):
-- Lyrics block FIRST line must be: ///*****///
-- Style block LAST line must be: [Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)
-
 AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
 - You MUST replace AUTO with a concrete integer 0-100 of YOUR choice based on the song's genres, mood and inputs. NEVER output the literal word "AUTO" in the # 3. ADVANCED OPTIONS block.
-- Weirdness ranges to pick from: 15-30 Conventional, 30-45 Twist, AVOID 45-55, 58-65 Creative, 65-78 Unusual, 80-95 Experimental.
+- Weirdness ranges to pick from: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
 - Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
 - Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
 
@@ -47,7 +46,6 @@ instruments: ...
 style tags: ...
 recording: ...
 [negative prompts at END if needed]
-[MAX MODE line if enabled]
 
 NEGATIVE PROMPTING:
 - Place no [element] at the END of style tags (max 1-2 in style field)
@@ -102,7 +100,7 @@ var CREATIVE_PROMPT = `You are a creative music director. Return ONLY valid JSON
 {"genres":[],"moods":[],"energy":"Medium","tempoTerm":"","bpmMin":0,"bpmMax":0,"vocalType":"","vocalTone":"","dynamics":[],"key":"","era":"","lang":"","lyricThemes":[],"lyricContent":"","structure":[],"artists":[],"weirdness":0,"styleInfluence":0,"description":""}
 genres:1-3. moods:2-3. energy:Low/Medium/High. lang: infer from language.
 lyricContent:2-3 sentence story. structure:fitting array.
-WEIRDNESS: Conventional=15-30, Twist=30-45, AVOID 45-55, Creative=58-65, Unusual=65-78, Experimental=80-95.
+WEIRDNESS: Genre-True=10-25, Commercial=20-40, Balanced/Standard=45-55 (this is the normal default, not to be avoided), Creative=55-65, Experimental=65-80, Chaos=80-95.
 STYLE INFLUENCE: Vague=45-60, Clear=65-75, Specific=78-90. description:1 sentence.`;
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -243,12 +241,12 @@ var BPM_GUIDE = {
   "Drum & Bass":"160-180","Funk":"90-115"
 };
 var W_ZONES = [
-  {min:0,  max:30,  label:"Genre-True",      labelDe:"Genre-Treue",      cls:"bg-blue-500"},
-  {min:30, max:45,  label:"Slight Variation", labelDe:"Leichte Variation",cls:"bg-cyan-500"},
-  {min:45, max:55,  label:"Generic",          labelDe:"Generisch",        cls:"bg-red-500"},
-  {min:55, max:70,  label:"Creative",         labelDe:"Kreativ",          cls:"bg-yellow-500"},
-  {min:70, max:90,  label:"Experimental",     labelDe:"Experimentell",    cls:"bg-orange-500"},
-  {min:90, max:101, label:"Chaos",            labelDe:"Chaos",            cls:"bg-rose-600"},
+  {min:0,  max:20,  label:"Genre-True",   labelDe:"Genre-Treue",   cls:"bg-blue-500"},
+  {min:20, max:45,  label:"Commercial",   labelDe:"Kommerziell",   cls:"bg-cyan-500"},
+  {min:45, max:55,  label:"Balanced",     labelDe:"Ausgewogen",    cls:"bg-emerald-500"},
+  {min:55, max:65,  label:"Creative",     labelDe:"Kreativ",       cls:"bg-yellow-500"},
+  {min:65, max:80,  label:"Experimental", labelDe:"Experimentell", cls:"bg-orange-500"},
+  {min:80, max:101, label:"Glitch Risk",  labelDe:"Glitch-Risiko", cls:"bg-rose-600"},
 ];
 
 var BUILTIN_PRESETS = [
@@ -401,6 +399,14 @@ function truncateStyle(s) {
   if (pos < 1) pos = 1000;
   return cut.substring(0, pos).trim();
 }
+function truncateLyrics(s) {
+  if (!s || s.length <= 5000) return s;
+  return s.substring(0, 5000);
+}
+function truncateTitle(s) {
+  if (!s || s.length <= 100) return s;
+  return s.substring(0, 100);
+}
 function parseOutput(raw) {
   var r = {lyrics:"", style:"", advanced:"", title:""};
   function exB(sec) {
@@ -413,6 +419,8 @@ function parseOutput(raw) {
   r.advanced = exB((raw.match(/# 3\. ADVANCED[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
   r.title    = exB((raw.match(/# 4\.\s*(?:TITLE|TITEL)\b[\s\S]*?$/i) || [])[0]);
   r.style    = truncateStyle(r.style);
+  r.lyrics   = truncateLyrics(r.lyrics);
+  r.title    = truncateTitle(r.title);
   return r;
 }
 function storageLoad() {
@@ -466,10 +474,8 @@ var T = {
     descTitle:"Free Description", descPlaceholder:"More ideas, special requests...",
     advancedTitle:"Advanced Options", excludeLabel:"Exclude Style",
     excludePlaceholder:"e.g. heavy metal, distorted guitar, rap...",
-    maxModeLabel:"MAX MODE",
-    maxModeDesc:"Maximum quality & realism (best for acoustic/organic)",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-True",
-    weirdnessAvoid:"45-55 avoid", weirdnessRight:"Experimental",
+    weirdnessMid:"50 balanced", weirdnessRight:"Experimental",
     styleInfluenceLabel:"Style Influence",
     styleLeft:"AI Freedom", styleRight:"Very Strict",
     generateBtn:"Generate Song Prompt", generating:"Generating...",
@@ -533,10 +539,8 @@ var T = {
     descTitle:"Freie Beschreibung", descPlaceholder:"Weitere Ideen, besondere Wünsche...",
     advancedTitle:"Erweiterte Optionen", excludeLabel:"Style ausschließen",
     excludePlaceholder:"z.B. heavy metal, distorted guitar, rap...",
-    maxModeLabel:"MAX MODE",
-    maxModeDesc:"Maximale Qualität & Realismus (ideal für Akustik/Organisch)",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-Treue",
-    weirdnessAvoid:"45-55 meiden", weirdnessRight:"Experimentell",
+    weirdnessMid:"50 ausgewogen", weirdnessRight:"Experimentell",
     styleInfluenceLabel:"Style Influence",
     styleLeft:"KI-Freiheit", styleRight:"Sehr strikt",
     generateBtn:"Song-Prompt generieren", generating:"Generiere...",
@@ -783,7 +787,7 @@ function AdvancedDisplay({content, t, isEn}) {
           </div>
           <div className="flex justify-between text-xs text-zinc-600 mt-1">
             <span>0 {t.weirdnessLeft}</span>
-            <span className="text-red-600">{t.weirdnessAvoid}</span>
+            <span className="text-zinc-500">{t.weirdnessMid}</span>
             <span>100 {t.weirdnessRight}</span>
           </div>
         </div>
@@ -907,7 +911,6 @@ export default function App() {
   var [description,      setDescription]      = useState("");
   var [titleSugg,        setTitleSugg]        = useState("");
   var [excludeStyle,     setExcludeStyle]     = useState("");
-  var [maxMode,          setMaxMode]          = useState(true);
   var [instrumental,     setInstrumental]     = useState(false);
   var [voicesMode,       setVoicesMode]       = useState(false);
   var [weirdness,        setWeirdness]        = useState(62);
@@ -947,7 +950,7 @@ export default function App() {
       era:era, lang:lang, structure:structure,
       lyricThemes:lyricThemes, lyricContent:lyricContent, ownLyrics:ownLyrics,
       titleSugg:titleSugg, description:description,
-      excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
+      excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
       autoAdvanced:autoAdvanced, modelMode:modelMode
     };
@@ -992,7 +995,6 @@ export default function App() {
     if (s.lyricThemes) setLyricThemes(s.lyricThemes);
     if (s.lyricContent !== undefined) setLyricContent(s.lyricContent);
     if (s.excludeStyle !== undefined) setExcludeStyle(s.excludeStyle);
-    if (s.maxMode !== undefined) setMaxMode(s.maxMode);
     if (s.instrumental !== undefined) setInstrumental(s.instrumental);
     if (s.voicesMode !== undefined) setVoicesMode(s.voicesMode);
     if (s.weirdness !== undefined) setWeirdness(s.weirdness);
@@ -1008,7 +1010,7 @@ export default function App() {
       dynamics:dynamics, songKey:songKey, prodFx:prodFx,
       era:era, lang:lang, structure:structure,
       lyricThemes:lyricThemes, lyricContent:lyricContent,
-      excludeStyle:excludeStyle, maxMode:maxMode, instrumental:instrumental,
+      excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
       autoAdvanced:autoAdvanced, modelMode:modelMode
     };
@@ -1084,7 +1086,6 @@ export default function App() {
       if (s.description)                   setDescription(s.description);
       if (s.titleSugg)                     setTitleSugg(s.titleSugg);
       if (s.excludeStyle)                  setExcludeStyle(s.excludeStyle);
-      if (s.maxMode!=null)                 setMaxMode(s.maxMode);
       if (s.instrumental!=null)            setInstrumental(s.instrumental);
       if (s.voicesMode!=null)              setVoicesMode(s.voicesMode);
       if (s.weirdness!=null)               setWeirdness(s.weirdness);
@@ -1105,7 +1106,7 @@ export default function App() {
         vocalType, vocalTone, accent, dynamics, songKey, prodFx,
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
-        maxMode, instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
+        instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
         modelMode
       });
     }, 300);
@@ -1113,7 +1114,7 @@ export default function App() {
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
-     excludeStyle,maxMode,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,modelMode]);
+     excludeStyle,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,modelMode]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -1160,7 +1161,7 @@ export default function App() {
     setEra(""); setLang("English"); setStructure(DEF_STRUCT.slice());
     setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setDescription("");
     setTitleSugg(""); setExcludeStyle("");
-    setMaxMode(true); setInstrumental(false); setVoicesMode(false);
+    setInstrumental(false); setVoicesMode(false);
     setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
     setModelMode("premium");
     if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
@@ -1273,11 +1274,6 @@ export default function App() {
     if(structure.length)   p.push("Structure: "+structure.join(" > "));
     if(lyricThemes.length) p.push("Themes: "+lyricThemes.join(", "));
     if(lyricContent)       p.push("Lyric content: "+lyricContent);
-    if(maxMode)            p.push(
-      "MAX MODE: ENABLED - first line of Lyrics MUST be ///*****/// " +
-      "- LAST line of Style MUST be " +
-      "[Is_MAX_MODE: MAX](MAX) [QUALITY: MAX](MAX) [REALISM: MAX](MAX) [REAL_INSTRUMENTS: MAX](MAX)"
-    );
     if(instrumental)       p.push(
       "INSTRUMENTAL MODE: No vocals. Style must include no vocals no singing no humming. " +
       "Lyrics: use only [Instrumental] tags."
@@ -1425,7 +1421,6 @@ export default function App() {
     x += '  <description>'+esc(description)+'</description>\n';
     x += '  <titleSugg>'+esc(titleSugg)+'</titleSugg>\n';
     x += '  <excludeStyle>'+esc(excludeStyle)+'</excludeStyle>\n';
-    x += '  <maxMode>'+maxMode+'</maxMode>\n';
     x += '  <instrumental>'+instrumental+'</instrumental>\n';
     x += '  <voicesMode>'+voicesMode+'</voicesMode>\n';
     x += '  <weirdness>'+weirdness+'</weirdness>\n';
@@ -1474,7 +1469,6 @@ export default function App() {
         var ds=getT("description");   if(ds) setDescription(ds);
         var ts=getT("titleSugg");     if(ts) setTitleSugg(ts);
         var ex=getT("excludeStyle");  if(ex) setExcludeStyle(ex);
-        var mm=getT("maxMode");       setMaxMode(mm==="true");
         var im=getT("instrumental");  setInstrumental(im==="true");
         var vm=getT("voicesMode");    setVoicesMode(vm==="true");
         var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
@@ -2295,13 +2289,13 @@ export default function App() {
             {/* Advanced */}
             <Section title={t.advancedTitle}
               onClear={function(){clearWithUndo(t.advancedTitle, function(){
-                var sex=excludeStyle, smm=maxMode, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
-                setExcludeStyle(""); setMaxMode(true); setInstrumental(false); setVoicesMode(false);
+                var sex=excludeStyle, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
+                setExcludeStyle(""); setInstrumental(false); setVoicesMode(false);
                 setWeirdness(62); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
-                return function(){ setExcludeStyle(sex); setMaxMode(smm); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); };
+                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); };
               });}}
               id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
-              hasData={!!(excludeStyle||!maxMode||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium")}>
+              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium")}>
               <div className="mb-3">
                 <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
                 <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
@@ -2331,8 +2325,6 @@ export default function App() {
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {[
-                  {val:maxMode,  set:setMaxMode,  color:"bg-indigo-600",
-                   label:t.maxModeLabel, desc:t.maxModeDesc},
                   {val:instrumental, set:setInstrumental, color:"bg-teal-600",
                    label:isEn?"Instrumental":"Instrumental",
                    desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
@@ -2380,7 +2372,7 @@ export default function App() {
                         className="w-full accent-indigo-500 disabled:cursor-not-allowed"/>
                       <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
                         <span>{t.weirdnessLeft}</span>
-                        <span className="text-red-600">{t.weirdnessAvoid}</span>
+                        <span className="text-zinc-500">{t.weirdnessMid}</span>
                         <span>{t.weirdnessRight}</span>
                       </div>
                     </div>
@@ -2568,7 +2560,6 @@ export default function App() {
                   if (s.titleSugg) items.push([isEn?"Title hint":"Titelvorgabe", s.titleSugg]);
                   if (s.description) items.push([isEn?"Notes":"Notizen", s.description]);
                   if (s.excludeStyle) items.push([isEn?"Exclude":"Ausschluss", s.excludeStyle]);
-                  if (s.maxMode===false) items.push(["MAX Mode", "off"]);
                   if (s.instrumental) items.push(["Instrumental", "✓"]);
                   if (s.voicesMode) items.push(["Voices Mode", "✓"]);
                   if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"]);
@@ -2625,6 +2616,15 @@ export default function App() {
                       loadingRegen={loadingLyrics} loadingOptimize={optimizingLyrics} t={t}/>
                     <OutputSection title={t.lyricsTitle} subtitle={t.lyricsSubtitle}
                       icon="🎤" content={output.lyrics} t={t}/>
+                    <div className="mt-2 flex justify-end items-center gap-2">
+                      <span className={
+                        output.lyrics.length>5000?"text-red-400 font-semibold text-xs":
+                        output.lyrics.length>4500?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
+                        {output.lyrics.length} / 5000 {t.chars}
+                      </span>
+                      {output.lyrics.length>5000&&
+                        <span className="text-xs text-red-400">{t.tooLong}</span>}
+                    </div>
                   </div>
                 )}
                 {activeTab==="style"&&(
@@ -2649,6 +2649,15 @@ export default function App() {
                     <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
                     <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
                       icon="✏️" content={output.title} t={t}/>
+                    <div className="flex justify-end items-center gap-2">
+                      <span className={
+                        output.title.length>100?"text-red-400 font-semibold text-xs":
+                        output.title.length>85?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
+                        {output.title.length} / 100 {t.chars}
+                      </span>
+                      {output.title.length>100&&
+                        <span className="text-xs text-red-400">{t.tooLong}</span>}
+                    </div>
                   </div>
                 )}
                 {activeTab==="all"&&(
