@@ -1180,7 +1180,7 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model: modelMode==="fast" ? "claude-sonnet-4-6" : "claude-opus-4-8",
+        model: modelMode==="fast" ? "claude-sonnet-5" : "claude-opus-4-8",
         max_tokens:2000,
         system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
@@ -2302,7 +2302,7 @@ export default function App() {
                   <button onClick={function(){setModelMode("fast");}}
                     className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
                       (modelMode==="fast"?"bg-emerald-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
-                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 4.6</span>
+                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 5</span>
                   </button>
                   <button onClick={function(){setModelMode("premium");}}
                     className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
@@ -2473,7 +2473,7 @@ export default function App() {
                 <span className="text-[11px] text-zinc-600 shrink-0">·</span>
                 <button onClick={function(){navigateTo("advanced");}}
                   className="text-[11px] text-zinc-400 hover:text-indigo-300 shrink-0">
-                  {modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"}
+                  {modelMode==="fast"?"⚡ Sonnet 5":"💎 Opus 4.8"}
                 </button>
               </div>
               <button onClick={generate} disabled={loading}
@@ -2562,7 +2562,7 @@ export default function App() {
                   if (s.excludeStyle) items.push([isEn?"Exclude":"Ausschluss", s.excludeStyle]);
                   if (s.instrumental) items.push(["Instrumental", "✓"]);
                   if (s.voicesMode) items.push(["Voices Mode", "✓"]);
-                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"]);
+                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 5":"💎 Opus 4.8"]);
                   if (s.autoAdvanced) items.push([isEn?"Weirdness/Style":"Weirdness/Style", "AUTO"]);
                   else {
                     if (s.weirdness!==undefined) items.push(["Weirdness", s.weirdness+"%"]);
