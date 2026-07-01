@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,18 @@ v5.5 PRECISION RULES:
 INSTRUMENTAL MODE (when requested):
 - Style: include no vocals, no singing, no humming, no choir, no voice
 - Lyrics: use only [Instrumental] tags, leave text empty
+
+AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
+- You MUST replace AUTO with a concrete integer 0-100 of YOUR choice based on the song's genres, mood and inputs. NEVER output the literal word "AUTO" in the # 3. ADVANCED OPTIONS block.
+- Weirdness ranges to pick from: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
+- Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
+- Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
+
+LYRICS QUALITY (non-negotiable):
+- CONCRETE over abstract: "her toothbrush is still in the cup" beats "I miss her". One picturable image per verse minimum — named place, touchable object, overheard line, or specific time of day.
+- BANNED rhyme pairs: love/above, heart/apart, fire/desire, night/light, sky/high, eyes/lies, dream/seem, tears/years, true/you, soul/whole, away/stay, alone/own, pain/rain, free/me, hold/cold, mine/time. Use unexpected rhymes, near-rhyme or assonance.
+- CHORUS hook: one quotable line a stranger could recall after one listen, built from specifics. "We danced like the rent was paid" beats "we danced all night".
+- VERSES advance: each one adds new image, event or realization — never paraphrase the previous. Anchor scenes with names, places, objects, seasons; avoid bare "she/you/the one".
 
 STYLE FORMAT:
 genre: ...
@@ -96,11 +108,12 @@ STYLE INFLUENCE: Vague=45-60, Clear=65-75, Specific=78-90. description:1 sentenc
 var PRESET_ARTISTS = [
   "Billie Eilish","Bruno Mars","Lady Gaga","Taylor Swift","HUNTR/X","RAYE","Teddy Swims",
   "Adele","Rihanna","Maroon 5","Coldplay","Billy Joel","George Michael","Gloria Estefan",
-  "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai",
-  "Nancy Sinatra","Sting","Eric Clapton","Fleetwood Mac",
-  "Linkin Park","Moloko","Robyn","Leony",
-  "Glockenbach","Ofenbach","Daft Punk","Kygo",
-  "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino"
+  "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai","Nancy Sinatra","Sting",
+  "Linkin Park","Eric Clapton","Fleetwood Mac",
+  "Glockenbach","Ofenbach","Daft Punk","Kygo","Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino",
+  "Moloko","Robyn","Leony",
+  "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer",
+  "The Midnight","Timecop1983","FM-84","Gunship","Kavinsky","Quixotic"
 ];
 var ARTIST_GROUPS = [
   {label:"Pop / Singer-Songwriter", artists:[
@@ -110,14 +123,21 @@ var ARTIST_GROUPS = [
   ]},
   {label:"Soul / R&B / Funk", artists:[
     "Whitney Houston","Randy Crawford","Bobby Womack","Jamiroquai",
-    "Nancy Sinatra","Sting","Eric Clapton","Fleetwood Mac"
+    "Nancy Sinatra","Sting"
   ]},
-  {label:"Alternative / Rock", artists:[
-    "Linkin Park","Moloko","Robyn","Leony"
+  {label:"Rock / Alternative", artists:[
+    "Linkin Park","Eric Clapton","Fleetwood Mac"
   ]},
   {label:"Electronic / Dance", artists:[
     "Glockenbach","Ofenbach","Daft Punk","Kygo",
-    "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino"
+    "Anyma","Tiesto","Darude","Faithless","Gigi D'Agostino",
+    "Moloko","Robyn","Leony"
+  ]},
+  {label:"80s Synth", artists:[
+    "Giorgio Moroder","Kraftwerk","Jean-Michel Jarre","Vangelis","Harold Faltermeyer"
+  ]},
+  {label:"Retrowave / Synthwave", artists:[
+    "The Midnight","Timecop1983","FM-84","Gunship","Kavinsky","Quixotic"
   ]},
 ];
 var GENRE_GROUPS = [
@@ -127,19 +147,23 @@ var GENRE_GROUPS = [
   {label:"Hip Hop / Urban", genres:[
     "Hip Hop","Trap","R&B","Soul","Funk"
   ]},
+  {label:"Rock / Alternative", genres:[
+    "Rock","Indie Rock","Shoegaze","Alternative","New Wave",
+    "Post-Punk","Darkwave","Gothic Rock","Industrial Rock","Cold Wave"
+  ]},
   {label:"Electronic / Dance", genres:[
     "Electronic","Experimental Electronic","EDM","House",
     "Deep House","French House","UK House","Tropical House",
     "Nu-Disco","Techno","Drum & Bass","UK Garage","2-Step"
   ]},
-  {label:"Rock / Alternative", genres:[
-    "Rock","Indie Rock","Shoegaze","Alternative","New Wave",
-    "Post-Punk","Darkwave","Gothic Rock","Industrial Rock","Cold Wave"
-  ]},
   {label:"80s", genres:[
     "Neue Deutsche Welle","Synth-Pop","Electro-Pop","Italo Disco",
     "Euro Disco","Hi-NRG","Power Pop","Glam Rock",
     "Hair Metal","Arena Rock","Soft Rock","Adult Contemporary"
+  ]},
+  {label:"Synthwave / Retrowave", genres:[
+    "Synthwave","Retrowave","Outrun","Darksynth",
+    "Cyberpunk","Vaporwave","Nu-Italo"
   ]},
   {label:"Folk / Country", genres:[
     "Folk","Indie Folk","Country","Americana"
@@ -165,7 +189,7 @@ var MOODS = [
 ];
 var TEMPO_TERMS = [
   {label:"Adagio", bpmLo:66,  bpmHi:76,  de:"Langsam",        en:"Slow, relaxed"},
-  {label:"Andante",bpmLo:76,  bpmHi:108, de:"Maessig",        en:"Moderate walking pace"},
+  {label:"Andante",bpmLo:76,  bpmHi:108, de:"Mäßig",          en:"Moderate walking pace"},
   {label:"Allegro",bpmLo:120, bpmHi:168, de:"Schnell",        en:"Fast, lively"},
   {label:"Presto", bpmLo:168, bpmHi:200, de:"Sehr schnell",   en:"Very fast"},
   {label:"Rubato", bpmLo:0,   bpmHi:0,   de:"Flexibles Tempo",en:"Flexible tempo"},
@@ -225,6 +249,72 @@ var W_ZONES = [
   {min:80, max:101, label:"Glitch Risk",  labelDe:"Glitch-Risiko", cls:"bg-rose-600"},
 ];
 
+var BUILTIN_PRESETS = [
+  {
+    name:"Synthwave Night",
+    settings:{
+      genres:["Synthwave","Retrowave"],
+      moods:["Dreamy","Nostalgic"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"90", bpmMax:"110",
+      vocalTone:"Smooth", lang:"English",
+      dynamics:["Legato","Syncopation"],
+      prodFx:["Reverb","Delay/Echo","Sidechain"]
+    }
+  },
+  {
+    name:"Pop Ballad",
+    settings:{
+      genres:["Pop","Ballad"],
+      moods:["Romantic","Melancholic"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"70", bpmMax:"90",
+      vocalTone:"Powerful", lang:"English",
+      dynamics:["Legato","Crescendo","Vibrato"]
+    }
+  },
+  {
+    name:"Hip Hop / Trap",
+    settings:{
+      genres:["Hip Hop","Trap"],
+      moods:["Aggressive","Dark"],
+      energy:"High", tempoTerm:"Allegro", bpmMin:"75", bpmMax:"90",
+      vocalType:"Rap", lang:"English",
+      dynamics:["Triplet Feel","Half-Time"],
+      prodFx:["Compression","Sidechain"]
+    }
+  },
+  {
+    name:"Cinematic",
+    settings:{
+      genres:["Classical","Ambient"],
+      moods:["Epic","Cinematic","Mysterious"],
+      energy:"Medium", tempoTerm:"Andante", bpmMin:"60", bpmMax:"100",
+      vocalType:"No Vocals", instrumental:true, lang:"English",
+      dynamics:["Crescendo","Decrescendo","Legato"]
+    }
+  },
+  {
+    name:"Indie Folk",
+    settings:{
+      genres:["Folk","Indie Folk","Singer-Songwriter"],
+      moods:["Calm","Nostalgic","Peaceful"],
+      energy:"Low", tempoTerm:"Andante", bpmMin:"80", bpmMax:"100",
+      vocalTone:"Soft", lang:"English",
+      dynamics:["Legato"], prodFx:["Reverb"]
+    }
+  },
+  {
+    name:"Deep House",
+    settings:{
+      genres:["Deep House","House"],
+      moods:["Euphoric","Dreamy"],
+      energy:"High", tempoTerm:"Allegro", bpmMin:"120", bpmMax:"128",
+      lang:"English",
+      dynamics:["Four on the Floor","Syncopation"],
+      prodFx:["Sidechain","Reverb","Filter"]
+    }
+  }
+];
+
 var ACCENTS = [
   {label:"London / Cockney",
    value:"London Cockney British English, glottal stops, dropped H"},
@@ -253,11 +343,11 @@ var ACCENTS = [
 ];
 
 var DYNAMICS_INFO = {
-  "Crescendo":         {en:"Gradually increasing volume",        de:"Steigende Lautstaerke"},
-  "Decrescendo":       {en:"Gradually decreasing volume",        de:"Sinkende Lautstaerke"},
+  "Crescendo":         {en:"Gradually increasing volume",        de:"Steigende Lautstärke"},
+  "Decrescendo":       {en:"Gradually decreasing volume",        de:"Sinkende Lautstärke"},
   "Staccato":          {en:"Short detached notes, punchy",       de:"Kurze abgehackte Noten"},
-  "Legato":            {en:"Smooth connected notes, flowing",    de:"Fliessende verbundene Noten"},
-  "Vibrato":           {en:"Oscillating pitch on held notes",    de:"Tonhoehenschwingung"},
+  "Legato":            {en:"Smooth connected notes, flowing",    de:"Fließende verbundene Noten"},
+  "Vibrato":           {en:"Oscillating pitch on held notes",    de:"Tonhöhenschwingung"},
   "Tremolo":           {en:"Rapid note repetition, shimmering",  de:"Schnelle Notenwiederholung"},
   "Syncopation":       {en:"Off-beat accents, creates groove",   de:"Off-Beat Betonungen"},
   "Polyrhythm":        {en:"Multiple rhythms simultaneously",    de:"Mehrere Rhythmen gleichzeitig"},
@@ -274,15 +364,15 @@ var PROD_FX_INFO = {
   "Reverb":          {en:"Adds room ambience and space",    de:"Raumklang und Hall"},
   "Delay/Echo":      {en:"Repeating echoes, depth",         de:"Wiederholende Echos"},
   "Compression":     {en:"Controls dynamics, punchy",       de:"Dynamik kontrollieren"},
-  "Distortion":      {en:"Grit and harmonic saturation",    de:"Verzerrung und Saettigung"},
+  "Distortion":      {en:"Grit and harmonic saturation",    de:"Verzerrung und Sättigung"},
   "Filter":          {en:"Cuts or boosts frequencies",      de:"Frequenzen anpassen"},
   "Panning":         {en:"Stereo left right placement",     de:"Stereo Positionierung"},
-  "Sidechain":       {en:"Pumping effect, classic house",   de:"Pumping Effekt fuer House"},
+  "Sidechain":       {en:"Pumping effect, classic house",   de:"Pumping Effekt für House"},
   "Sampling":        {en:"Recorded snippets as elements",   de:"Aufnahmen als Musikelemente"},
   "Loop":            {en:"Repeating section, hypnotic",     de:"Wiederholende Sektion"},
-  "Layering":        {en:"Multiple sounds stacked",         de:"Mehrere Klaenge uebereinander"},
+  "Layering":        {en:"Multiple sounds stacked",         de:"Mehrere Klänge übereinander"},
   "Vinyl Crackle":   {en:"Analog noise, vintage lo-fi",     de:"Analoges Rauschen Vintage"},
-  "Tape Saturation": {en:"Warm harmonic distortion",        de:"Analoge Waerme Saettigung"},
+  "Tape Saturation": {en:"Warm harmonic distortion",        de:"Analoge Wärme & Sättigung"},
   "Fade In":         {en:"Starts silent, grows louder",     de:"Startet leise wird lauter"},
   "Fade Out":        {en:"Gets quieter at the end",         de:"Wird am Ende leiser"},
 };
@@ -411,26 +501,26 @@ var T = {
   },
   de: {
     appSubtitle:"Powered by Claude - SUNO v5.5 optimiert",
-    restart:"Neustart", restartConfirm:"Alles zuruecksetzen?",
-    yes:"Ja, zuruecksetzen", cancel:"Abbrechen",
+    restart:"Neustart", restartConfirm:"Alles zurücksetzen?",
+    yes:"Ja, zurücksetzen", cancel:"Abbrechen",
     panelSettings:"Einstellungen", panelResult:"Ergebnis",
     searchTitle:"Suche & Analyse",
-    searchDesc:"Kuenstler oder Songtitel - alle Felder automatisch befuellt.",
+    searchDesc:"Künstler oder Songtitel - alle Felder automatisch befüllt.",
     searchPlaceholder:"z.B. The Midnight, Daft Punk - Get Lucky...",
     analyzeBtn:"Analyse", analyzing:"Analyse...",
-    analyzedInfo:"Felder wurden automatisch befuellt.",
+    analyzedInfo:"Felder wurden automatisch befüllt.",
     analysisFailed:"Analyse fehlgeschlagen",
     creativeTitle:"Kreativer Prompt",
     creativeDesc:"Beschreibe deine Song-Idee frei - Claude setzt alle Parameter.",
-    creativePlaceholder:"z.B. Ein Duett ueber die erste Liebe...",
+    creativePlaceholder:"z.B. Ein Duett über die erste Liebe...",
     creativeBtn:"Claude kreativ werden lassen!", creativeAnalyzing:"Interpretiere...",
     creativeInterpretation:"Interpretation",
-    creativeApplied:"Alle passenden Felder wurden befuellt.",
-    artistTitle:"Kuenstler-Referenz",
-    artistDesc:"Kuenstler auswaehlen, hinzufuegen oder loeschen.",
-    artistAdd:"Neuen Kuenstler hinzufuegen...", artistAnalyze:"Claude analysiert: ",
-    genreTitle:"Genre", genreAdd:"Eigenes Genre hinzufuegen...",
-    genreTypical:"Typisch fuer ", hiddenGenres:" ausgeblendet",
+    creativeApplied:"Alle passenden Felder wurden befüllt.",
+    artistTitle:"Künstler-Referenz",
+    artistDesc:"Künstler auswählen, hinzufügen oder löschen.",
+    artistAdd:"Neuen Künstler hinzufügen...", artistAnalyze:"Claude analysiert: ",
+    genreTitle:"Genre", genreAdd:"Eigenes Genre hinzufügen...",
+    genreTypical:"Typisch für ", hiddenGenres:" ausgeblendet",
     moodTitle:"Mood / Stimmung", energyTempoTitle:"Energie & Tempo",
     tempoGlossary:"Tempo-Begriff (SUNO-Glossar):",
     minBpm:"Min BPM", maxBpm:"Max BPM",
@@ -446,8 +536,8 @@ var T = {
     titleTitle:"Song-Titel (optional)",
     titleDesc:"Leer lassen - Claude generiert automatisch einen Titel.",
     titlePlaceholder:"Eigenen Titel oder automatisch generieren...",
-    descTitle:"Freie Beschreibung", descPlaceholder:"Weitere Ideen, besondere Wuensche...",
-    advancedTitle:"Erweiterte Optionen", excludeLabel:"Style ausschliessen",
+    descTitle:"Freie Beschreibung", descPlaceholder:"Weitere Ideen, besondere Wünsche...",
+    advancedTitle:"Erweiterte Optionen", excludeLabel:"Style ausschließen",
     excludePlaceholder:"z.B. heavy metal, distorted guitar, rap...",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-Treue",
     weirdnessMid:"50 ausgewogen", weirdnessRight:"Experimentell",
@@ -455,23 +545,23 @@ var T = {
     styleLeft:"KI-Freiheit", styleRight:"Sehr strikt",
     generateBtn:"Song-Prompt generieren", generating:"Generiere...",
     readyTitle:"Bereit zur Generierung",
-    readyDesc:"Suche einen Kuenstler oder Song, waehle Einstellungen und klicke Generieren.",
+    readyDesc:"Suche einen Künstler oder Song, wähle Einstellungen und klicke Generieren.",
     regenBtn:"Neu generieren", optimizeBtn:"Optimieren",
     regenBusy:"Generiere...", optimizeBusy:"Optimiere...",
     tab1:"1 Lyrics", tab2:"2 Style", tab3:"3 Erweitert / Titel",
     copyAll:"Alle kopieren", copied:"Kopiert!", copy:"Kopieren",
-    lyricsTitle:"Lyrics", lyricsSubtitle:"In das SUNO Lyrics-Feld einfuegen",
-    styleTitle:"Style", styleSubtitle:"In das SUNO Style-Feld einfuegen",
-    advTitle:"Erweiterte Optionen", advSubtitle:"Empfohlene Einstellungen fuer SUNO",
-    advWeirdDesc:"Kreativitaet vs. Genre-Treue",
+    lyricsTitle:"Lyrics", lyricsSubtitle:"In das SUNO Lyrics-Feld einfügen",
+    styleTitle:"Style", styleSubtitle:"In das SUNO Style-Feld einfügen",
+    advTitle:"Erweiterte Optionen", advSubtitle:"Empfohlene Einstellungen für SUNO",
+    advWeirdDesc:"Kreativität vs. Genre-Treue",
     advStyleDesc:"Einfluss des Style-Feldes",
-    titleSectionTitle:"Titel", titleSectionSubtitle:"Fuer den SUNO Song-Titel",
-    tooLong:"Zu lang - bitte kuerzen!", chars:"Zeichen",
+    titleSectionTitle:"Titel", titleSectionSubtitle:"Für den SUNO Song-Titel",
+    tooLong:"Zu lang - bitte kürzen!", chars:"Zeichen",
     exportImport:"Einstellungen Export / Import",
     autoSaved:"Einstellungen werden automatisch im Browser gespeichert.",
     exportXml:"XML exportieren", importXml:"XML importieren",
-    importOk:"Einstellungen importiert!", copyXml:"Kopieren", openTab:"In Tab oeffnen",
-    copyAndSave:"XML kopieren - in Texteditor einfuegen - als .xml speichern",
+    importOk:"Einstellungen importiert!", copyXml:"Kopieren", openTab:"In Tab öffnen",
+    copyAndSave:"XML kopieren - in Texteditor einfügen - als .xml speichern",
     apiOk:"API verbunden", apiError:"API nicht erreichbar",
   }
 };
@@ -480,19 +570,57 @@ var T = {
 
 function TooltipBtn({label, active, onClick, tooltip, activeClass, inactiveClass}) {
   var [show, setShow] = useState(false);
+  var [tipStyle, setTipStyle] = useState({left:"50%", transform:"translateX(-50%)"});
+  var btnRef = useRef(null);
+  var dismissRef = useRef(null);
+  function computeTipPosition() {
+    if (!btnRef.current) return {left:"50%", transform:"translateX(-50%)"};
+    var rect = btnRef.current.getBoundingClientRect();
+    var vw = window.innerWidth;
+    var margin = 8;
+    var maxTipHalf = Math.min(140, vw / 2 - margin);
+    var centerX = rect.left + rect.width / 2;
+    if (centerX - maxTipHalf < margin) {
+      return {left: (margin - rect.left) + "px"};
+    }
+    if (centerX + maxTipHalf > vw - margin) {
+      return {right: (margin - (vw - rect.right)) + "px", left:"auto"};
+    }
+    return {left:"50%", transform:"translateX(-50%)"};
+  }
+  function openTip() {
+    setTipStyle(computeTipPosition());
+    setShow(true);
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null; }
+  }
+  function closeTip() {
+    setShow(false);
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null; }
+  }
+  function handleClick(e) {
+    openTip();
+    if (dismissRef.current) clearTimeout(dismissRef.current);
+    dismissRef.current = setTimeout(function(){ setShow(false); dismissRef.current = null; }, 2500);
+    if (onClick) onClick(e);
+  }
   return (
-    <div className="relative" onMouseEnter={function(){setShow(true);}} onMouseLeave={function(){setShow(false);}}>
-      <button onClick={onClick}
+    <div className="relative" onMouseEnter={openTip} onMouseLeave={closeTip}>
+      <button ref={btnRef} onClick={handleClick}
         className={"px-2 py-1 rounded text-xs border transition-all "+(active?activeClass:inactiveClass)}>
         {label}
       </button>
       {show && tooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
-          <div className="bg-zinc-800 border border-zinc-600 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 shadow-xl text-center" style={{whiteSpace:"nowrap"}}>
-            {tooltip}
+        <>
+          <div className="absolute bottom-full mb-1.5 z-50 pointer-events-none" style={tipStyle}>
+            <div className="bg-zinc-800 border border-zinc-600 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 shadow-xl"
+              style={{maxWidth:"min(280px, calc(100vw - 16px))", whiteSpace:"normal"}}>
+              {tooltip}
+            </div>
           </div>
-          <div className="w-2 h-2 bg-zinc-800 border-r border-b border-zinc-600 rotate-45 mx-auto -mt-1"/>
-        </div>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 z-50 pointer-events-none" style={{marginBottom:"0.3rem"}}>
+            <div className="w-2 h-2 bg-zinc-800 border-r border-b border-zinc-600 rotate-45"/>
+          </div>
+        </>
       )}
     </div>
   );
@@ -529,6 +657,29 @@ function SectionHeader({title, onClear}) {
     <div className="flex items-center justify-between mb-1.5">
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{title}</h2>
       {onClear && <ClearBtn onClick={onClear}/>}
+    </div>
+  );
+}
+function Section({id, title, onClear, isOpen, onToggle, hasData, children}) {
+  var effectiveOpen = hasData || isOpen;
+  var canToggle = !hasData;
+  return (
+    <div id={id?"sec-"+id:undefined} style={{scrollMarginTop:"54px"}}>
+      <div onClick={canToggle?onToggle:undefined}
+        className={"flex items-center justify-between -mx-1 px-1 py-1 rounded select-none "+(canToggle?"cursor-pointer hover:bg-zinc-900/40":"cursor-default")}>
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+          {hasData
+            ? <span className="text-indigo-500 inline-block w-2 text-center" style={{fontSize:"10px"}}>●</span>
+            : <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{isOpen?"▼":"▶"}</span>}
+          <span>{title}</span>
+        </h2>
+        {onClear && (
+          <span onClick={function(e){e.stopPropagation();}}>
+            <ClearBtn onClick={onClear}/>
+          </span>
+        )}
+      </div>
+      {effectiveOpen && <div className="mt-1.5">{children}</div>}
     </div>
   );
 }
@@ -670,6 +821,63 @@ export default function App() {
   var [uiLang, setUiLang] = useState(function(){
     return (navigator.language||"en").toLowerCase().startsWith("de")?"de":"en";
   });
+  var [theme, setTheme] = useState(function(){
+    try { return localStorage.getItem("sunoTheme") || "dark"; } catch(e) { return "dark"; }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoTheme", theme); } catch(e) {}
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#09090b" : "#ffffff");
+  }, [theme]);
+  var DEFAULT_SECTIONS = {
+    smartFill:true, presets:true, artists:true, genre:true, mood:true,
+    energyTempo:true, vocals:true,
+    key:false, dynamics:false, production:false, eraLang:false,
+    structure:false, lyrics:false, advanced:false, exportImport:false
+  };
+  var [openSections, setOpenSections] = useState(function(){
+    try {
+      var stored = JSON.parse(localStorage.getItem("sunoSections") || "{}");
+      return Object.assign({}, DEFAULT_SECTIONS, stored);
+    } catch(e) { return Object.assign({}, DEFAULT_SECTIONS); }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoSections", JSON.stringify(openSections)); } catch(e) {}
+  }, [openSections]);
+  function toggleSec(id) {
+    setOpenSections(function(prev){
+      var next = Object.assign({}, prev);
+      next[id] = !prev[id];
+      return next;
+    });
+  }
+  function navigateTo(id) {
+    setOpenSections(function(prev){
+      var next = Object.assign({}, prev);
+      next[id] = true;
+      return next;
+    });
+    setTimeout(function(){
+      var el = document.getElementById("sec-"+id);
+      if (el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    }, 60);
+  }
+  var [undoAction, setUndoAction] = useState(null);
+  var undoTimeoutRef = useRef(null);
+  function clearWithUndo(label, snapshotAndClear) {
+    var restore = snapshotAndClear();
+    setUndoAction({label: label, restore: restore});
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    undoTimeoutRef.current = setTimeout(function(){
+      setUndoAction(null);
+      undoTimeoutRef.current = null;
+    }, 5000);
+  }
+  function triggerUndo() {
+    if (undoAction && undoAction.restore) undoAction.restore();
+    setUndoAction(null);
+    if (undoTimeoutRef.current) { clearTimeout(undoTimeoutRef.current); undoTimeoutRef.current = null; }
+  }
   var isEn = uiLang==="en";
   var t = useMemo(function(){ return T[uiLang]; }, [uiLang]);
   var THEMES = useMemo(function(){ return isEn ? THEMES_EN : THEMES_DE; }, [isEn]);
@@ -707,6 +915,8 @@ export default function App() {
   var [voicesMode,       setVoicesMode]       = useState(false);
   var [weirdness,        setWeirdness]        = useState(62);
   var [styleInf,         setStyleInf]         = useState(70);
+  var [autoAdvanced,     setAutoAdvanced]     = useState(true);
+  var [modelMode,        setModelMode]        = useState("premium");
   var [searchQ,          setSearchQ]          = useState("");
   var [searching,        setSearching]        = useState(false);
   var [searchInfo,       setSearchInfo]       = useState("");
@@ -715,7 +925,101 @@ export default function App() {
   var [creativeAnalyzing,setCreativeAnalyzing]= useState(false);
   var [creativeInfo,     setCreativeInfo]     = useState("");
   var [creativeErr,      setCreativeErr]      = useState("");
+  var [smartFillMode,    setSmartFillMode]    = useState("artist");
   var [output,           setOutput]           = useState(null);
+  var [history,          setHistory]          = useState(function(){
+    try { return JSON.parse(localStorage.getItem("sunoHistory") || "[]"); } catch(e) { return []; }
+  });
+  var [currentEntryTs,   setCurrentEntryTs]   = useState(null);
+  var [showEntrySettings,setShowEntrySettings]= useState(false);
+  useEffect(function(){
+    try { localStorage.setItem("sunoHistory", JSON.stringify(history)); } catch(e) {}
+  }, [history]);
+  useEffect(function(){
+    if (!output && history.length > 0) {
+      setOutput(history[0].output);
+      setCurrentEntryTs(history[0].ts);
+    }
+  }, []);
+  function snapshotSettings() {
+    return {
+      genres:genres, extraGenres:extraGenres, artists:artists,
+      moods:moods, energy:energy, tempoTerm:tempoTerm, bpmMin:bpmMin, bpmMax:bpmMax,
+      vocalType:vocalType, vocalTone:vocalTone, accent:accent,
+      dynamics:dynamics, songKey:songKey, prodFx:prodFx,
+      era:era, lang:lang, structure:structure,
+      lyricThemes:lyricThemes, lyricContent:lyricContent, ownLyrics:ownLyrics,
+      titleSugg:titleSugg, description:description,
+      excludeStyle:excludeStyle, instrumental:instrumental,
+      voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
+      autoAdvanced:autoAdvanced, modelMode:modelMode
+    };
+  }
+  function pushHistory(out) {
+    if (!out || (!out.lyrics && !out.style && !out.title)) return;
+    var firstLine = (out.title || "").split("\n")[0].trim().substring(0, 60);
+    var entry = {
+      ts: Date.now(),
+      title: firstLine || (isEn?"(untitled)":"(ohne Titel)"),
+      output: out,
+      settings: snapshotSettings()
+    };
+    setCurrentEntryTs(entry.ts);
+    setHistory(function(prev){ return [entry].concat(prev).slice(0, 10); });
+  }
+  var [presets, setPresets] = useState(function(){
+    try { return JSON.parse(localStorage.getItem("sunoPresets") || "[]"); } catch(e) { return []; }
+  });
+  useEffect(function(){
+    try { localStorage.setItem("sunoPresets", JSON.stringify(presets)); } catch(e) {}
+  }, [presets]);
+  var [newPresetName, setNewPresetName] = useState("");
+  function loadPreset(p) {
+    var s = p.settings || {};
+    if (s.genres) setGenres(s.genres);
+    if (s.extraGenres) setExtraGenres(s.extraGenres);
+    if (s.moods) setMoods(s.moods);
+    if (s.energy) setEnergy(s.energy);
+    if (s.tempoTerm !== undefined) setTempoTerm(s.tempoTerm);
+    if (s.bpmMin !== undefined) setBpmMin(s.bpmMin);
+    if (s.bpmMax !== undefined) setBpmMax(s.bpmMax);
+    if (s.vocalType !== undefined) setVocalType(s.vocalType);
+    if (s.vocalTone !== undefined) setVocalTone(s.vocalTone);
+    if (s.accent !== undefined) setAccent(s.accent);
+    if (s.dynamics) setDynamics(s.dynamics);
+    if (s.songKey !== undefined) setSongKey(s.songKey);
+    if (s.prodFx) setProdFx(s.prodFx);
+    if (s.era !== undefined) setEra(s.era);
+    if (s.lang) setLang(s.lang);
+    if (s.structure) setStructure(s.structure);
+    if (s.lyricThemes) setLyricThemes(s.lyricThemes);
+    if (s.lyricContent !== undefined) setLyricContent(s.lyricContent);
+    if (s.excludeStyle !== undefined) setExcludeStyle(s.excludeStyle);
+    if (s.instrumental !== undefined) setInstrumental(s.instrumental);
+    if (s.voicesMode !== undefined) setVoicesMode(s.voicesMode);
+    if (s.weirdness !== undefined) setWeirdness(s.weirdness);
+    if (s.styleInf !== undefined) setStyleInf(s.styleInf);
+    if (s.autoAdvanced !== undefined) setAutoAdvanced(s.autoAdvanced);
+  }
+  function savePreset() {
+    var n = newPresetName.trim(); if (!n) return;
+    var snap = {
+      genres:genres, extraGenres:extraGenres, moods:moods,
+      energy:energy, tempoTerm:tempoTerm, bpmMin:bpmMin, bpmMax:bpmMax,
+      vocalType:vocalType, vocalTone:vocalTone, accent:accent,
+      dynamics:dynamics, songKey:songKey, prodFx:prodFx,
+      era:era, lang:lang, structure:structure,
+      lyricThemes:lyricThemes, lyricContent:lyricContent,
+      excludeStyle:excludeStyle, instrumental:instrumental,
+      voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
+      autoAdvanced:autoAdvanced, modelMode:modelMode
+    };
+    setPresets(function(prev){ return prev.concat([{id:Date.now(), name:n, settings:snap}]); });
+    setNewPresetName("");
+  }
+  function deletePreset(id) {
+    setPresets(function(prev){ return prev.filter(function(p){ return p.id !== id; }); });
+  }
   var [loading,          setLoading]          = useState(false);
   var [loadingLyrics,    setLoadingLyrics]    = useState(false);
   var [loadingStyle,     setLoadingStyle]     = useState(false);
@@ -740,7 +1044,7 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-haiku-4-5",max_tokens:10,
+        model:"claude-haiku-4-5-20251001",max_tokens:10,
         messages:[{role:"user",content:"hi"}]
       })
     }).then(function(r){
@@ -786,6 +1090,8 @@ export default function App() {
       if (s.voicesMode!=null)              setVoicesMode(s.voicesMode);
       if (s.weirdness!=null)               setWeirdness(s.weirdness);
       if (s.styleInf!=null)                setStyleInf(s.styleInf);
+      if (s.autoAdvanced!=null)            setAutoAdvanced(s.autoAdvanced);
+      if (s.modelMode)                     setModelMode(s.modelMode);
     }
     setInitialized(true);
   },[]);
@@ -800,14 +1106,15 @@ export default function App() {
         vocalType, vocalTone, accent, dynamics, songKey, prodFx,
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
-        instrumental, voicesMode, weirdness, styleInf
+        instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
+        modelMode
       });
     }, 300);
     return function(){ clearTimeout(id); };
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
-     excludeStyle,instrumental,voicesMode,weirdness,styleInf]);
+     excludeStyle,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,modelMode]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -816,6 +1123,7 @@ export default function App() {
   }
   function autoBpm(g) {
     var guide=BPM_GUIDE[g]; if(!guide)return;
+    if(bpmMin||bpmMax) return;
     var p=guide.split("-"); setBpmMin(p[0]); setBpmMax(p[1]);
   }
   function addCustomGenre(name) {
@@ -854,8 +1162,11 @@ export default function App() {
     setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setDescription("");
     setTitleSugg(""); setExcludeStyle("");
     setInstrumental(false); setVoicesMode(false);
-    setWeirdness(62); setStyleInf(70);
-    setOutput(null); setError(""); setSearchQ(""); setSearchInfo("");
+    setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
+    setModelMode("premium");
+    if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
+    else { setOutput(null); setCurrentEntryTs(null); }
+    setError(""); setSearchQ(""); setSearchInfo("");
     setCreativeP(""); setCreativeInfo(""); setConfirmReset(false);
     storageSave({});
   }
@@ -869,9 +1180,9 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-sonnet-4-5",
+        model: modelMode==="fast" ? "claude-sonnet-4-6" : "claude-opus-4-8",
         max_tokens:2000,
-        system:sysPr,
+        system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
       })
     });
@@ -888,7 +1199,7 @@ export default function App() {
       var ng=j.genres.filter(function(g){return !GENRES.includes(g);});
       setGenres(j.genres);
       if(ng.length) setExtraGenres(function(p){return Array.from(new Set(p.concat(ng)));});
-      if(j.genres[0]) autoBpm(j.genres[0]);
+      if(j.genres[0]&&!j.bpmMin&&!j.bpmMax) autoBpm(j.genres[0]);
     }
     if(j.moods&&j.moods.length)    setMoods(j.moods);
     if(j.energy)                    setEnergy(j.energy);
@@ -971,8 +1282,13 @@ export default function App() {
       "VOICES MODE: Remove ALL gender descriptors from Style AND Lyrics. " +
       "Use freed space for production detail. Keep Weirdness low."
     );
-    p.push("Weirdness: "+weirdness+"%");
-    p.push("Style Influence: "+styleInf+"%");
+    if(autoAdvanced) {
+      p.push("Weirdness: AUTO");
+      p.push("Style Influence: AUTO");
+    } else {
+      p.push("Weirdness: "+weirdness+"%");
+      p.push("Style Influence: "+styleInf+"%");
+    }
     if(excludeStyle.trim()) p.push("Exclude: "+excludeStyle.trim());
     if(titleSugg.trim())   p.push("Title: "+titleSugg.trim());
     if(ownLyrics)          p.push("Own Lyrics:\n"+ownLyrics);
@@ -990,7 +1306,9 @@ export default function App() {
         "Create a complete optimized SUNO v5.5 song prompt. " +
         "Output exactly in the format with 4 separate code blocks."
       ]);
-      setOutput(parseOutput(txt)); setActiveTab("lyrics"); setPanel("output");
+      var parsed=parseOutput(txt);
+      setOutput(parsed); pushHistory(parsed);
+      setActiveTab("lyrics"); setPanel("output");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoading(false); }
   }
@@ -1107,6 +1425,8 @@ export default function App() {
     x += '  <voicesMode>'+voicesMode+'</voicesMode>\n';
     x += '  <weirdness>'+weirdness+'</weirdness>\n';
     x += '  <styleInf>'+styleInf+'</styleInf>\n';
+    x += '  <autoAdvanced>'+autoAdvanced+'</autoAdvanced>\n';
+    x += '  <modelMode>'+esc(modelMode)+'</modelMode>\n';
     x += '</SunoSongSettings>';
     return x;
   }
@@ -1153,6 +1473,8 @@ export default function App() {
         var vm=getT("voicesMode");    setVoicesMode(vm==="true");
         var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
         var si=getT("styleInf");      if(si) setStyleInf(Number(si));
+        var aa=getT("autoAdvanced");  if(aa) setAutoAdvanced(aa==="true");
+        var mm2=getT("modelMode");    if(mm2) setModelMode(mm2);
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
       }catch(err){
@@ -1166,41 +1488,127 @@ export default function App() {
   var tabs = useMemo(function(){ return [
     {key:"lyrics",label:t.tab1,icon:"🎤"},
     {key:"style", label:t.tab2,icon:"🎨"},
-    {key:"meta",  label:t.tab3,icon:"⚙️"}
-  ]; }, [t]);
+    {key:"meta",  label:t.tab3,icon:"⚙️"},
+    {key:"all",   label:isEn?"4 All":"4 Alle",icon:"📋"}
+  ]; }, [t, isEn]);
 
   return (
     <div style={{fontFamily:"system-ui,sans-serif"}}
-      className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-      <style>{`input,textarea,select{font-size:16px!important}`}</style>
+      className={"min-h-screen bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"")}>
+      <style>{`
+        input,textarea,select{font-size:16px!important}
+        /* On touch devices iOS Safari leaves :hover stuck after a tap, so a
+           chip that shifted into the just-tapped spot inherits the hover
+           background. Disable hover-bg effects when no real hover capability
+           is present. */
+        @media (hover: none) {
+          .hover\\:bg-red-600:hover,
+          .hover\\:bg-red-700:hover,
+          .hover\\:bg-red-500:hover,
+          .hover\\:bg-white:hover,
+          .hover\\:bg-opacity-10:hover { background-color: transparent !important; }
+          .hover\\:bg-zinc-700:hover { background-color: inherit !important; }
+          .hover\\:bg-zinc-600:hover { background-color: inherit !important; }
+          .hover\\:text-white:hover,
+          .hover\\:text-zinc-300:hover { color: inherit !important; }
+        }
+        /* Root may have bg-zinc-950 + theme-light on the SAME element — match both descendant AND same-element */
+        .theme-light.bg-zinc-950, .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
+        .theme-light.bg-zinc-900, .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
+        .theme-light.bg-zinc-800, .theme-light .bg-zinc-800 { background-color: #f4f4f5 !important; }
+        .theme-light.bg-zinc-700, .theme-light .bg-zinc-700 { background-color: #e4e4e7 !important; }
+        .theme-light.bg-zinc-600, .theme-light .bg-zinc-600 { background-color: #d4d4d8 !important; }
+        .theme-light.bg-zinc-500, .theme-light .bg-zinc-500 { background-color: #a1a1aa !important; }
+        .theme-light.text-zinc-100, .theme-light .text-zinc-100 { color: #27272a !important; }
+        .theme-light.text-zinc-200, .theme-light .text-zinc-200 { color: #3f3f46 !important; }
+        .theme-light.text-zinc-300, .theme-light .text-zinc-300 { color: #52525b !important; }
+        .theme-light.text-zinc-400, .theme-light .text-zinc-400 { color: #52525b !important; }
+        .theme-light.text-zinc-500, .theme-light .text-zinc-500 { color: #71717a !important; }
+        .theme-light.text-zinc-600, .theme-light .text-zinc-600 { color: #71717a !important; }
+        /* text-white default → dark in light mode (e.g. page title), but keep it WHITE on saturated chips */
+        .theme-light .text-white { color: #18181b !important; }
+        .theme-light .text-white.bg-indigo-500,    .theme-light .text-white.bg-indigo-600,
+        .theme-light .text-white.bg-indigo-700,    .theme-light .text-white.bg-purple-500,
+        .theme-light .text-white.bg-purple-600,    .theme-light .text-white.bg-purple-700,
+        .theme-light .text-white.bg-teal-600,      .theme-light .text-white.bg-red-500,
+        .theme-light .text-white.bg-red-600,       .theme-light .text-white.bg-red-700,
+        .theme-light .text-white.bg-rose-600,      .theme-light .text-white.bg-orange-500,
+        .theme-light .text-white.bg-orange-600,    .theme-light .text-white.bg-amber-600,
+        .theme-light .text-white.bg-emerald-500,   .theme-light .text-white.bg-emerald-600,
+        .theme-light .text-white.bg-fuchsia-600,   .theme-light .text-white.bg-cyan-500,
+        .theme-light .text-white.bg-yellow-500,
+        .theme-light [class*="bg-gradient-"].text-white { color: #ffffff !important; }
+        .theme-light .border-zinc-500 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-600 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-700 { border-color: #d4d4d8 !important; }
+        .theme-light .border-zinc-800 { border-color: #e4e4e7 !important; }
+        .theme-light .placeholder-zinc-600::placeholder { color: #71717a !important; }
+        .theme-light .hover\\:bg-zinc-700:hover { background-color: #d4d4d8 !important; }
+        .theme-light .hover\\:bg-zinc-600:hover { background-color: #a1a1aa !important; }
+        .theme-light .hover\\:text-zinc-300:hover { color: #3f3f46 !important; }
+        .theme-light .hover\\:text-white:hover { color: #18181b !important; }
+        /* Alert/info dark backgrounds → pale tints */
+        .theme-light .bg-indigo-950 { background-color: #eef2ff !important; }
+        .theme-light .border-indigo-800 { border-color: #c7d2fe !important; }
+        .theme-light .text-indigo-300 { color: #4338ca !important; }
+        .theme-light .text-indigo-500 { color: #6366f1 !important; }
+        .theme-light .text-indigo-200 { color: #4338ca !important; }
+        .theme-light .bg-red-950 { background-color: #fef2f2 !important; }
+        .theme-light .bg-red-900 { background-color: #fee2e2 !important; }
+        .theme-light .border-red-800 { border-color: #fecaca !important; }
+        .theme-light .text-red-300 { color: #b91c1c !important; }
+        .theme-light .text-red-400 { color: #b91c1c !important; }
+        .theme-light .text-red-600 { color: #b91c1c !important; }
+        .theme-light .text-red-700 { color: #b91c1c !important; }
+        .theme-light .bg-gradient-to-r.from-pink-950.to-purple-950 {
+          background-image: linear-gradient(to right, #fdf2f8, #faf5ff) !important;
+        }
+        .theme-light .border-pink-800 { border-color: #fbcfe8 !important; }
+        .theme-light .text-pink-200 { color: #9d174d !important; }
+        .theme-light .text-pink-300 { color: #be185d !important; }
+        .theme-light .text-pink-500 { color: #db2777 !important; }
+        .theme-light .border-emerald-800 { border-color: #a7f3d0 !important; }
+        .theme-light .border-emerald-900 { border-color: #6ee7b7 !important; }
+        .theme-light .text-emerald-300 { color: #047857 !important; }
+        .theme-light .text-emerald-400 { color: #047857 !important; }
+        .theme-light .border-amber-800 { border-color: #fde68a !important; }
+        .theme-light .text-amber-300 { color: #b45309 !important; }
+        .theme-light .text-amber-400 { color: #b45309 !important; }
+        .theme-light .text-sky-300 { color: #0369a1 !important; }
+        .theme-light .text-yellow-400 { color: #a16207 !important; }
+        .theme-light .text-fuchsia-200 { color: #86198f !important; }
+        .theme-light .text-purple-200 { color: #6b21a8 !important; }
+        .theme-light .text-teal-200 { color: #115e59 !important; }
+        /* Chip context: text-{color}-200 stays light when nested in or on a saturated bg-{color}-N chip */
+        .theme-light .bg-indigo-500 .text-indigo-200, .theme-light .bg-indigo-600 .text-indigo-200, .theme-light .bg-indigo-700 .text-indigo-200,
+        .theme-light .bg-indigo-500.text-indigo-200, .theme-light .bg-indigo-600.text-indigo-200, .theme-light .bg-indigo-700.text-indigo-200 { color: #c7d2fe !important; }
+        .theme-light .bg-purple-500 .text-purple-200, .theme-light .bg-purple-600 .text-purple-200, .theme-light .bg-purple-700 .text-purple-200,
+        .theme-light .bg-purple-500.text-purple-200, .theme-light .bg-purple-600.text-purple-200, .theme-light .bg-purple-700.text-purple-200 { color: #e9d5ff !important; }
+        .theme-light .bg-fuchsia-500 .text-fuchsia-200, .theme-light .bg-fuchsia-600 .text-fuchsia-200,
+        .theme-light .bg-fuchsia-500.text-fuchsia-200, .theme-light .bg-fuchsia-600.text-fuchsia-200 { color: #f5d0fe !important; }
+        .theme-light .bg-teal-500 .text-teal-200, .theme-light .bg-teal-600 .text-teal-200,
+        .theme-light .bg-teal-500.text-teal-200, .theme-light .bg-teal-600.text-teal-200 { color: #99f6e4 !important; }
+      `}</style>
 
       {/* Header */}
-      <div className="border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg">🎵</div>
-          <div>
-            <h1 className="text-base font-semibold text-white">SUNO Song Creator</h1>
-            <div className="flex items-center gap-1.5">
-              <span className={"w-1.5 h-1.5 rounded-full flex-shrink-0 "+(
-                apiStatus==="ok"?"bg-emerald-500":
-                apiStatus==="error"?"bg-red-500":"bg-zinc-500 animate-pulse")}/>
-              <p className="text-xs text-zinc-500">
-                {t.appSubtitle}
-                {apiStatus==="error"&&
-                  <span className="text-red-400 ml-1">- {t.apiError}</span>}
-              </p>
-              <button onClick={checkApi} title={isEn?"Reconnect API":"API neu verbinden"}
-                className={"ml-1 text-zinc-600 hover:text-zinc-300 transition-colors "+(apiStatus==="unknown"?"animate-spin":"")}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-                  <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <div className="border-b border-zinc-800 px-4 py-2.5 pr-12 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div title={t.appSubtitle}
+            className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg shrink-0">🎵</div>
+          <h1 className="text-base font-semibold text-white truncate">SUNO Song Creator</h1>
+          <button onClick={checkApi}
+            title={apiStatus==="error"?(isEn?"API error - tap to retry":"API-Fehler - tippen für neuen Versuch"):(isEn?"API connected - tap to recheck":"API verbunden - tippen für neuen Check")}
+            aria-label={isEn?"API status":"API-Status"}
+            className={"w-2 h-2 rounded-full shrink-0 transition-colors "+(
+              apiStatus==="ok"?"bg-emerald-500":
+              apiStatus==="error"?"bg-red-500":"bg-zinc-500 animate-pulse")}/>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={function(){setTheme(theme==="dark"?"light":"dark");}}
+            title={isEn?"Toggle theme":"Theme wechseln"} aria-label={isEn?"Toggle theme":"Theme wechseln"}
+            className="px-2.5 py-1.5 rounded text-sm border border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+            {theme==="dark"?"☀":"🌙"}
+          </button>
           <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-1">
             <button onClick={function(){setUiLang("en");}}
               className={"px-2.5 py-1 rounded text-xs font-semibold transition-all "+
@@ -1214,15 +1622,16 @@ export default function App() {
               className="px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 text-zinc-400 hover:border-red-600 hover:text-red-400 transition-all">
               ↺ {t.restart}
             </button>
-            :<div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-400">{t.restartConfirm}</span>
+            :<div className="flex items-center gap-1">
               <button onClick={resetAll}
-                className="px-3 py-1.5 rounded text-xs font-medium bg-red-700 hover:bg-red-600 text-white">
-                {t.yes}
+                title={t.yes} aria-label={t.yes}
+                className="w-8 h-8 rounded flex items-center justify-center bg-red-700 hover:bg-red-600 text-white text-sm font-bold">
+                ✓
               </button>
               <button onClick={function(){setConfirmReset(false);}}
-                className="px-3 py-1.5 rounded text-xs font-medium bg-zinc-700 hover:bg-zinc-600 text-white">
-                {t.cancel}
+                title={t.cancel} aria-label={t.cancel}
+                className="w-8 h-8 rounded flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-bold">
+                ✕
               </button>
             </div>
           }
@@ -1251,82 +1660,186 @@ export default function App() {
         {panel==="settings"&&(
           <div className="h-full overflow-y-auto p-4 space-y-5">
 
-            {/* Search */}
-            <div>
-              <SectionHeader title={t.searchTitle}
-                onClear={function(){setSearchQ("");setSearchInfo("");}}/>
-              <p className="text-xs text-zinc-600 mb-2">{t.searchDesc}</p>
-              <div className="flex gap-2">
-                <input value={searchQ}
-                  onChange={function(e){setSearchQ(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter")analyzeSearch();}}
-                  placeholder={t.searchPlaceholder}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-                <button onClick={analyzeSearch} disabled={searching}
-                  className={"px-3 py-2 rounded text-xs font-medium flex items-center gap-1.5 transition-all "+
-                    (searching?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
-                  {searching
-                    ?<span className="w-3 h-3 border border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
-                    :"⚡"}
-                  {searching?t.analyzing:t.analyzeBtn}
+            {/* Quick-Nav-Chips */}
+            <div className="sticky top-0 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-zinc-950 z-20 border-b border-zinc-800 mb-1">
+              <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+                {[
+                  {id:"smartFill",   label:isEn?"Smart Fill":"Smart"},
+                  {id:"presets",     label:isEn?"Presets":"Vorlagen"},
+                  {id:"artists",     label:isEn?"Artists":"Künstler"},
+                  {id:"genre",       label:"Genre"},
+                  {id:"mood",        label:"Mood"},
+                  {id:"energyTempo", label:"Tempo"},
+                  {id:"key",         label:isEn?"Key":"Tonart"},
+                  {id:"dynamics",    label:isEn?"Dynamics":"Dynamik"},
+                  {id:"vocals",      label:"Vocals"},
+                  {id:"production",  label:isEn?"Production":"Produktion"},
+                  {id:"eraLang",     label:"Era"},
+                  {id:"structure",   label:isEn?"Structure":"Struktur"},
+                  {id:"lyrics",      label:"Lyrics"},
+                  {id:"advanced",    label:isEn?"Advanced":"Erweitert"},
+                  {id:"exportImport",label:"Export"}
+                ].map(function(item){
+                  return (
+                    <button key={item.id} onClick={function(){navigateTo(item.id);}}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-zinc-700 text-zinc-400 whitespace-nowrap shrink-0 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Smart Fill — unified Search + Creative */}
+            <Section title={isEn?"Smart Fill":"Smart-Eingabe"}
+              onClear={function(){
+                setSearchQ("");setSearchInfo("");setSearchErr("");
+                setCreativeP("");setCreativeInfo("");setCreativeErr("");
+              }}
+              id="smartFill" isOpen={openSections.smartFill} onToggle={function(){toggleSec("smartFill");}}
+              hasData={!!(searchQ.trim()||creativeP.trim())}>
+              <div className="flex gap-1 bg-zinc-800 rounded-lg p-1 mb-3">
+                <button onClick={function(){setSmartFillMode("artist");}}
+                  className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                    (smartFillMode==="artist"?"bg-indigo-600 text-white":"text-zinc-500 hover:text-zinc-300")}>
+                  ⚡ {isEn?"Artist / Song":"Artist / Song"}
+                </button>
+                <button onClick={function(){setSmartFillMode("creative");}}
+                  className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                    (smartFillMode==="creative"?"bg-gradient-to-r from-pink-600 to-purple-600 text-white":"text-zinc-500 hover:text-zinc-300")}>
+                  ✨ {isEn?"Free Idea":"Freie Idee"}
                 </button>
               </div>
-              {searchInfo&&
-                <div className="mt-2 bg-indigo-950 border border-indigo-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-indigo-300">{searchInfo}</p>
-                  <p className="text-xs text-indigo-500 mt-0.5">{t.analyzedInfo}</p>
-                </div>}
-              {searchErr&&
-                <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400 font-semibold mb-0.5">{t.analysisFailed}</p>
-                  <p className="text-xs text-red-300">{searchErr}</p>
-                </div>}
-            </div>
+              {smartFillMode==="artist" ? (
+                <>
+                  <p className="text-xs text-zinc-600 mb-2">{t.searchDesc}</p>
+                  <div className="flex gap-2">
+                    <input value={searchQ}
+                      onChange={function(e){setSearchQ(e.target.value);}}
+                      onKeyDown={function(e){if(e.key==="Enter")analyzeSearch();}}
+                      placeholder={t.searchPlaceholder}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                    <button onClick={analyzeSearch} disabled={searching||!searchQ.trim()}
+                      className={"px-3 py-2 rounded text-xs font-medium flex items-center gap-1.5 transition-all "+
+                        (searching||!searchQ.trim()?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
+                      {searching
+                        ?<span className="w-3 h-3 border border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
+                        :"⚡"}
+                      {searching?t.analyzing:t.analyzeBtn}
+                    </button>
+                  </div>
+                  {searchInfo&&
+                    <div className="mt-2 bg-indigo-950 border border-indigo-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-indigo-300">{searchInfo}</p>
+                      <p className="text-xs text-indigo-500 mt-0.5">{t.analyzedInfo}</p>
+                    </div>}
+                  {searchErr&&
+                    <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-red-400 font-semibold mb-0.5">{t.analysisFailed}</p>
+                      <p className="text-xs text-red-300">{searchErr}</p>
+                    </div>}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-zinc-600 mb-2">{t.creativeDesc}</p>
+                  <textarea value={creativeP}
+                    onChange={function(e){setCreativeP(e.target.value);}}
+                    onKeyDown={function(e){if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))analyzeCreative();}}
+                    placeholder={t.creativePlaceholder} rows={3}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-pink-500 resize-none mb-2"/>
+                  <button onClick={analyzeCreative}
+                    disabled={creativeAnalyzing||!creativeP.trim()}
+                    className={"w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all "+
+                      (creativeAnalyzing||!creativeP.trim()
+                        ?"bg-zinc-700 text-zinc-500 cursor-not-allowed"
+                        :"bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white")}>
+                    {creativeAnalyzing
+                      ?<><span className="w-3.5 h-3.5 border border-zinc-500 border-t-pink-400 rounded-full animate-spin"/>{t.creativeAnalyzing}</>
+                      :<><span>✨</span>{t.creativeBtn}</>}
+                  </button>
+                  {creativeInfo&&
+                    <div className="mt-2 bg-gradient-to-r from-pink-950 to-purple-950 border border-pink-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-pink-200 font-medium mb-0.5">{t.creativeInterpretation}</p>
+                      <p className="text-xs text-pink-300">{creativeInfo}</p>
+                      <p className="text-xs text-pink-500 mt-1">{t.creativeApplied}</p>
+                    </div>}
+                  {creativeErr&&
+                    <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+                      <p className="text-xs text-red-400">{creativeErr}</p>
+                    </div>}
+                </>
+              )}
+            </Section>
 
-            {/* Creative */}
-            <div>
-              <SectionHeader title={t.creativeTitle}
-                onClear={function(){setCreativeP("");setCreativeInfo("");setCreativeErr("");}}/>
-              <p className="text-xs text-zinc-600 mb-2">{t.creativeDesc}</p>
-              <textarea value={creativeP}
-                onChange={function(e){setCreativeP(e.target.value);}}
-                onKeyDown={function(e){if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))analyzeCreative();}}
-                placeholder={t.creativePlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-pink-500 resize-none mb-2"/>
-              <button onClick={analyzeCreative}
-                disabled={creativeAnalyzing||!creativeP.trim()}
-                className={"w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all "+
-                  (creativeAnalyzing||!creativeP.trim()
-                    ?"bg-zinc-700 text-zinc-500 cursor-not-allowed"
-                    :"bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white")}>
-                {creativeAnalyzing
-                  ?<><span className="w-3.5 h-3.5 border border-zinc-500 border-t-pink-400 rounded-full animate-spin"/>{t.creativeAnalyzing}</>
-                  :<><span>✨</span>{t.creativeBtn}</>}
-              </button>
-              {creativeInfo&&
-                <div className="mt-2 bg-gradient-to-r from-pink-950 to-purple-950 border border-pink-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-pink-200 font-medium mb-0.5">{t.creativeInterpretation}</p>
-                  <p className="text-xs text-pink-300">{creativeInfo}</p>
-                  <p className="text-xs text-pink-500 mt-1">{t.creativeApplied}</p>
-                </div>}
-              {creativeErr&&
-                <div className="mt-2 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400">{creativeErr}</p>
-                </div>}
-            </div>
+            {/* Presets */}
+            <Section title={isEn?"Presets":"Vorlagen"}
+              id="presets" isOpen={openSections.presets} onToggle={function(){toggleSec("presets");}}>
+              <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{isEn?"Templates":"Vorlagen"}</p>
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {BUILTIN_PRESETS.map(function(p){
+                  return (
+                    <button key={p.name} onClick={function(){loadPreset(p);}}
+                      className="px-2.5 py-1 rounded-full text-xs border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 transition-all">
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {presets.length>0&&(
+                <>
+                  <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{isEn?"Saved":"Gespeichert"}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {presets.map(function(p){
+                      return (
+                        <span key={p.id} className="flex items-center rounded-full border border-zinc-700 bg-zinc-800 text-xs overflow-hidden">
+                          <button onClick={function(){loadPreset(p);}}
+                            className="px-2.5 py-1 text-zinc-300 hover:bg-white hover:bg-opacity-10">
+                            {p.name}
+                          </button>
+                          <button onClick={function(){deletePreset(p.id);}}
+                            className="px-1.5 py-1 text-zinc-500 hover:bg-red-700 hover:text-white border-l border-zinc-700">x</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <input value={newPresetName}
+                  onChange={function(e){setNewPresetName(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter")savePreset();}}
+                  placeholder={isEn?"Save current as...":"Aktuelle speichern als..."}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                <button onClick={savePreset} disabled={!newPresetName.trim()}
+                  className={"px-3 py-1.5 rounded text-xs font-medium "+
+                    (newPresetName.trim()?"bg-indigo-700 hover:bg-indigo-600 text-white":"bg-zinc-700 text-zinc-500 cursor-not-allowed")}>
+                  💾 {isEn?"Save":"Speichern"}
+                </button>
+              </div>
+            </Section>
 
             {/* Artists */}
-            <div>
-              <SectionHeader title={t.artistTitle}
-                onClear={function(){setArtists([]);setAvailArtists(PRESET_ARTISTS.slice());setCustomArtist("");}}/>
+            <Section title={t.artistTitle}
+              onClear={function(){clearWithUndo(t.artistTitle, function(){
+                var sa=artists, sav=availArtists, sca=customArtist;
+                setArtists([]); setAvailArtists(PRESET_ARTISTS.slice()); setCustomArtist("");
+                return function(){ setArtists(sa); setAvailArtists(sav); setCustomArtist(sca); };
+              });}}
+              id="artists" isOpen={openSections.artists} onToggle={function(){toggleSec("artists");}}
+              hasData={artists.length>0}>
               <p className="text-xs text-zinc-600 mb-2">{t.artistDesc}</p>
+              <div className="flex gap-2 mb-3">
+                <input value={customArtist}
+                  onChange={function(e){setCustomArtist(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter"){addArtist(customArtist);setCustomArtist("");}}}
+                  placeholder={t.artistAdd}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-purple-500"/>
+                <button onClick={function(){addArtist(customArtist);setCustomArtist("");}}
+                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white font-medium">+ Add</button>
+              </div>
               <div className="space-y-3 mb-3">
                 {ARTIST_GROUPS.map(function(grp){
-                  var gp=grp.artists.filter(function(a){return availArtists.includes(a);});
-                  var ex=grp===ARTIST_GROUPS[ARTIST_GROUPS.length-1]
-                    ?availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);})
-                    :[];
-                  var vis=gp.concat(ex);
+                  var vis=grp.artists.filter(function(a){return availArtists.includes(a);});
                   if(!vis.length)return null;
                   return (
                     <div key={grp.label}>
@@ -1350,24 +1863,50 @@ export default function App() {
                     </div>
                   );
                 })}
-              </div>
-              <div className="flex gap-2">
-                <input value={customArtist}
-                  onChange={function(e){setCustomArtist(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter"){addArtist(customArtist);setCustomArtist("");}}}
-                  placeholder={t.artistAdd}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-purple-500"/>
-                <button onClick={function(){addArtist(customArtist);setCustomArtist("");}}
-                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded text-xs text-white font-medium">+ Add</button>
+                {availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}).length>0&&(
+                  <div>
+                    <p className="text-xs text-zinc-600 mb-1">Custom</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availArtists.filter(function(a){return !PRESET_ARTISTS.includes(a);}).map(function(a){
+                        var active=artists.includes(a);
+                        return (
+                          <span key={a}
+                            className={"flex items-center rounded border text-xs transition-all overflow-hidden "+
+                              (active?"bg-fuchsia-600 border-fuchsia-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-300")}>
+                            <button onClick={function(){toggle(artists,setArtists,a);}}
+                              className="px-2 py-1 hover:bg-white hover:bg-opacity-10">{a}</button>
+                            <button onClick={function(){removeArtist(a);}}
+                              className={"px-1.5 py-1 border-l "+
+                                (active?"border-fuchsia-400 hover:bg-red-600 text-fuchsia-200 hover:text-white":"border-zinc-700 hover:bg-red-700 text-zinc-500 hover:text-white")}>x</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               {artists.length>0&&
                 <p className="text-xs text-zinc-500 mt-1.5">{t.artistAnalyze}{artists.join(", ")}</p>}
-            </div>
+            </Section>
 
             {/* Genre */}
-            <div>
-              <SectionHeader title={t.genreTitle}
-                onClear={function(){setGenres([]);setExtraGenres([]);setHiddenGenres([]);setShowHidden(false);}}/>
+            <Section title={t.genreTitle}
+              onClear={function(){clearWithUndo(t.genreTitle, function(){
+                var sg=genres, seg=extraGenres, shg=hiddenGenres, ssh=showHidden;
+                setGenres([]); setExtraGenres([]); setHiddenGenres([]); setShowHidden(false);
+                return function(){ setGenres(sg); setExtraGenres(seg); setHiddenGenres(shg); setShowHidden(ssh); };
+              });}}
+              id="genre" isOpen={openSections.genre} onToggle={function(){toggleSec("genre");}}
+              hasData={genres.length>0}>
+              <div className="flex gap-2 mb-3">
+                <input value={customGenre}
+                  onChange={function(e){setCustomGenre(e.target.value);}}
+                  onKeyDown={function(e){if(e.key==="Enter"){addCustomGenre(customGenre);setCustomGenre("");}}}
+                  placeholder={t.genreAdd}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+                <button onClick={function(){addCustomGenre(customGenre);setCustomGenre("");}}
+                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-xs text-white font-medium">+ Add</button>
+              </div>
               <div className="space-y-3 mb-2">
                 {GENRE_GROUPS.map(function(grp){
                   var vis=grp.genres.filter(function(g){return !hiddenGenres.includes(g);});
@@ -1438,20 +1977,17 @@ export default function App() {
               </div>
               {genres.length>0&&BPM_GUIDE[genres[0]]&&
                 <p className="text-xs text-zinc-500 mt-1">{t.genreTypical}{genres[0]}: {BPM_GUIDE[genres[0]]} BPM</p>}
-              <div className="flex gap-2 mt-2">
-                <input value={customGenre}
-                  onChange={function(e){setCustomGenre(e.target.value);}}
-                  onKeyDown={function(e){if(e.key==="Enter"){addCustomGenre(customGenre);setCustomGenre("");}}}
-                  placeholder={t.genreAdd}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-                <button onClick={function(){addCustomGenre(customGenre);setCustomGenre("");}}
-                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-xs text-white font-medium">+ Add</button>
-              </div>
-            </div>
+            </Section>
 
             {/* Mood */}
-            <div>
-              <SectionHeader title={t.moodTitle} onClear={function(){setMoods([]);}}/>
+            <Section title={t.moodTitle}
+              onClear={function(){clearWithUndo(t.moodTitle, function(){
+                var sm=moods;
+                setMoods([]);
+                return function(){ setMoods(sm); };
+              });}}
+              id="mood" isOpen={openSections.mood} onToggle={function(){toggleSec("mood");}}
+              hasData={moods.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {MOODS.map(function(m){
                   var active=moods.includes(m);
@@ -1464,12 +2000,17 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Energy & Tempo */}
-            <div>
-              <SectionHeader title={t.energyTempoTitle}
-                onClear={function(){setEnergy("Medium");setTempoTerm("");setBpmMin("");setBpmMax("");}}/>
+            <Section title={t.energyTempoTitle}
+              onClear={function(){clearWithUndo(t.energyTempoTitle, function(){
+                var se=energy, st=tempoTerm, sb1=bpmMin, sb2=bpmMax;
+                setEnergy("Medium"); setTempoTerm(""); setBpmMin(""); setBpmMax("");
+                return function(){ setEnergy(se); setTempoTerm(st); setBpmMin(sb1); setBpmMax(sb2); };
+              });}}
+              id="energyTempo" isOpen={openSections.energyTempo} onToggle={function(){toggleSec("energyTempo");}}
+              hasData={!!(energy!=="Medium"||tempoTerm||bpmMin||bpmMax)}>
               <div className="flex gap-2 mb-3">
                 {["Low","Medium","High"].map(function(lv){
                   return (
@@ -1489,7 +2030,7 @@ export default function App() {
                       className={"flex items-center justify-between w-full px-3 py-1.5 rounded text-xs border transition-all "+
                         (tempoTerm===term.label?"bg-indigo-700 border-indigo-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-indigo-500")}>
                       <span className="font-medium">{term.label}</span>
-                      <span className="text-zinc-500">
+                      <span className={tempoTerm===term.label?"text-indigo-200":"text-zinc-500"}>
                         {term.bpmLo>0?term.bpmLo+"-"+term.bpmHi+" BPM ":""}
                         {isEn?term.en:term.de}
                       </span>
@@ -1506,11 +2047,17 @@ export default function App() {
                   placeholder={t.maxBpm}
                   className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"/>
               </div>
-            </div>
+            </Section>
 
             {/* Key */}
-            <div>
-              <SectionHeader title={t.keyTitle} onClear={function(){setSongKey("");}}/>
+            <Section title={t.keyTitle}
+              onClear={function(){clearWithUndo(t.keyTitle, function(){
+                var sk=songKey;
+                setSongKey("");
+                return function(){ setSongKey(sk); };
+              });}}
+              id="key" isOpen={openSections.key} onToggle={function(){toggleSec("key");}}
+              hasData={!!songKey}>
               <div className="flex gap-2">
                 {["Major","Minor"].map(function(k){
                   return (
@@ -1522,11 +2069,17 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Dynamics */}
-            <div>
-              <SectionHeader title={t.dynamicsTitle} onClear={function(){setDynamics([]);}}/>
+            <Section title={t.dynamicsTitle}
+              onClear={function(){clearWithUndo(t.dynamicsTitle, function(){
+                var sd=dynamics;
+                setDynamics([]);
+                return function(){ setDynamics(sd); };
+              });}}
+              id="dynamics" isOpen={openSections.dynamics} onToggle={function(){toggleSec("dynamics");}}
+              hasData={dynamics.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {DYNAMICS.map(function(d){
                   var active=dynamics.includes(d);
@@ -1540,12 +2093,17 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Vocals */}
-            <div>
-              <SectionHeader title={t.vocalsTitle}
-                onClear={function(){setVocalType("");setVocalTone("");setAccent("");}}/>
+            <Section title={t.vocalsTitle}
+              onClear={function(){clearWithUndo(t.vocalsTitle, function(){
+                var svt=vocalType, svn=vocalTone, sac=accent;
+                setVocalType(""); setVocalTone(""); setAccent("");
+                return function(){ setVocalType(svt); setVocalTone(svn); setAccent(sac); };
+              });}}
+              id="vocals" isOpen={openSections.vocals} onToggle={function(){toggleSec("vocals");}}
+              hasData={!!(vocalType||vocalTone||accent)}>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {VOCAL_TYPES.map(function(v){
                   var active=vocalType===v;
@@ -1585,11 +2143,17 @@ export default function App() {
                 })}
               </div>
               {accent&&<p className="text-xs text-amber-400 mt-1.5 italic">{accent}</p>}
-            </div>
+            </Section>
 
             {/* Production */}
-            <div>
-              <SectionHeader title={t.productionTitle} onClear={function(){setProdFx([]);}}/>
+            <Section title={t.productionTitle}
+              onClear={function(){clearWithUndo(t.productionTitle, function(){
+                var sp=prodFx;
+                setProdFx([]);
+                return function(){ setProdFx(sp); };
+              });}}
+              id="production" isOpen={openSections.production} onToggle={function(){toggleSec("production");}}
+              hasData={prodFx.length>0}>
               <div className="flex flex-wrap gap-1.5">
                 {PROD_FX.map(function(f){
                   var active=prodFx.includes(f);
@@ -1603,35 +2167,33 @@ export default function App() {
                   );
                 })}
               </div>
-            </div>
+            </Section>
 
             {/* Era & Language */}
-            <div>
-              <SectionHeader title={t.eraLangTitle}
-                onClear={function(){setEra("");setLang("English");}}/>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-zinc-500 mb-1">{t.eraLabel}</p>
-                  <select value={era} onChange={function(e){setEra(e.target.value);}}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                    <option value="">{t.modern}</option>
-                    {ERAS.map(function(er){return <option key={er} value={er}>{er}</option>;})}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-xs text-zinc-500 mb-1">{t.langLabel}</p>
-                  <select value={lang} onChange={function(e){setLang(e.target.value);}}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                    {LANGUAGES.map(function(ln){return <option key={ln} value={ln}>{ln}</option>;})}
-                  </select>
-                </div>
-              </div>
-            </div>
+            <Section title={t.eraLabel}
+              onClear={function(){clearWithUndo(t.eraLabel, function(){
+                var ser=era;
+                setEra("");
+                return function(){ setEra(ser); };
+              });}}
+              id="eraLang" isOpen={openSections.eraLang} onToggle={function(){toggleSec("eraLang");}}
+              hasData={!!era}>
+              <select value={era} onChange={function(e){setEra(e.target.value);}}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                <option value="">{t.modern}</option>
+                {ERAS.map(function(er){return <option key={er} value={er}>{er}</option>;})}
+              </select>
+            </Section>
 
             {/* Structure */}
-            <div>
-              <SectionHeader title={t.structureTitle}
-                onClear={function(){setStructure(DEF_STRUCT.slice());}}/>
+            <Section title={t.structureTitle}
+              onClear={function(){clearWithUndo(t.structureTitle, function(){
+                var ss=structure;
+                setStructure(DEF_STRUCT.slice());
+                return function(){ setStructure(ss); };
+              });}}
+              id="structure" isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}
+              hasData={JSON.stringify(structure)!==JSON.stringify(DEF_STRUCT)}>
               <div className="space-y-1 mb-2">
                 {structure.map(function(s,i){
                   return (
@@ -1671,61 +2233,89 @@ export default function App() {
                   + {t.addSection}
                 </button>
               </div>
-            </div>
+            </Section>
 
-            {/* Lyric Themes */}
-            <div>
-              <SectionHeader title={t.lyricThemesTitle}
-                onClear={function(){setLyricThemes([]);setLyricContent("");}}/>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {THEMES.map(function(theme){
-                  var active=lyricThemes.includes(theme);
-                  return (
-                    <button key={theme} onClick={function(){toggle(lyricThemes,setLyricThemes,theme);}}
-                      className={"px-2 py-1 rounded text-xs border transition-all "+
-                        (active?"bg-teal-600 text-white border-teal-500":"bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-teal-500")}>
-                      {theme}
-                    </button>
-                  );
-                })}
+            {/* Lyrics & Content */}
+            <Section title={isEn?"Lyrics & Content":"Lyrics & Inhalt"}
+              onClear={function(){clearWithUndo(isEn?"Lyrics & Content":"Lyrics & Inhalt", function(){
+                var slt=lyricThemes, slc=lyricContent, sol=ownLyrics, sts=titleSugg, sds=description;
+                setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setTitleSugg(""); setDescription("");
+                return function(){ setLyricThemes(slt); setLyricContent(slc); setOwnLyrics(sol); setTitleSugg(sts); setDescription(sds); };
+              });}}
+              id="lyrics" isOpen={openSections.lyrics} onToggle={function(){toggleSec("lyrics");}}
+              hasData={!!(lyricThemes.length||lyricContent||ownLyrics||titleSugg||description)}>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.lyricThemesTitle}</p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {THEMES.map(function(theme){
+                    var active=lyricThemes.includes(theme);
+                    return (
+                      <button key={theme} onClick={function(){toggle(lyricThemes,setLyricThemes,theme);}}
+                        className={"px-2 py-1 rounded text-xs border transition-all "+
+                          (active?"bg-teal-600 text-white border-teal-500":"bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-teal-500")}>
+                        {theme}
+                      </button>
+                    );
+                  })}
+                </div>
+                <textarea value={lyricContent}
+                  onChange={function(e){setLyricContent(e.target.value);}}
+                  placeholder={t.lyricContentPlaceholder} rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"/>
               </div>
-              <textarea value={lyricContent}
-                onChange={function(e){setLyricContent(e.target.value);}}
-                placeholder={t.lyricContentPlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"/>
-            </div>
-
-            {/* Own Lyrics */}
-            <div>
-              <SectionHeader title={t.ownLyricsTitle} onClear={function(){setOwnLyrics("");}}/>
-              <textarea value={ownLyrics}
-                onChange={function(e){setOwnLyrics(e.target.value);}}
-                placeholder={t.ownLyricsPlaceholder} rows={5}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
-            </div>
-
-            {/* Title */}
-            <div>
-              <SectionHeader title={t.titleTitle} onClear={function(){setTitleSugg("");}}/>
-              <p className="text-xs text-zinc-600 mb-2">{t.titleDesc}</p>
-              <input value={titleSugg} onChange={function(e){setTitleSugg(e.target.value);}}
-                placeholder={t.titlePlaceholder}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
-            </div>
-
-            {/* Free Description */}
-            <div>
-              <SectionHeader title={t.descTitle} onClear={function(){setDescription("");}}/>
-              <textarea value={description}
-                onChange={function(e){setDescription(e.target.value);}}
-                placeholder={t.descPlaceholder} rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
-            </div>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.ownLyricsTitle}</p>
+                <textarea value={ownLyrics}
+                  onChange={function(e){setOwnLyrics(e.target.value);}}
+                  placeholder={t.ownLyricsPlaceholder} rows={5}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
+              </div>
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-zinc-400 mb-1">{t.titleTitle}</p>
+                <p className="text-xs text-zinc-600 mb-1.5">{t.titleDesc}</p>
+                <input value={titleSugg} onChange={function(e){setTitleSugg(e.target.value);}}
+                  placeholder={t.titlePlaceholder}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"/>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{t.descTitle}</p>
+                <textarea value={description}
+                  onChange={function(e){setDescription(e.target.value);}}
+                  placeholder={t.descPlaceholder} rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"/>
+              </div>
+            </Section>
 
             {/* Advanced */}
-            <div>
-              <SectionHeader title={t.advancedTitle}
-                onClear={function(){setExcludeStyle("");setInstrumental(false);setVoicesMode(false);setWeirdness(62);setStyleInf(70);}}/>
+            <Section title={t.advancedTitle}
+              onClear={function(){clearWithUndo(t.advancedTitle, function(){
+                var sex=excludeStyle, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
+                setExcludeStyle(""); setInstrumental(false); setVoicesMode(false);
+                setWeirdness(62); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
+                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); };
+              });}}
+              id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
+              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium")}>
+              <div className="mb-3">
+                <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
+                <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+                  <button onClick={function(){setModelMode("fast");}}
+                    className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                      (modelMode==="fast"?"bg-emerald-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 4.6</span>
+                  </button>
+                  <button onClick={function(){setModelMode("premium");}}
+                    className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
+                      (modelMode==="premium"?"bg-indigo-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                    💎 {isEn?"Premium":"Premium"} <span className="opacity-70">· Opus 4.8</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1 leading-snug">
+                  {modelMode==="fast"
+                    ? (isEn?"~5× cheaper per song. Solid pop/standard genres.":"~5× günstiger pro Song. Solide für Pop / Standardgenres.")
+                    : (isEn?"Top-tier creative writing. Best for nuance & originality.":"Stärkstes Modell für Kreativtexte. Mehr Originalität.")}
+                </p>
+              </div>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
                 <input value={excludeStyle}
@@ -1733,58 +2323,86 @@ export default function App() {
                   placeholder={t.excludePlaceholder}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-red-500"/>
               </div>
-              {[
-                {val:instrumental, set:setInstrumental, color:"bg-teal-600",
-                 label:isEn?"Instrumental Mode":"Instrumental-Modus",
-                 desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
-                {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
-                 label:isEn?"Voices Mode (v5.5)":"Voices-Modus (v5.5)",
-                 desc:isEn?"Using cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
-              ].map(function(item){
-                return (
-                  <div key={item.label}
-                    className="flex items-center justify-between mb-3 bg-zinc-800 rounded-lg px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium text-zinc-200">{item.label}</p>
-                      <p className="text-xs text-zinc-500">{item.desc}</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {[
+                  {val:instrumental, set:setInstrumental, color:"bg-teal-600",
+                   label:isEn?"Instrumental":"Instrumental",
+                   desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
+                  {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
+                   label:isEn?"Voices (v5.5)":"Voices (v5.5)",
+                   desc:isEn?"Cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
+                  {val:autoAdvanced, set:setAutoAdvanced, color:"bg-emerald-600",
+                   label:isEn?"Auto Mode":"Auto-Modus",
+                   desc:isEn?"Claude picks Weirdness & Style Influence":"Claude wählt Weirdness & Style Influence"},
+                ].map(function(item){
+                  return (
+                    <div key={item.label} title={item.desc}
+                      className="flex flex-col bg-zinc-800 rounded-lg px-2.5 py-2 gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-zinc-200 leading-tight">{item.label}</p>
+                        <Toggle value={item.val} color={item.color}
+                          onToggle={function(){item.set(!item.val);}}/>
+                      </div>
+                      <p className="text-[10px] text-zinc-500 leading-snug">{item.desc}</p>
                     </div>
-                    <Toggle value={item.val} color={item.color}
-                      onToggle={function(){item.set(!item.val);}}/>
-                  </div>
+                  );
+                })}
+              </div>
+              {(function(){
+                var adv = (output && output.advanced) || "";
+                var wm = adv.match(/Weirdness[:\s]+(\d+)/i);
+                var sm = adv.match(/Style Influence[:\s]+(\d+)/i);
+                var autoWeird = autoAdvanced && wm ? Number(wm[1]) : null;
+                var autoStyle = autoAdvanced && sm ? Number(sm[1]) : null;
+                return (
+                  <>
+                    <div className="mb-4" style={{opacity: autoAdvanced ? 0.7 : 1}}>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
+                        <span className="text-xs font-semibold text-white">
+                          {autoAdvanced
+                            ? (autoWeird!==null ? "AUTO → "+autoWeird+"%" : "AUTO")
+                            : weirdness+"%"}
+                        </span>
+                      </div>
+                      <input type="range" min="0" max="100"
+                        value={autoAdvanced && autoWeird!==null ? autoWeird : weirdness}
+                        disabled={autoAdvanced}
+                        onChange={function(e){setWeirdness(Number(e.target.value));}}
+                        className="w-full accent-indigo-500 disabled:cursor-not-allowed"/>
+                      <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
+                        <span>{t.weirdnessLeft}</span>
+                        <span className="text-zinc-500">{t.weirdnessMid}</span>
+                        <span>{t.weirdnessRight}</span>
+                      </div>
+                    </div>
+                    <div style={{opacity: autoAdvanced ? 0.7 : 1}}>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-zinc-400">{t.styleInfluenceLabel}</label>
+                        <span className="text-xs font-semibold text-white">
+                          {autoAdvanced
+                            ? (autoStyle!==null ? "AUTO → "+autoStyle+"%" : "AUTO")
+                            : styleInf+"%"}
+                        </span>
+                      </div>
+                      <input type="range" min="0" max="100"
+                        value={autoAdvanced && autoStyle!==null ? autoStyle : styleInf}
+                        disabled={autoAdvanced}
+                        onChange={function(e){setStyleInf(Number(e.target.value));}}
+                        className="w-full accent-purple-500 disabled:cursor-not-allowed"/>
+                      <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
+                        <span>{t.styleLeft}</span>
+                        <span>{t.styleRight}</span>
+                      </div>
+                    </div>
+                  </>
                 );
-              })}
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs text-zinc-400">{t.weirdnessLabel}</label>
-                  <span className="text-xs font-semibold text-white">{weirdness}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={weirdness}
-                  onChange={function(e){setWeirdness(Number(e.target.value));}}
-                  className="w-full accent-indigo-500"/>
-                <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
-                  <span>{t.weirdnessLeft}</span>
-                  <span className="text-zinc-500">{t.weirdnessMid}</span>
-                  <span>{t.weirdnessRight}</span>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs text-zinc-400">{t.styleInfluenceLabel}</label>
-                  <span className="text-xs font-semibold text-white">{styleInf}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={styleInf}
-                  onChange={function(e){setStyleInf(Number(e.target.value));}}
-                  className="w-full accent-purple-500"/>
-                <div className="flex justify-between text-xs text-zinc-600 mt-0.5">
-                  <span>{t.styleLeft}</span>
-                  <span>{t.styleRight}</span>
-                </div>
-              </div>
-            </div>
+              })()}
+            </Section>
 
             {/* Export / Import */}
-            <div>
-              <SectionHeader title={t.exportImport}/>
+            <Section title={t.exportImport}
+              id="exportImport" isOpen={openSections.exportImport} onToggle={function(){toggleSec("exportImport");}}>
               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-zinc-800 rounded-lg">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"/>
                 <p className="text-xs text-zinc-400">{t.autoSaved}</p>
@@ -1832,19 +2450,44 @@ export default function App() {
                 <p className="text-xs mt-2 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300">
                   {importMsg}
                 </p>}
-            </div>
+            </Section>
 
-            <button onClick={generate} disabled={loading}
-              className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
-                (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
-              {loading
-                ?<span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
-                  {t.generating}
+            <div className="sticky bottom-0 -mx-4 px-4 pt-2 pb-3 bg-zinc-950 border-t border-zinc-800 z-10">
+              {undoAction && (
+                <div className="mb-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-between gap-2">
+                  <p className="text-xs text-zinc-300 truncate">{undoAction.label}</p>
+                  <button onClick={triggerUndo}
+                    className="px-3 py-1 rounded text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shrink-0">
+                    {isEn?"Undo":"Rückgängig"}
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span className="text-[11px] text-zinc-500 shrink-0">
+                  📝 {isEn?"Lyrics in":"Lyrics auf"}:
                 </span>
-                :"🎵 "+t.generateBtn}
-            </button>
-            {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mt-2">{error}</p>}
+                <select value={lang} onChange={function(e){setLang(e.target.value);}}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[11px] font-medium text-zinc-200 focus:outline-none focus:border-indigo-500">
+                  {LANGUAGES.map(function(ln){return <option key={ln} value={ln}>{ln}</option>;})}
+                </select>
+                <span className="text-[11px] text-zinc-600 shrink-0">·</span>
+                <button onClick={function(){navigateTo("advanced");}}
+                  className="text-[11px] text-zinc-400 hover:text-indigo-300 shrink-0">
+                  {modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"}
+                </button>
+              </div>
+              <button onClick={generate} disabled={loading}
+                className={"w-full py-3 rounded-lg font-semibold text-sm transition-all "+
+                  (loading?"bg-zinc-700 text-zinc-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-500 text-white")}>
+                {loading
+                  ?<span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-zinc-500 border-t-indigo-400 rounded-full animate-spin"/>
+                    {t.generating}
+                  </span>
+                  :"🎵 "+t.generateBtn}
+              </button>
+              {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mt-2">{error}</p>}
+            </div>
           </div>
         )}
 
@@ -1866,6 +2509,90 @@ export default function App() {
             )}
             {output&&(
               <div className="p-4">
+                {history.length>1&&(
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
+                      {isEn?"History":"Verlauf"} ({history.length})
+                    </p>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
+                      {history.map(function(entry, i){
+                        var isCurrent = currentEntryTs===entry.ts;
+                        return (
+                          <button key={entry.ts}
+                            onClick={function(){setOutput(entry.output); setCurrentEntryTs(entry.ts); setActiveTab("lyrics");}}
+                            className={"px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap shrink-0 border transition-all "+
+                              (isCurrent?"bg-indigo-600 border-indigo-500 text-white":"bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-indigo-500 hover:text-indigo-300")}>
+                            {i===0?"🎵 ":""}{entry.title}
+                          </button>
+                        );
+                      })}
+                      <button onClick={function(){if(confirm(isEn?"Clear history?":"Verlauf löschen?")) setHistory([]);}}
+                        title={isEn?"Clear history":"Verlauf löschen"}
+                        className="px-2 py-1 rounded-full text-[11px] shrink-0 border border-zinc-700 text-zinc-600 hover:border-red-600 hover:text-red-400">
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {(function(){
+                  var entry = history.find(function(e){return e.ts===currentEntryTs;});
+                  if (!entry || !entry.settings) return null;
+                  var s = entry.settings;
+                  var items = [];
+                  if (s.genres&&s.genres.length) items.push([isEn?"Genres":"Genres", s.genres.join(", ")]);
+                  if (s.artists&&s.artists.length) items.push([isEn?"Artists":"Künstler", s.artists.join(", ")]);
+                  if (s.moods&&s.moods.length) items.push([isEn?"Mood":"Mood", s.moods.join(", ")]);
+                  if (s.energy&&s.energy!=="Medium") items.push([isEn?"Energy":"Energie", s.energy]);
+                  if (s.tempoTerm) items.push([isEn?"Tempo":"Tempo", s.tempoTerm]);
+                  if (s.bpmMin||s.bpmMax) items.push(["BPM", (s.bpmMin||"?")+"-"+(s.bpmMax||"?")]);
+                  if (s.songKey) items.push([isEn?"Key":"Tonart", s.songKey]);
+                  if (s.dynamics&&s.dynamics.length) items.push([isEn?"Dynamics":"Dynamik", s.dynamics.join(", ")]);
+                  if (s.vocalType) items.push(["Vocals", s.vocalType]);
+                  if (s.vocalTone) items.push([isEn?"Vocal tone":"Vocal-Ton", s.vocalTone]);
+                  if (s.accent) items.push([isEn?"Accent":"Akzent", s.accent.split(",")[0]]);
+                  if (s.prodFx&&s.prodFx.length) items.push([isEn?"Production":"Produktion", s.prodFx.join(", ")]);
+                  if (s.era) items.push(["Era", s.era]);
+                  if (s.lang&&s.lang!=="English") items.push([isEn?"Language":"Sprache", s.lang]);
+                  if (s.structure&&s.structure.length) items.push([isEn?"Structure":"Struktur", s.structure.join(" → ")]);
+                  if (s.lyricThemes&&s.lyricThemes.length) items.push([isEn?"Themes":"Themen", s.lyricThemes.join(", ")]);
+                  if (s.lyricContent) items.push([isEn?"Content":"Inhalt", s.lyricContent]);
+                  if (s.ownLyrics) items.push([isEn?"Own lyrics":"Eigene Lyrics", "✓ ("+s.ownLyrics.length+" "+(isEn?"chars":"Zeichen")+")"]);
+                  if (s.titleSugg) items.push([isEn?"Title hint":"Titelvorgabe", s.titleSugg]);
+                  if (s.description) items.push([isEn?"Notes":"Notizen", s.description]);
+                  if (s.excludeStyle) items.push([isEn?"Exclude":"Ausschluss", s.excludeStyle]);
+                  if (s.instrumental) items.push(["Instrumental", "✓"]);
+                  if (s.voicesMode) items.push(["Voices Mode", "✓"]);
+                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 4.6":"💎 Opus 4.8"]);
+                  if (s.autoAdvanced) items.push([isEn?"Weirdness/Style":"Weirdness/Style", "AUTO"]);
+                  else {
+                    if (s.weirdness!==undefined) items.push(["Weirdness", s.weirdness+"%"]);
+                    if (s.styleInf!==undefined) items.push(["Style Influence", s.styleInf+"%"]);
+                  }
+                  if (!items.length) return null;
+                  return (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden mb-3">
+                      <button onClick={function(){setShowEntrySettings(!showEntrySettings);}}
+                        className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-zinc-800/50">
+                        <span className="text-xs font-medium text-zinc-300">
+                          📋 {isEn?"Settings used":"Verwendete Einstellungen"} <span className="text-zinc-500 ml-1">({items.length})</span>
+                        </span>
+                        <span className="text-zinc-600 text-[10px]">{showEntrySettings?"▼":"▶"}</span>
+                      </button>
+                      {showEntrySettings && (
+                        <div className="px-3 pb-3 pt-1 border-t border-zinc-800 space-y-1">
+                          {items.map(function(it){
+                            return (
+                              <div key={it[0]} className="flex gap-2 text-xs">
+                                <span className="text-zinc-500 shrink-0" style={{minWidth:"7rem"}}>{it[0]}:</span>
+                                <span className="text-zinc-300 break-words">{it[1]}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-1 bg-zinc-900 rounded-lg p-1 mb-4">
                   {tabs.map(function(tab){
                     return (
@@ -1922,7 +2649,7 @@ export default function App() {
                     <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
                     <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
                       icon="✏️" content={output.title} t={t}/>
-                    <div className="mt-2 flex justify-end items-center gap-2">
+                    <div className="flex justify-end items-center gap-2">
                       <span className={
                         output.title.length>100?"text-red-400 font-semibold text-xs":
                         output.title.length>85?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
@@ -1931,6 +2658,17 @@ export default function App() {
                       {output.title.length>100&&
                         <span className="text-xs text-red-400">{t.tooLong}</span>}
                     </div>
+                  </div>
+                )}
+                {activeTab==="all"&&(
+                  <div className="space-y-4">
+                    <OutputSection title={t.lyricsTitle} subtitle={t.lyricsSubtitle}
+                      icon="🎤" content={output.lyrics} t={t}/>
+                    <OutputSection title={t.styleTitle} subtitle={t.styleSubtitle}
+                      icon="🎨" content={output.style} t={t}/>
+                    <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
+                    <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
+                      icon="✏️" content={output.title} t={t}/>
                   </div>
                 )}
               </div>

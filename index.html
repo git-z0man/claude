@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090b" />
+  <title>Claude Tools</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%234f46e5'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='32' fill='white' font-family='sans-serif' font-weight='bold'%3EC%3C/text%3E%3C/svg%3E" />
+  <style>
+    html, body { background: #09090b; color: #fafafa; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    main { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; gap: 1.5rem; box-sizing: border-box; }
+    h1 { font-size: 1.75rem; font-weight: 700; margin: 0; text-align: center; }
+    .sub { color: #a1a1aa; font-size: 14px; max-width: 32rem; text-align: center; line-height: 1.55; margin: 0; }
+    .cards { display: grid; grid-template-columns: 1fr; gap: 1rem; width: 100%; max-width: 36rem; margin-top: 0.5rem; }
+    @media (min-width: 640px) { .cards { grid-template-columns: 1fr 1fr; } }
+    a.card { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.25rem; background: #18181b; border: 1px solid #27272a; border-radius: 0.75rem; color: #fafafa; text-decoration: none; transition: border-color .15s, transform .15s; }
+    a.card:hover { border-color: #6366f1; transform: translateY(-2px); }
+    a.card .icon { font-size: 2rem; line-height: 1; }
+    a.card .title { font-size: 1.05rem; font-weight: 600; }
+    a.card .desc { font-size: 13px; color: #a1a1aa; line-height: 1.5; }
+    a.card-bsig { background: #222F5C; border-color: #324C9C; }
+    a.card-bsig:hover { border-color: #F97F08; }
+    a.card-bsig .desc { color: #c7d2fe; }
+    a.card-bsig .badge { display: inline-block; align-self: flex-start; margin-top: 0.25rem; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #F97F08; background: rgba(249,127,8,0.12); padding: 2px 8px; border-radius: 3px; }
+    .foot { color: #52525b; font-size: 12px; text-align: center; max-width: 32rem; line-height: 1.55; margin-top: 1rem; }
+    .foot a { color: #a5b4fc; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Claude Tools</h1>
+    <p class="sub">Kleine Browser-Apps mit Anthropic-API-Anbindung. Du brauchst einen eigenen API-Key, der ausschließlich in deinem Browser gespeichert wird.</p>
+    <div class="cards">
+      <a class="card card-bsig" href="./bsig.html">
+        <span class="icon">⚖️</span>
+        <span class="title">BSIG 2025 Scope Checker</span>
+        <span class="desc">Prüft für deutsche Maschinen-/Elektronikhersteller, ob sie unter das BSIG 2025 (NIS-2-Umsetzung) fallen — inklusive WZ-Klassifikation, MSP-Hinweisen und Erheblichkeitsschwelle.</span>
+        <span class="badge">VDMA Corporate Design</span>
+      </a>
+      <a class="card" href="./suno.html">
+        <span class="icon">🎵</span>
+        <span class="title">SUNO Song Creator</span>
+        <span class="desc">Generiert optimierte Songprompts für SUNO v5.5 — Lyrics, Style, Struktur, mit Claude-Feedback und localStorage-Drafts.</span>
+      </a>
+    </div>
+    <p class="foot">Der API-Key wird zwischen beiden Apps geteilt (gleicher <code>localStorage</code>-Eintrag). Empfohlen: in der <a href="https://console.anthropic.com/settings/limits" target="_blank" rel="noopener">Anthropic Console</a> ein monatliches Spend Limit setzen.</p>
+  </main>
+</body>
+</html>
