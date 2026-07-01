@@ -423,6 +423,9 @@ function parseOutput(raw) {
   r.title    = truncateTitle(r.title);
   return r;
 }
+function isEmptyParse(p) {
+  return !p || (!p.lyrics && !p.style && !p.advanced && !p.title);
+}
 function storageLoad() {
   try {
     var r = localStorage.getItem(STORAGE_KEY);
@@ -1181,7 +1184,8 @@ export default function App() {
       },
       body:JSON.stringify({
         model: modelMode==="fast" ? "claude-sonnet-5" : "claude-opus-4-8",
-        max_tokens:2000,
+        max_tokens:4096,
+        thinking:{type:"disabled"},
         system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
       })
@@ -1191,7 +1195,11 @@ export default function App() {
     var d; try{d=JSON.parse(raw);}catch(e){throw new Error("Invalid JSON");}
     if(d.error) throw new Error("API: "+d.error.message);
     if(!d.content||!d.content.length) throw new Error("No content");
-    return d.content.map(function(b){return b.text||"";}).join("").trim();
+    var txt = d.content.map(function(b){return b.text||"";}).join("").trim();
+    if(!txt) throw new Error(d.stop_reason==="max_tokens"
+      ? "Response cut off before any text was produced - try again."
+      : "Model returned no text content.");
+    return txt;
   }
 
   function applyJSON(j) {
@@ -1307,19 +1315,25 @@ export default function App() {
         "Output exactly in the format with 4 separate code blocks."
       ]);
       var parsed=parseOutput(txt);
+      if(isEmptyParse(parsed)) throw new Error(isEn
+        ? "Response didn't match the expected format. Try regenerating, or switch to Premium."
+        : "Antwort entsprach nicht dem erwarteten Format. Erneut versuchen oder zu Premium wechseln.");
       setOutput(parsed); pushHistory(parsed);
       setActiveTab("lyrics"); setPanel("output");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoading(false); }
   }
   async function regenLyrics() {
-    setLoadingLyrics(true);
+    setLoadingLyrics(true); setError("");
     try{
       var txt=await callSong([
         "Generate ONLY # 1. LYRICS and # 4. TITLE. " +
         "Completely new lyrics. Do NOT output sections 2 or 3."
       ]);
       var p=parseOutput(txt);
+      if(!p.lyrics) throw new Error(isEn
+        ? "Regeneration returned no usable lyrics. Try again."
+        : "Neue Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
@@ -1329,7 +1343,7 @@ export default function App() {
     finally{ setLoadingLyrics(false); }
   }
   async function regenStyle() {
-    setLoadingStyle(true);
+    setLoadingStyle(true); setError("");
     try{
       var extra=[
         "Generate ONLY # 2. STYLE and # 3. ADVANCED OPTIONS. " +
@@ -1339,6 +1353,9 @@ export default function App() {
         extra=["Current Lyrics (context):",output.lyrics].concat(extra);
       var txt=await callSong(extra);
       var p=parseOutput(txt);
+      if(!p.style) throw new Error(isEn
+        ? "Regeneration returned no usable style. Try again."
+        : "Neuer Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
@@ -1349,7 +1366,7 @@ export default function App() {
     finally{ setLoadingStyle(false); }
   }
   async function optimizeLyrics() {
-    setOptimizingLyrics(true);
+    setOptimizingLyrics(true); setError("");
     try{
       var txt=await callSong([
         "Lyrics to optimize:",(output&&output.lyrics)||"",
@@ -1357,6 +1374,9 @@ export default function App() {
         "Output ONLY # 1. LYRICS and # 4. TITLE."
       ]);
       var p=parseOutput(txt);
+      if(!p.lyrics) throw new Error(isEn
+        ? "Optimization returned no usable lyrics. Try again."
+        : "Optimierte Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
@@ -1366,7 +1386,7 @@ export default function App() {
     finally{ setOptimizingLyrics(false); }
   }
   async function optimizeStyle() {
-    setOptimizingStyle(true);
+    setOptimizingStyle(true); setError("");
     try{
       var txt=await callSong([
         "Style to optimize:",(output&&output.style)||"",
@@ -1374,6 +1394,9 @@ export default function App() {
         "Output ONLY # 2. STYLE and # 3. ADVANCED OPTIONS."
       ]);
       var p=parseOutput(txt);
+      if(!p.style) throw new Error(isEn
+        ? "Optimization returned no usable style. Try again."
+        : "Optimierter Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
@@ -2509,6 +2532,7 @@ export default function App() {
             )}
             {output&&(
               <div className="p-4">
+                {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mb-2">{error}</p>}
                 {history.length>1&&(
                   <div className="mb-3">
                     <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">
