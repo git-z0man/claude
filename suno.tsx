@@ -477,6 +477,7 @@ var T = {
     descTitle:"Free Description", descPlaceholder:"More ideas, special requests...",
     advancedTitle:"Advanced Options", excludeLabel:"Exclude Style",
     excludePlaceholder:"e.g. heavy metal, distorted guitar, rap...",
+    excludeHint:"Max ~5 specific items works best. Pro/Premier only on suno.com.",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-True",
     weirdnessMid:"50 balanced", weirdnessRight:"Experimental",
     styleInfluenceLabel:"Style Influence",
@@ -542,6 +543,7 @@ var T = {
     descTitle:"Freie Beschreibung", descPlaceholder:"Weitere Ideen, besondere Wünsche...",
     advancedTitle:"Erweiterte Optionen", excludeLabel:"Style ausschließen",
     excludePlaceholder:"z.B. heavy metal, distorted guitar, rap...",
+    excludeHint:"Max. ~5 konkrete Begriffe funktionieren am besten. Nur Pro/Premier auf suno.com.",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-Treue",
     weirdnessMid:"50 ausgewogen", weirdnessRight:"Experimentell",
     styleInfluenceLabel:"Style Influence",
@@ -2351,10 +2353,16 @@ export default function App() {
               </div>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
-                <input value={excludeStyle}
+                <input value={excludeStyle} maxLength={200}
                   onChange={function(e){setExcludeStyle(e.target.value);}}
                   placeholder={t.excludePlaceholder}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-red-500"/>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-[10px] text-zinc-500 leading-snug">{t.excludeHint}</p>
+                  <span className={excludeStyle.length>=200?"text-red-400 font-semibold text-[10px] shrink-0 ml-2":"text-zinc-600 text-[10px] shrink-0 ml-2"}>
+                    {excludeStyle.length} / 200 {t.chars}
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {[
