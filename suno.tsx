@@ -423,8 +423,8 @@ function parseOutput(raw) {
   r.title    = truncateTitle(r.title);
   return r;
 }
-function isEmptyParse(p) {
-  return !p || (!p.lyrics && !p.style && !p.advanced && !p.title);
+function isIncompleteParse(p, fields) {
+  return !p || fields.some(function(f){ return !p[f]; });
 }
 function storageLoad() {
   try {
@@ -1053,7 +1053,7 @@ export default function App() {
     }).then(function(r){
       return r.json().then(function(d){return {ok:r.ok, d:d};});
     }).then(function(res){
-      setApiStatus(res.ok && res.d && res.d.content && !res.d.error ? "ok" : "error");
+      setApiStatus(res.ok && res.d && res.d.content && res.d.content.length && !res.d.error ? "ok" : "error");
     }).catch(function(){setApiStatus("error");});
   }
 
@@ -1196,9 +1196,12 @@ export default function App() {
     if(d.error) throw new Error("API: "+d.error.message);
     if(!d.content||!d.content.length) throw new Error("No content");
     var txt = d.content.map(function(b){return b.text||"";}).join("").trim();
-    if(!txt) throw new Error(d.stop_reason==="max_tokens"
-      ? "Response cut off before any text was produced - try again."
-      : "Model returned no text content.");
+    if(d.stop_reason==="max_tokens") throw new Error(isEn
+      ? "Response cut off before finishing - try again."
+      : "Antwort wurde abgeschnitten - erneut versuchen.");
+    if(!txt) throw new Error(isEn
+      ? "Model returned no text content."
+      : "Modell hat keinen Text zurueckgegeben.");
     return txt;
   }
 
@@ -1306,6 +1309,9 @@ export default function App() {
   async function callSong(extra) {
     return await callAPI(SYSTEM_PROMPT, settingsParts().concat(extra).join("\n"));
   }
+  function assertComplete(p, fields, enMsg, deMsg) {
+    if(isIncompleteParse(p, fields)) throw new Error(isEn ? enMsg : deMsg);
+  }
 
   async function generate() {
     setLoading(true); setError(""); setOutput(null);
@@ -1315,10 +1321,10 @@ export default function App() {
         "Output exactly in the format with 4 separate code blocks."
       ]);
       var parsed=parseOutput(txt);
-      if(isEmptyParse(parsed)) throw new Error(isEn
-        ? "Response didn't match the expected format. Try regenerating, or switch to Premium."
-        : "Antwort entsprach nicht dem erwarteten Format. Erneut versuchen oder zu Premium wechseln.");
-      setOutput(parsed); pushHistory(parsed);
+      assertComplete(parsed, ["lyrics","style","advanced","title"],
+        "Response didn't match the expected format. Try regenerating, or switch to Premium.",
+        "Antwort entsprach nicht dem erwarteten Format. Erneut versuchen oder zu Premium wechseln.");
+      setOutput(parsed); pushHistory(parsed); setError("");
       setActiveTab("lyrics"); setPanel("output");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoading(false); }
@@ -1331,14 +1337,15 @@ export default function App() {
         "Completely new lyrics. Do NOT output sections 2 or 3."
       ]);
       var p=parseOutput(txt);
-      if(!p.lyrics) throw new Error(isEn
-        ? "Regeneration returned no usable lyrics. Try again."
-        : "Neue Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
+      assertComplete(p, ["lyrics"],
+        "Regeneration returned no usable lyrics. Try again.",
+        "Neue Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
         });
       });
+      setError("");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoadingLyrics(false); }
   }
@@ -1353,15 +1360,16 @@ export default function App() {
         extra=["Current Lyrics (context):",output.lyrics].concat(extra);
       var txt=await callSong(extra);
       var p=parseOutput(txt);
-      if(!p.style) throw new Error(isEn
-        ? "Regeneration returned no usable style. Try again."
-        : "Neuer Style enthielt keinen verwertbaren Text. Erneut versuchen.");
+      assertComplete(p, ["style"],
+        "Regeneration returned no usable style. Try again.",
+        "Neuer Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
           advanced:p.advanced||prev.advanced
         });
       });
+      setError("");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setLoadingStyle(false); }
   }
@@ -1374,14 +1382,15 @@ export default function App() {
         "Output ONLY # 1. LYRICS and # 4. TITLE."
       ]);
       var p=parseOutput(txt);
-      if(!p.lyrics) throw new Error(isEn
-        ? "Optimization returned no usable lyrics. Try again."
-        : "Optimierte Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
+      assertComplete(p, ["lyrics"],
+        "Optimization returned no usable lyrics. Try again.",
+        "Optimierte Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
         });
       });
+      setError("");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setOptimizingLyrics(false); }
   }
@@ -1394,15 +1403,16 @@ export default function App() {
         "Output ONLY # 2. STYLE and # 3. ADVANCED OPTIONS."
       ]);
       var p=parseOutput(txt);
-      if(!p.style) throw new Error(isEn
-        ? "Optimization returned no usable style. Try again."
-        : "Optimierter Style enthielt keinen verwertbaren Text. Erneut versuchen.");
+      assertComplete(p, ["style"],
+        "Optimization returned no usable style. Try again.",
+        "Optimierter Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
           advanced:p.advanced||prev.advanced
         });
       });
+      setError("");
     }catch(e){ setError(e.message||String(e)); }
     finally{ setOptimizingStyle(false); }
   }
