@@ -56,10 +56,10 @@ recording: ...
 NEGATIVE PROMPTING:
 - Place no [element] at the END of style tags (max 1-2 in style field)
 
-ENDING CONTROL:
-- Fade: [Outro: Slow Fade, Gradual Volume Decrease] plus fade out ending
-- Hard Stop: [Outro: Sudden Stop, Final Chord Hit] plus definitive ending
-- Echo: [Outro: Reverb Decay, Echoing Into Distance] plus reverb tail ending
+ENDING CONTROL - the bracket tag goes in Lyrics on its own line, the plain phrase goes in the Style field's recording/style tags - NEVER put the plain phrase as unbracketed text in Lyrics, it will be sung:
+- Fade: Lyrics tag [Outro: Slow Fade, Gradual Volume Decrease] | Style addition: "fade out ending"
+- Hard Stop: Lyrics tag [Outro: Sudden Stop, Final Chord Hit] | Style addition: "definitive ending"
+- Echo: Lyrics tag [Outro: Reverb Decay, Echoing Into Distance] | Style addition: "reverb tail ending"
 
 CALLBACK ANTI-DRIFT: Repeat EXACT keywords from Style in Bridge/Final Chorus.
 
