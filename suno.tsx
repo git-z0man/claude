@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
-var SYSTEM_PROMPT = `You are a professional SUNO v5.5 songwriter. Output exactly 4 code blocks.
+var SYSTEM_PROMPT = `You are a professional SUNO v5.5 songwriter. Output exactly 5 code blocks.
 
 CORE RULES:
 - Structure tags on own lines only, NEVER inline in lyrics.
@@ -33,6 +33,12 @@ AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
 - Weirdness ranges to pick from: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
 - Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
 - Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
+
+EXCLUDE STYLES (auto or manual):
+- If input contains "Exclude: X", output that exact text unchanged in # 5. EXCLUDE - do not rephrase it.
+- If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (e.g. Trap/Hip-Hop -> no autotune, Gospel -> no choir, solo acoustic -> no drums, no synth) and output them as a short comma-separated list in # 5. EXCLUDE.
+- ALWAYS output # 5. EXCLUDE - never leave it empty, whether user-provided or auto-selected.
+- HARD LIMIT 200 chars.
 
 LYRICS QUALITY (non-negotiable):
 - CONCRETE over abstract: "her toothbrush is still in the cup" beats "I miss her". One picturable image per verse minimum — named place, touchable object, overheard line, or specific time of day.
@@ -65,7 +71,7 @@ GLOSSARY: Adagio(66-76) Andante(76-108) Allegro(120-168) Presto(168-200) Rubato
 Crescendo Decrescendo Staccato Legato Vibrato Tremolo Syncopation Polyrhythm
 Falsetto Belt Melisma Crooning Arpeggio Counterpoint Ostinato Sparse Dense
 
-OUTPUT format with 4 code blocks:
+OUTPUT format with 5 code blocks:
 # 1. LYRICS
 \`\`\`
 [structure + lyrics]
@@ -87,6 +93,10 @@ Style Influence: X%
 # 4. TITLE
 \`\`\`
 Songname
+\`\`\`
+# 5. EXCLUDE
+\`\`\`
+comma, separated, excluded, elements
 \`\`\``;
 
 var ANALYZE_PROMPT = `Analyze the artist/song. Return ONLY valid JSON, no text, no backticks.
@@ -407,8 +417,15 @@ function truncateTitle(s) {
   if (!s || s.length <= 100) return s;
   return s.substring(0, 100);
 }
+function truncateExclude(s) {
+  if (!s || s.length <= 200) return s;
+  var cut = s.substring(0, 200);
+  var lastComma = cut.lastIndexOf(",");
+  var pos = lastComma < 1 ? 200 : lastComma;
+  return cut.substring(0, pos).trim();
+}
 function parseOutput(raw) {
-  var r = {lyrics:"", style:"", advanced:"", title:""};
+  var r = {lyrics:"", style:"", advanced:"", title:"", exclude:""};
   function exB(sec) {
     if (!sec) return "";
     var m = sec.match(/```[\w]*\n?([\s\S]*?)```/);
@@ -417,10 +434,12 @@ function parseOutput(raw) {
   r.lyrics   = exB((raw.match(/# 1\. LYRICS[\s\S]*?(?=# 2\.|$)/i)   || [])[0]);
   r.style    = exB((raw.match(/# 2\. STYLE[\s\S]*?(?=# 3\.|$)/i)    || [])[0]);
   r.advanced = exB((raw.match(/# 3\. ADVANCED[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
-  r.title    = exB((raw.match(/# 4\.\s*(?:TITLE|TITEL)\b[\s\S]*?$/i) || [])[0]);
+  r.title    = exB((raw.match(/# 4\.\s*(?:TITLE|TITEL)\b[\s\S]*?(?=# 5\.|$)/i) || [])[0]);
+  r.exclude  = exB((raw.match(/# 5\.\s*(?:EXCLUDE|AUSSCHLUSS)\b[\s\S]*?$/i) || [])[0]);
   r.style    = truncateStyle(r.style);
   r.lyrics   = truncateLyrics(r.lyrics);
   r.title    = truncateTitle(r.title);
+  r.exclude  = truncateExclude(r.exclude);
   return r;
 }
 function isIncompleteParse(p, fields) {
@@ -477,7 +496,7 @@ var T = {
     descTitle:"Free Description", descPlaceholder:"More ideas, special requests...",
     advancedTitle:"Advanced Options", excludeLabel:"Exclude Style",
     excludePlaceholder:"e.g. heavy metal, distorted guitar, rap...",
-    excludeHint:"Max ~5 specific items works best. Pro/Premier only on suno.com.",
+    excludeHint:"Leave empty for automatic genre-based exclusions. Max ~5 specific items works best. Pro/Premier only on suno.com.",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-True",
     weirdnessMid:"50 balanced", weirdnessRight:"Experimental",
     styleInfluenceLabel:"Style Influence",
@@ -491,6 +510,7 @@ var T = {
     copyAll:"Copy All", copied:"Copied!", copy:"Copy",
     lyricsTitle:"Lyrics", lyricsSubtitle:"Paste into SUNO Lyrics field",
     styleTitle:"Style", styleSubtitle:"Paste into SUNO Style field",
+    excludeTitle:"Exclude Styles", excludeSubtitle:"Paste into SUNO Exclude Styles field",
     advTitle:"Advanced Options", advSubtitle:"Recommended settings for SUNO",
     advWeirdDesc:"Creativity vs. genre accuracy",
     advStyleDesc:"Influence of the Style field",
@@ -543,7 +563,7 @@ var T = {
     descTitle:"Freie Beschreibung", descPlaceholder:"Weitere Ideen, besondere Wünsche...",
     advancedTitle:"Erweiterte Optionen", excludeLabel:"Style ausschließen",
     excludePlaceholder:"z.B. heavy metal, distorted guitar, rap...",
-    excludeHint:"Max. ~5 konkrete Begriffe funktionieren am besten. Nur Pro/Premier auf suno.com.",
+    excludeHint:"Leer lassen fuer automatische, genre-basierte Ausschluesse. Max. ~5 konkrete Begriffe funktionieren am besten. Nur Pro/Premier auf suno.com.",
     weirdnessLabel:"Weirdness", weirdnessLeft:"Genre-Treue",
     weirdnessMid:"50 ausgewogen", weirdnessRight:"Experimentell",
     styleInfluenceLabel:"Style Influence",
@@ -557,6 +577,7 @@ var T = {
     copyAll:"Alle kopieren", copied:"Kopiert!", copy:"Kopieren",
     lyricsTitle:"Lyrics", lyricsSubtitle:"In das SUNO Lyrics-Feld einfügen",
     styleTitle:"Style", styleSubtitle:"In das SUNO Style-Feld einfügen",
+    excludeTitle:"Style ausschließen", excludeSubtitle:"In das SUNO Exclude-Styles-Feld einfügen",
     advTitle:"Erweiterte Optionen", advSubtitle:"Empfohlene Einstellungen für SUNO",
     advWeirdDesc:"Kreativität vs. Genre-Treue",
     advStyleDesc:"Einfluss des Style-Feldes",
@@ -1320,10 +1341,10 @@ export default function App() {
     try{
       var txt=await callSong([
         "Create a complete optimized SUNO v5.5 song prompt. " +
-        "Output exactly in the format with 4 separate code blocks."
+        "Output exactly in the format with 5 separate code blocks."
       ]);
       var parsed=parseOutput(txt);
-      assertComplete(parsed, ["lyrics","style","advanced","title"],
+      assertComplete(parsed, ["lyrics","style","advanced","title","exclude"],
         "Response didn't match the expected format. Try regenerating, or switch to Premium.",
         "Antwort entsprach nicht dem erwarteten Format. Erneut versuchen oder zu Premium wechseln.");
       setOutput(parsed); pushHistory(parsed); setError("");
@@ -1355,20 +1376,21 @@ export default function App() {
     setLoadingStyle(true); setError("");
     try{
       var extra=[
-        "Generate ONLY # 2. STYLE and # 3. ADVANCED OPTIONS. " +
-        "HARD LIMIT: under 1000 characters. No artist names. Do NOT output sections 1 or 4."
+        "Generate ONLY # 2. STYLE, # 3. ADVANCED OPTIONS and # 5. EXCLUDE. " +
+        "HARD LIMIT: under 1000 characters for Style. No artist names. Do NOT output sections 1 or 4."
       ];
       if(output&&output.lyrics)
         extra=["Current Lyrics (context):",output.lyrics].concat(extra);
       var txt=await callSong(extra);
       var p=parseOutput(txt);
-      assertComplete(p, ["style"],
+      assertComplete(p, ["style","exclude"],
         "Regeneration returned no usable style. Try again.",
         "Neuer Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
-          advanced:p.advanced||prev.advanced
+          advanced:p.advanced||prev.advanced,
+          exclude:p.exclude||prev.exclude
         });
       });
       setError("");
@@ -1402,16 +1424,17 @@ export default function App() {
       var txt=await callSong([
         "Style to optimize:",(output&&output.style)||"",
         "CRITICAL: under 1000 chars. No artist names. " +
-        "Output ONLY # 2. STYLE and # 3. ADVANCED OPTIONS."
+        "Output ONLY # 2. STYLE, # 3. ADVANCED OPTIONS and # 5. EXCLUDE."
       ]);
       var p=parseOutput(txt);
-      assertComplete(p, ["style"],
+      assertComplete(p, ["style","exclude"],
         "Optimization returned no usable style. Try again.",
         "Optimierter Style enthielt keinen verwertbaren Text. Erneut versuchen.");
       setOutput(function(prev){
         return Object.assign({},prev,{
           style:truncateStyle(p.style)||prev.style,
-          advanced:p.advanced||prev.advanced
+          advanced:p.advanced||prev.advanced,
+          exclude:p.exclude||prev.exclude
         });
       });
       setError("");
@@ -2649,7 +2672,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-end mb-2">
                   <CopyBtn
-                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 4. TITLE\n```\n"+output.title+"\n```"}
+                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 4. TITLE\n```\n"+output.title+"\n```\n\n# 5. EXCLUDE\n```\n"+(output.exclude||"")+"\n```"}
                     label={t.copyAll} doneLabel={t.copied}/>
                 </div>
                 {activeTab==="lyrics"&&(
@@ -2684,6 +2707,19 @@ export default function App() {
                       {output.style.length>1000&&
                         <span className="text-xs text-red-400">{t.tooLong}</span>}
                     </div>
+                    <div className="mt-4">
+                      <OutputSection title={t.excludeTitle} subtitle={t.excludeSubtitle}
+                        icon="🚫" content={output.exclude||""} t={t}/>
+                      <div className="mt-2 flex justify-end items-center gap-2">
+                        <span className={
+                          (output.exclude||"").length>200?"text-red-400 font-semibold text-xs":
+                          (output.exclude||"").length>170?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
+                          {(output.exclude||"").length} / 200 {t.chars}
+                        </span>
+                        {(output.exclude||"").length>200&&
+                          <span className="text-xs text-red-400">{t.tooLong}</span>}
+                      </div>
+                    </div>
                   </div>
                 )}
                 {activeTab==="meta"&&(
@@ -2708,6 +2744,8 @@ export default function App() {
                       icon="🎤" content={output.lyrics} t={t}/>
                     <OutputSection title={t.styleTitle} subtitle={t.styleSubtitle}
                       icon="🎨" content={output.style} t={t}/>
+                    <OutputSection title={t.excludeTitle} subtitle={t.excludeSubtitle}
+                      icon="🚫" content={output.exclude||""} t={t}/>
                     <AdvancedDisplay content={output.advanced} t={t} isEn={isEn}/>
                     <OutputSection title={t.titleSectionTitle} subtitle={t.titleSectionSubtitle}
                       icon="✏️" content={output.title} t={t}/>
