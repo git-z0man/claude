@@ -241,7 +241,22 @@ var STRUCT_OPTS = [
   "Intro","Instrumental Intro","Verse 1","Verse 2","Verse 3",
   "Pre-Chorus","Chorus","Post-Chorus","Bridge","Emotional Bridge",
   "Final Chorus","Final Chorus Lift","Guitar Solo","Piano Solo",
-  "Breakdown","Build-Up","Interlude","Hook","Refrain","Coda","Outro","Fade Out"
+  "Breakdown","Build-Up","Drop","Interlude","Hook","Refrain","Coda","Outro","Fade Out"
+];
+var STRUCT_TEMPLATES = [
+  {label:"Classic (Pop/Rock)", labelDe:"Klassisch (Pop/Rock)", sections: DEF_STRUCT},
+  {label:"Ballad", labelDe:"Ballade",
+   sections:["Intro","Verse 1","Chorus","Verse 2","Chorus","Final Chorus","Outro"]},
+  {label:"Hip Hop / Trap", labelDe:"Hip Hop / Trap",
+   sections:["Intro","Verse 1","Hook","Verse 2","Hook","Verse 3","Hook","Outro"]},
+  {label:"House / Electro", labelDe:"House / Electro",
+   sections:["Intro","Build-Up","Drop","Breakdown","Build-Up","Drop","Outro"]},
+  {label:"Techno / Extended Dance", labelDe:"Techno / Extended Dance",
+   sections:["Intro","Build-Up","Drop","Breakdown","Build-Up","Drop","Breakdown","Build-Up","Drop","Outro"]},
+  {label:"Minimalist / Lo-Fi / Ambient", labelDe:"Minimalistisch / Lo-Fi / Ambient",
+   sections:["Intro","Instrumental Intro","Interlude","Fade Out"]},
+  {label:"Rock Anthem", labelDe:"Rock-Anthem",
+   sections:["Intro","Verse 1","Chorus","Verse 2","Chorus","Guitar Solo","Bridge","Final Chorus","Outro"]}
 ];
 var BPM_GUIDE = {
   "Pop":"100-130","Rock":"110-145","Electronic":"118-140",
@@ -2252,6 +2267,28 @@ export default function App() {
               });}}
               id="structure" isOpen={openSections.structure} onToggle={function(){toggleSec("structure");}}
               hasData={JSON.stringify(structure)!==JSON.stringify(DEF_STRUCT)}>
+              <p className="text-[11px] font-medium text-zinc-400 mb-1.5">{isEn?"Templates":"Vorlagen"}</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {STRUCT_TEMPLATES.map(function(tpl){
+                  var active = JSON.stringify(structure)===JSON.stringify(tpl.sections);
+                  return (
+                    <button key={tpl.label}
+                      onClick={function(){
+                        clearWithUndo(isEn?tpl.label:tpl.labelDe, function(){
+                          var ss=structure;
+                          setStructure(tpl.sections.slice());
+                          return function(){ setStructure(ss); };
+                        });
+                      }}
+                      className={"px-2.5 py-1 rounded-full text-xs border transition-all "+
+                        (active
+                          ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
+                          : "border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-indigo-300")}>
+                      {isEn?tpl.label:tpl.labelDe}
+                    </button>
+                  );
+                })}
+              </div>
               <div className="space-y-1 mb-2">
                 {structure.map(function(s,i){
                   return (
