@@ -387,7 +387,15 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   var scopeRule = de
     ? "\nSCOPE: in_scope=true fuer WZ 26.xx-30.99. Wichtig: Der Handelsregister-NACE kann unvollständig sein. Prüfe die tatsächlichen Produkte sorgfältig.\n"
     : "\nSCOPE: in_scope=true for WZ 26.xx-30.99. Important: The commercial register NACE may be incomplete. Check the actual products carefully.\n";
-  var exJson = '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null}';
+  var exJson = de
+    ? '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false}'
+    : '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"high","reasoning":"Max 2 sentences.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false}';
+  var unclassRule = de
+    ? "\nNICHT-KLASSIFIZIERBAR: Wenn Produkt-/Taetigkeitsangaben fehlen oder zu unspezifisch sind, setze unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"niedrig\" und erlaeutere in reasoning kurz, welche Angaben fehlen.\n"
+    : "\nUNCLASSIFIABLE: If product/activity data is missing or too unspecific, set unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"low\" and briefly explain in reasoning which information is missing.\n";
+  var confRule = de
+    ? "\nKONFIDENZ: confidence muss genau einer dieser Werte sein: \"hoch\", \"mittel\", \"niedrig\". Keine anderen Werte, keine Unterstriche.\n"
+    : "\nCONFIDENCE: confidence must be exactly one of: \"high\", \"medium\", \"low\". No other values, no underscores.\n";
   var mspRule = de
     ? "\nMSP-ERKENNUNG: is_msp_hint=true bei MSP-Merkmalen (IT-Systemhaus, Cloud, Remote-Monitoring, Helpdesk, IT-Outsourcing) mit kurzer msp_hint_reason. Sonst false/null.\nWICHTIG: reasoning max. 2 Saetze. Antworte NUR mit gueltigem JSON ohne Zeilenumbrueche oder Sonderzeichen ausser UTF-8.\n"
     : "\nMSP DETECTION: is_msp_hint=true for MSP indicators (IT systems house, cloud, remote monitoring, helpdesk, IT outsourcing) with short msp_hint_reason. Otherwise false/null.\nIMPORTANT: reasoning max. 2 sentences. Reply ONLY with valid JSON, no line breaks in string values.\n";
@@ -399,8 +407,8 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   // stable regardless of the per-call NACE hint.
   var fullWzList = relevantWzLabels(null);
   var staticPrefix = de
-    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + fullWzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\n\nAntworte NUR als JSON nach diesem Schema: " + exJson)
-    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + fullWzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\n\nReply ONLY as JSON matching this schema: " + exJson);
+    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + confRule + unclassRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + fullWzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\n\nAntworte NUR als JSON nach diesem Schema: " + exJson)
+    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + confRule + unclassRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + fullWzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\n\nReply ONLY as JSON matching this schema: " + exJson);
   var variableSuffix = de
     ? ("Bestimme WZ fuer: " + company + "\nProdukte: " + prodStr + contextParts.join(""))
     : ("Determine WZ for: " + company + "\nProducts: " + prodStr + contextParts.join(""));
@@ -416,6 +424,17 @@ async function analyzeWZ(company, products, compData, lang, signal) {
       if (typeof entry === "object" && entry !== null) return entry.wz || entry.label || "";
       return String(entry);
     }).filter(Boolean);
+  }
+  // Treat empty/absent primary_wz as unclassifiable — the AI signalled it
+  // couldn't determine a code (e.g. no product data). Without this the UI
+  // would render an empty WZ tile alongside the definitive "outside scope"
+  // verdict, which overclaims what the AI actually decided.
+  var wzStr = parsed.primary_wz == null ? "" : String(parsed.primary_wz).trim();
+  if (!wzStr || parsed.unclassifiable) {
+    parsed.unclassifiable = true;
+    parsed.primary_wz = null;
+    parsed.primary_label = null;
+    parsed.in_scope = false;
   }
   var ndOutOfScope = compData && compData.nace_found && compData.nace_code;
   if (ndOutOfScope && parsed.in_scope) { parsed.northdataOverride = true; parsed.northdataWz = compData.nace_code; }
@@ -471,6 +490,8 @@ function mk(l) {
     inScopeB:  de ? "Mindestens eine der angegebenen WZ-Nummern liegt im Bereich 26–30. Ihr Unternehmen fällt damit grundsätzlich unter Anlage 2 Nr. 5 BSIG 2025." : "At least one of the entered WZ codes falls within range 26–30. Your company is generally covered by Annex 2 No. 5 BSIG 2025.",
     outScopeH: de ? "Voraussichtlich außerhalb des Anwendungsbereichs" : "Likely Outside Scope",
     outScopeB: de ? "Keine der angegebenen WZ-Nummern liegt im Bereich 26–30. Anlage 2 Nr. 5 BSIG 2025 ist voraussichtlich nicht einschlägig." : "None of the entered WZ codes falls within range 26–30. Annex 2 No. 5 BSIG 2025 is likely not applicable.",
+    unclassH:  de ? "WZ konnte nicht bestimmt werden" : "WZ code could not be determined",
+    unclassB:  de ? "Die KI konnte anhand der vorliegenden Angaben keine WZ-Nummer zuordnen. Bitte konkrete Produkte oder Tätigkeiten im Feld „Produkte“ ergänzen und Analyse erneut starten." : "The AI could not assign a WZ code based on the available information. Please add concrete products or activities in the \"Products\" field and re-run the analysis.",
     wzLabel:   de ? "WZ-Nummer(n)" : "WZ code(s)",
     wzLabelSingle: de ? "WZ-Nummer" : "WZ code",
     confLabel: de ? "Konfidenz" : "Confidence",
@@ -729,7 +750,7 @@ var S = {
   numInp: { padding: "8px 12px", borderRadius: 4, border: "1.5px solid #E3E3E6", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none", width: "100%", textAlign: "right" },
 };
 
-var CONF_COL = { hoch: "#38a169", mittel: "#d69e2e", niedrig: "#e53e3e", high: "#38a169", medium: "#d69e2e", low: "#e53e3e" };
+var CONF_COL = { hoch: "#38a169", mittel: "#d69e2e", niedrig: "#e53e3e", "sehr niedrig": "#e53e3e", high: "#38a169", medium: "#d69e2e", low: "#e53e3e", "very low": "#e53e3e" };
 var SRC_META = {
   northdata:            { icon: "business",        bg: "#dbeafe", col: "#324C9C" },
   "handelsregister.ai": { icon: "account_balance", bg: "#ede9fe", col: "#324C9C" },
@@ -1405,7 +1426,7 @@ export default function App() {
   var abortRef   = useRef(null);
 
   var t   = useMemo(function() { return mk(lang); }, [lang]);
-  var scC = result ? (result.in_scope ? "#38a169" : "#e53e3e") : "#9ca3af";
+  var scC = result ? (result.unclassifiable ? "#9ca3af" : result.in_scope ? "#38a169" : "#e53e3e") : "#9ca3af";
   var hasMspRisk = mspSels[0] || mspSels[1];
 
   function clearErrors() { setErrors({ general: "", phase1: "", phase2: "" }); }
@@ -1539,8 +1560,35 @@ export default function App() {
   // ── WZ result display: single or multiple entries ─────────────────────────
   function WzResultDisplay() {
     var entries = result.all_entries;
+    // Unclassifiable: no WZ code was determined — skip the WZ/confidence tiles
+    // entirely so the empty tile can't render. The header panel already
+    // explains what happened; only the analysed-company card stays relevant.
+    if (result.unclassifiable) {
+      if (result.directMode || !compData) return null;
+      return (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+          <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 16px", border: "1.5px solid #E3E3E6", flex: 1, minWidth: 160 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .5, marginBottom: 8 }}>
+              {lang === "de" ? "Analysiertes Unternehmen" : "Analysed company"}
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#222F5C", marginBottom: 4, lineHeight: 1.3 }}>
+              {comp || compData.gegenstand || "—"}
+            </div>
+            {compData.ort && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                <MI name="location_on" size={14} color="#324C9C"/>
+                <span style={{ fontSize: 13, color: "#374151" }}>{compData.ort}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
     if (!entries || entries.length <= 1) {
       // Single WZ — classic display
+      var confRaw = result.confidence ? String(result.confidence).replace(/_/g, " ") : "";
+      var confLower = confRaw.toLowerCase();
+      var confDisplay = confRaw ? confRaw.charAt(0).toUpperCase() + confRaw.slice(1) : "";
       return (
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
           <div style={{ background: "#f0f4ff", borderRadius: 10, padding: "14px 20px", minWidth: 150 }}>
@@ -1582,8 +1630,8 @@ export default function App() {
           )}
           <div style={{ background: "#f9fafb", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 100 }}>
             <div style={Object.assign({}, S.lbl, { marginBottom: 4 })}>{t.confLabel}</div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: CONF_COL[result.confidence] || "#374151" }}>
-              {result.confidence ? result.confidence.charAt(0).toUpperCase() + result.confidence.slice(1) : ""}
+            <div style={{ fontWeight: 800, fontSize: 15, color: CONF_COL[confLower] || "#374151" }}>
+              {confDisplay}
             </div>
           </div>
                         {result.alternative_wz && result.alternative_wz.length > 0 && (
@@ -1778,12 +1826,12 @@ export default function App() {
             <div style={{ borderRadius: 12, border: "2px solid " + scC, overflow: "hidden", marginTop: 4 }}>
 
               {/* ── WZ Result header ── */}
-              <div style={{ background: result.in_scope ? "#f0fff4" : "#fff5f5", padding: "20px 24px", borderBottom: "1px solid " + scC + "25" }}>
+              <div style={{ background: result.unclassifiable ? "#f9fafb" : result.in_scope ? "#f0fff4" : "#fff5f5", padding: "20px 24px", borderBottom: "1px solid " + scC + "25" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <MI name={result.in_scope ? "verified" : "warning"} size={28} color={result.in_scope ? "#166534" : "#F97F08"}/>
+                  <MI name={result.unclassifiable ? "help" : result.in_scope ? "verified" : "warning"} size={28} color={result.unclassifiable ? "#6b7280" : result.in_scope ? "#166534" : "#F97F08"}/>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 17, color: scC, marginBottom: 5 }}>{result.in_scope ? t.inScopeH : t.outScopeH}</div>
-                    <p style={{ fontSize: 13.5, color: "#374151", margin: 0, lineHeight: 1.65 }}>{result.in_scope ? t.inScopeB : t.outScopeB}</p>
+                    <div style={{ fontWeight: 800, fontSize: 17, color: scC, marginBottom: 5 }}>{result.unclassifiable ? t.unclassH : result.in_scope ? t.inScopeH : t.outScopeH}</div>
+                    <p style={{ fontSize: 13.5, color: "#374151", margin: 0, lineHeight: 1.65 }}>{result.unclassifiable ? t.unclassB : result.in_scope ? t.inScopeB : t.outScopeB}</p>
                   </div>
                 </div>
               </div>
@@ -1808,7 +1856,7 @@ export default function App() {
                     </p>
                   </div>
                 )}
-                {!result.directMode && (
+                {!result.directMode && !result.unclassifiable && (
                   <div style={{ marginTop: 12 }}>
                     <div style={{ padding: "10px 14px", background: "#FFF7E6", borderRadius: 8, border: "1px solid #FBBF24", marginBottom: 10 }}>
                       <div style={{ fontWeight: 700, fontSize: 12, color: "#854d0e", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}><MI name="warning" size={14} color="#F97F08"/>{t.aiWzNoteTitle}</div>
