@@ -10,6 +10,26 @@ const NIS_RICHTLINIE= "https://www.nis.gv.at/nis-2-richtlinie.html";
 const WKO_NIS       = "https://www.wko.at/it-sicherheit/nis2-uebersicht";
 const STATISTIK_AT  = "https://www.statistik.at/en/about-us/surveys/enterprises/oenace";
 const FIRMENABC_BASE= "https://www.firmenabc.at";
+const VDMA_HILFEN   = "https://www.vdma.eu/de/viewer/-/v2article/render/161561890";
+const VDMA_AT_MEMBERSHIP = "https://www.vdma.eu/de/oesterreich";
+const VDMA_AT_MEMBERS_URL = "https://www.vdma.eu/de/oesterreich-mitglieder";
+
+// Fast-path allowlist of confirmed VDMA Österreich members (independently
+// verified via VDMA Vorstand publications + industry press). Not exhaustive
+// — VDMA Österreich has ~130 members and vdma.eu is bot-blocked to our
+// build-time fetch, so the runtime web_search hitting vdma.eu remains the
+// authority. This set is used only (a) to seed the prompt with strong
+// candidates so Claude prefers `true` for them, and (b) as a case-insensitive
+// substring fallback in the UI when Claude returns null.
+const KNOWN_VDMA_AT_MEMBERS = [
+  "ENGEL AUSTRIA",
+  "ANDRITZ",
+  "PÖTTINGER",
+  "KOMPTECH",
+  "SIGMATEK",
+  "Braun Maschinenfabrik",
+  "Buxbaum Automation",
+];
 
 // ── NISG 2026 reference data ─────────────────────────────────────────────────
 // Sector definitions are activity-based (per Anlagen 1+2), so the ÖNACE codes
@@ -138,18 +158,42 @@ async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) 
   }
 }
 
+// Case-insensitive substring match against the vendored VDMA AT allowlist.
+// Used both to seed the phase-1 prompt with a strong hint and as a fallback
+// when Claude returns null for vdma_at_member.
+function knownVdmaAtMember(name) {
+  if (!name) return false;
+  var n = String(name).toLowerCase();
+  for (var i = 0; i < KNOWN_VDMA_AT_MEMBERS.length; i++) {
+    if (n.indexOf(KNOWN_VDMA_AT_MEMBERS[i].toLowerCase()) !== -1) return true;
+  }
+  return false;
+}
+
 // ── Phase 1: company data from firmenabc.at / Northdata AT / Firmenbuch ──────
 async function fetchCompanyData(companyName, loc, lang, signal) {
   var query   = loc ? companyName + ", " + loc : companyName;
   var faUrl   = FIRMENABC_BASE + "/" + encodeURIComponent((companyName || "").toLowerCase().replace(/\s+/g, "-"));
-  var exJson  = '{"gegenstand":"...","onace_code":"28.99","onace_label":"Herst. sonstiger Spezialmaschinen","onace_found":true,"rechtsform":"GmbH","ort":"Wien","firmenabc_url":"https://www.firmenabc.at/...","firmenbuch_nummer":"FN 12345 a","firmenbuch_gericht":"Handelsgericht Wien","mitarbeiter_geschaetzt":null,"umsatz_geschaetzt":null,"products":"Spezialmaschinen für die Glasindustrie"}';
+  var knownHint = knownVdmaAtMember(companyName);
+  var exJson  = '{"gegenstand":"...","onace_code":"28.99","onace_label":"Herst. sonstiger Spezialmaschinen","onace_found":true,"rechtsform":"GmbH","ort":"Wien","firmenabc_url":"https://www.firmenabc.at/...","firmenbuch_nummer":"FN 12345 a","firmenbuch_gericht":"Handelsgericht Wien","mitarbeiter_geschaetzt":null,"umsatz_geschaetzt":null,"products":"Spezialmaschinen für die Glasindustrie","vdma_at_member":true,"vdma_at_member_reason":"auf vdma.eu/de/oesterreich-mitglieder aufgeführt"}';
   var de = lang === "de";
+  var vdmaHint = knownHint
+    ? (de ? " (Firma ist wahrscheinlich VDMA Österreich-Mitglied — bitte auf vdma.eu bestätigen.)" : " (Company is likely a VDMA Österreich member — please confirm on vdma.eu.)")
+    : "";
   var prompt = de
-    ? ('Suche auf firmenabc.at nach "' + query + '" (URL-Muster: ' + faUrl + '). Wenn kein ÖNACE-Code auffindbar ist, ergänzend auf northdata.de bzw. northdata.at, JustizOnline-Firmenbuch und der offiziellen Unternehmenswebsite suchen. Firmenabc.at zeigt den ÖNACE-Branchencode explizit an.\nExtrahiere: gegenstand, onace_code (im Format NN.NN oder NN.NN-NN — ohne Sektionsbuchstabe), onace_label, onace_found, rechtsform, ort, firmenabc_url, firmenbuch_nummer (Format „FN 12345 a"), firmenbuch_gericht (z.B. „Handelsgericht Wien"), mitarbeiter_geschaetzt (Zahl oder null), umsatz_geschaetzt (Jahresumsatz in Mio. Euro oder null), products (max. 12 Produkte/Tätigkeiten).\nAntworte NUR als JSON: ' + exJson)
-    : ('Search firmenabc.at for "' + query + '" (URL pattern: ' + faUrl + '). If no ÖNACE code is found, additionally search northdata.de/northdata.at, the JustizOnline Firmenbuch and the official company website. firmenabc.at explicitly displays the ÖNACE Branchencode.\nExtract: gegenstand, onace_code (format NN.NN or NN.NN-NN — without section letter), onace_label, onace_found, rechtsform, ort, firmenabc_url, firmenbuch_nummer (format "FN 12345 a"), firmenbuch_gericht (e.g. "Handelsgericht Wien"), mitarbeiter_geschaetzt (number or null), umsatz_geschaetzt (annual turnover in € million or null), products (max. 12).\nReply ONLY as JSON: ' + exJson);
-  var txt = await callClaude([{ role: "user", content: prompt }], true, 900, signal, 40000);
+    ? ('Suche auf firmenabc.at nach "' + query + '" (URL-Muster: ' + faUrl + '). Wenn kein ÖNACE-Code auffindbar ist, ergänzend auf northdata.de bzw. northdata.at, JustizOnline-Firmenbuch und der offiziellen Unternehmenswebsite suchen. Firmenabc.at zeigt den ÖNACE-Branchencode explizit an.\nZUSÄTZLICH: Prüfe auf ' + VDMA_AT_MEMBERS_URL + ', ob "' + (companyName || "") + '" als VDMA Österreich-Mitglied gelistet ist.' + vdmaHint + '\nExtrahiere: gegenstand, onace_code (im Format NN.NN oder NN.NN-NN — ohne Sektionsbuchstabe), onace_label, onace_found, rechtsform, ort, firmenabc_url, firmenbuch_nummer (Format „FN 12345 a"), firmenbuch_gericht (z.B. „Handelsgericht Wien"), mitarbeiter_geschaetzt (Zahl oder null), umsatz_geschaetzt (Jahresumsatz in Mio. Euro oder null), products (max. 12 Produkte/Tätigkeiten), vdma_at_member (true/false/null wenn unklar), vdma_at_member_reason (kurzer Beleg oder null).\nAntworte NUR als JSON: ' + exJson)
+    : ('Search firmenabc.at for "' + query + '" (URL pattern: ' + faUrl + '). If no ÖNACE code is found, additionally search northdata.de/northdata.at, the JustizOnline Firmenbuch and the official company website. firmenabc.at explicitly displays the ÖNACE Branchencode.\nADDITIONALLY: Check ' + VDMA_AT_MEMBERS_URL + ' to see if "' + (companyName || "") + '" is listed as a VDMA Österreich member.' + vdmaHint + '\nExtract: gegenstand, onace_code (format NN.NN or NN.NN-NN — without section letter), onace_label, onace_found, rechtsform, ort, firmenabc_url, firmenbuch_nummer (format "FN 12345 a"), firmenbuch_gericht (e.g. "Handelsgericht Wien"), mitarbeiter_geschaetzt (number or null), umsatz_geschaetzt (annual turnover in € million or null), products (max. 12), vdma_at_member (true/false/null if unclear), vdma_at_member_reason (short evidence or null).\nReply ONLY as JSON: ' + exJson);
+  var txt = await callClaude([{ role: "user", content: prompt }], true, 1000, signal, 40000);
   var parsed = parseJson(txt);
   if (!parsed.gegenstand && !parsed.products) throw new Error("No usable data returned");
+  // Fallback: if Claude returned null/undefined for vdma_at_member but the
+  // company name substring-matches our vendored list, treat as member.
+  if (parsed.vdma_at_member == null && knownHint) {
+    parsed.vdma_at_member = true;
+    parsed.vdma_at_member_reason = lang === "de"
+      ? "in der lokalen Liste bekannter VDMA Österreich-Mitglieder gefunden"
+      : "matched local known-members list";
+  }
   return parsed;
 }
 
@@ -253,11 +297,11 @@ function mk(l) {
     modeYes:  de ? "Ja — ÖNACE direkt eingeben" : "Yes — enter ÖNACE code(s) directly",
     modeNo:   de ? "Nein — Firma / Produkte analysieren (KI)" : "No — analyse company / products (AI)",
     compL:    de ? "Firmenname" : "Company name",
-    compPh:   de ? "z.B. AMBEG Dr. J. Dichter GmbH" : "e.g. AMBEG Dr. J. Dichter GmbH",
+    compPh:   de ? "z.B. ENGEL AUSTRIA GmbH" : "e.g. ENGEL AUSTRIA GmbH",
     locL:     de ? "Bundesland / Ort" : "State / City",
-    locPh:    de ? "z.B. Wien" : "e.g. Vienna",
+    locPh:    de ? "z.B. Schwertberg, Oberösterreich" : "e.g. Schwertberg, Upper Austria",
     prodL:    de ? "Produkte / Tätigkeiten" : "Products / activities",
-    prodPh:   de ? "z.B. Spezialmaschinen für die Glasindustrie" : "e.g. special-purpose machinery for the glass industry",
+    prodPh:   de ? "z.B. Kunststoff-Spritzgießmaschinen" : "e.g. plastic injection-moulding machines",
     onaceL:   de ? "ÖNACE-Nummer(n) (ÖNACE 2025)" : "ÖNACE code(s) (ÖNACE 2025)",
     onaceHint:de ? "Format: NN, NN.NN oder NN.NN-NN. Firmen können mehrere Codes haben — alle hinzufügen." : "Format: NN, NN.NN or NN.NN-NN. Companies may have multiple codes — add all of them.",
     addOnace: de ? "+ Weitere ÖNACE-Nummer hinzufügen" : "+ Add another ÖNACE code",
@@ -304,6 +348,13 @@ function mk(l) {
     registerCta:    de ? "Zur NIS-Meldestelle (nis.gv.at)" : "Go to NIS reporting body (nis.gv.at)",
     aiSectorNoteTitle: de ? "KI-generierte NISG-Klassifikation" : "AI-generated NISG classification",
     aiSectorNote:      de ? "Diese Zuordnung wurde durch KI-Analyse ermittelt und sollte intern rechtlich bestätigt werden." : "This classification was determined by AI analysis and should be internally verified from a legal perspective.",
+    vdmaMemberBadge:   de ? "VDMA Österreich-Mitglied" : "VDMA Österreich member",
+    vdmaExclusiveTitle:de ? "Exklusive VDMA-NIS-2-Hilfen verfügbar" : "Exclusive VDMA NIS-2 guidance available",
+    vdmaExclusiveBody: de ? "Als VDMA Österreich-Mitglied haben Sie Zugriff auf Praxisleitfäden, Musterdokumente und Beratung zur NIS-2- / NISG-2026-Umsetzung — überwiegend mitgliederexklusiv." : "As a VDMA Österreich member you have access to practical guides, template documents and consulting on NIS-2 / NISG 2026 implementation — most of it is member-exclusive.",
+    vdmaExclusiveCta:  de ? "Zu den VDMA-NIS-2-Hilfen ↗" : "Go to VDMA NIS-2 guidance ↗",
+    vdmaNonMemberTitle:de ? "Hinweis: VDMA-Mitgliedschaft" : "Note: VDMA membership",
+    vdmaNonMemberNote: de ? "VDMA Österreich-Mitglieder erhalten exklusive NIS-2-Hilfen, Musterdokumente und Beratung. Nicht-Mitglieder können sich unter vdma.eu/de/oesterreich über Mitgliedschaft informieren." : "VDMA Österreich members receive exclusive NIS-2 guidance, templates and consulting. Non-members can learn about membership at vdma.eu/de/oesterreich.",
+    vdmaNonMemberCta:  de ? "Zur VDMA Österreich ↗" : "Go to VDMA Österreich ↗",
     ndBadge:  de ? "ÖNACE explizit" : "ÖNACE explicit",
     ndNoNace: de ? "kein ÖNACE-Code" : "no ÖNACE code",
     onaceInvalid: de ? "Bitte gültige ÖNACE-Nummer eingeben (z.B. 28 oder 28.99)." : "Please enter a valid ÖNACE code (e.g. 28 or 28.99).",
@@ -321,6 +372,8 @@ function mk(l) {
     resWko:       de ? "WKO — NISG 2026 Überblick"                   : "WKO — NISG 2026 overview",
     resStat:      de ? "Statistik Austria — ÖNACE 2025"              : "Statistics Austria — ÖNACE 2025",
     resFa:        de ? "firmenabc.at — Firmensuche mit ÖNACE"         : "firmenabc.at — company search with ÖNACE",
+    resVdmaAt:    de ? "VDMA Österreich (Landesverband)"              : "VDMA Österreich (Austrian branch)",
+    resVdmaHilfen:de ? "VDMA — NIS-2 / NISG 2026 Hilfen für Maschinenbauer" : "VDMA — NIS-2 / NISG 2026 guidance for machinery manufacturers",
   };
 }
 
@@ -799,6 +852,37 @@ export default function App() {
                 </div>
               )}
 
+              {/* VDMA callout — only for in-scope entities. Members get an
+                  amber box linking to member-exclusive NIS-2 guidance;
+                  non-members / unknown get a soft grey pointer to membership. */}
+              {!result.unclassifiable && (result.entity_type === "wesentlich" || result.entity_type === "wichtig") && (function() {
+                var isMember = compData && (compData.vdma_at_member === true || (compData.vdma_at_member == null && knownVdmaAtMember(comp || compData.gegenstand)));
+                if (isMember) {
+                  return (
+                    <div style={{ padding: "13px 15px", background: "#FFF7E6", border: "1.5px solid #f59e0b", borderRadius: 8, marginBottom: 12 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                        <MI name="workspace_premium" size={16} color="#F97F08"/>{t.vdmaExclusiveTitle}
+                      </div>
+                      <p style={{ fontSize: 12.5, color: "#854d0e", margin: "0 0 8px", lineHeight: 1.55 }}>{t.vdmaExclusiveBody}</p>
+                      <a href={VDMA_HILFEN} target="_blank" rel="noreferrer" style={S.link("#B45309")}>
+                        <ExtIcon/>{t.vdmaExclusiveCta}
+                      </a>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ padding: "12px 14px", background: "#f9fafb", border: "1px dashed #d1d5db", borderRadius: 8, marginBottom: 12 }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}>
+                      <MI name="info" size={14} color="#6b7280"/>{t.vdmaNonMemberTitle}
+                    </div>
+                    <p style={{ fontSize: 12, color: "#4b5563", margin: "0 0 6px", lineHeight: 1.55 }}>{t.vdmaNonMemberNote}</p>
+                    <a href={VDMA_AT_MEMBERSHIP} target="_blank" rel="noreferrer" style={S.link("#374151")}>
+                      <ExtIcon/>{t.vdmaNonMemberCta}
+                    </a>
+                  </div>
+                );
+              })()}
+
               {/* AI-generated disclaimer (skip in direct mode and when unclassifiable) */}
               {!result.directMode && !result.unclassifiable && (
                 <div style={{ padding: "10px 14px", background: "#FFF7E6", borderRadius: 8, border: "1px solid #FBBF24", marginBottom: 12 }}>
@@ -828,8 +912,13 @@ export default function App() {
                     <span style={{ fontSize: 11, background: "#fef2f2", color: "#991b1b", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #fecaca", marginRight: 5 }}>{compData.rechtsform}</span>
                   )}
                   {compData.firmenbuch_nummer && (
-                    <span style={{ fontSize: 11, background: "#faf5ff", color: "#5b21b6", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff" }}>
+                    <span style={{ fontSize: 11, background: "#faf5ff", color: "#5b21b6", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #e9d5ff", marginRight: 5 }}>
                       {compData.firmenbuch_nummer}{compData.firmenbuch_gericht ? " · " + compData.firmenbuch_gericht : ""}
+                    </span>
+                  )}
+                  {(compData.vdma_at_member === true || (compData.vdma_at_member == null && knownVdmaAtMember(comp || compData.gegenstand))) && (
+                    <span title={compData.vdma_at_member_reason || ""} style={{ fontSize: 11, background: "#f0fdf4", color: "#166534", borderRadius: 4, padding: "2px 7px", fontWeight: 600, border: "1px solid #86efac", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <MI name="verified" size={12} color="#166534"/> {t.vdmaMemberBadge}
                     </span>
                   )}
                   {compData.firmenabc_url && (
@@ -854,6 +943,8 @@ export default function App() {
             <a href={WKO_NIS}       target="_blank" rel="noreferrer" style={S.link()}><ExtIcon/>{t.resWko}</a>
             <a href={STATISTIK_AT}  target="_blank" rel="noreferrer" style={S.link()}><ExtIcon/>{t.resStat}</a>
             <a href={FIRMENABC_BASE} target="_blank" rel="noreferrer" style={S.link()}><ExtIcon/>{t.resFa}</a>
+            <a href={VDMA_AT_MEMBERSHIP} target="_blank" rel="noreferrer" style={S.link()}><ExtIcon/>{t.resVdmaAt}</a>
+            <a href={VDMA_HILFEN}   target="_blank" rel="noreferrer" style={S.link()}><ExtIcon/>{t.resVdmaHilfen}</a>
           </div>
         </div>
 
