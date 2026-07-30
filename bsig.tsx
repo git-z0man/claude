@@ -241,10 +241,28 @@ function validateWzRaw(raw) {
 
 function parseJson(txt) {
   var clean = txt.replace(/```json|```/g, "").trim();
-  var m = clean.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error("No JSON in response");
-  try { return JSON.parse(m[0]); }
-  catch(e) { throw new Error("Invalid JSON: " + e.message); }
+  try { return JSON.parse(clean); } catch(_) {}
+  // Extract balanced top-level {...} blocks (string-aware so braces inside
+  // JSON strings don't fool the depth counter). Try candidates from last to
+  // first — Claude's final answer is usually the last JSON in the reply,
+  // even when preceded by search-reasoning prose that contains other braces.
+  var blocks = [], depth = 0, start = -1, inStr = false, esc = false;
+  for (var i = 0; i < clean.length; i++) {
+    var c = clean[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === "\"") inStr = false;
+      continue;
+    }
+    if (c === "\"") { inStr = true; continue; }
+    if (c === "{") { if (depth === 0) start = i; depth++; }
+    else if (c === "}") { depth--; if (depth === 0 && start !== -1) { blocks.push(clean.slice(start, i + 1)); start = -1; } }
+  }
+  for (var j = blocks.length - 1; j >= 0; j--) {
+    try { return JSON.parse(blocks[j]); } catch(_) {}
+  }
+  throw new Error("No JSON in response");
 }
 
 async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) {
@@ -399,6 +417,7 @@ async function analyzeWZ(company, products, compData, lang, signal) {
       return String(entry);
     }).filter(Boolean);
   }
+  var ndOutOfScope = compData && compData.nace_found && compData.nace_code;
   if (ndOutOfScope && parsed.in_scope) { parsed.northdataOverride = true; parsed.northdataWz = compData.nace_code; }
   return parsed;
 }
