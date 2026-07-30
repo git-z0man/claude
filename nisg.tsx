@@ -14,21 +14,135 @@ const VDMA_HILFEN   = "https://www.vdma.eu/de/viewer/-/v2article/render/16156189
 const VDMA_AT_MEMBERSHIP = "https://www.vdma.eu/de/oesterreich";
 const VDMA_AT_MEMBERS_URL = "https://www.vdma.eu/de/oesterreich-mitglieder";
 
-// Fast-path allowlist of confirmed VDMA Österreich members (independently
-// verified via VDMA Vorstand publications + industry press). Not exhaustive
-// — VDMA Österreich has ~130 members and vdma.eu is bot-blocked to our
-// build-time fetch, so the runtime web_search hitting vdma.eu remains the
-// authority. This set is used only (a) to seed the prompt with strong
-// candidates so Claude prefers `true` for them, and (b) as a case-insensitive
-// substring fallback in the UI when Claude returns null.
+// Vetted allowlist of VDMA Österreich members — full list transcribed from
+// vdma.eu/de/oesterreich-mitglieder (vdma.eu is bot-blocked to our
+// build-time fetch, so the list was supplied manually). Each entry is a
+// distinctive lowercase substring; the match happens via case-insensitive
+// substring against the user-supplied company name. Substrings are chosen
+// to be specific enough to avoid false positives against unrelated DE-only
+// entities that share a token (e.g. "trumpf maschinen austria" instead of
+// just "trumpf", so a German TRUMPF SE + Co. KG query doesn't wrongly
+// flag). Used (a) to seed the phase-1 prompt with a strong "likely member"
+// hint and (b) as a UI fallback when Claude's web_search returns null.
 const KNOWN_VDMA_AT_MEMBERS = [
-  "ENGEL AUSTRIA",
-  "ANDRITZ",
-  "PÖTTINGER",
-  "KOMPTECH",
-  "SIGMATEK",
-  "Braun Maschinenfabrik",
-  "Buxbaum Automation",
+  "3 s schnecken",
+  "agilox",
+  "andritz",
+  "apv - technische produkte",
+  "arburg gesmbh",
+  "autonoma technologies",
+  "bachmann electronic",
+  "battenfeld-cincinnati austria",
+  "baumüller austria",
+  "bbg baugeräte",
+  "beckhoff automation gmbh",
+  "becom electronics",
+  "bekum maschinenfabrik",
+  "robert bosch ag",
+  "braun maschinenfabrik",
+  "busatis",
+  "cancom austria",
+  "cloudflight austria",
+  "copa-data",
+  "cosmo consult",
+  "cubicure",
+  "danube dynamics",
+  "ds automotion",
+  "ecosio",
+  "einböck",
+  "engel austria",
+  "eplan gmbh",
+  "erema",
+  "eschlböck",
+  "evk di kerschhaggl",
+  "evon gmbh",
+  "f&s bondtec",
+  "fabasoft approve",
+  "fanuc österreich",
+  "festo gesellschaft",
+  "findustrial",
+  "fmw förderanlagen",
+  "geislinger",
+  "ger4tech",
+  "geroldinger",
+  "hahn automation group austria",
+  "halo-electronic",
+  "franz hauer",
+  "hawe österreich",
+  "heitec systemtechnik",
+  "hella fahrzeugteile austria",
+  "henn gmbh",
+  "henn industrial",
+  "holz-her maschinenbau",
+  "hörmann klatt",
+  "industrie informatik",
+  "innio jenbacher",
+  "inteco melting",
+  "jawa management",
+  "kaeser kompressoren",
+  "karl dungs",
+  "keba",
+  "keycycle",
+  "knapp ag",
+  "koenig & bauer (at)",
+  "komptech",
+  "kosme",
+  "maschinenfabrik laska",
+  "lbh gmbh",
+  "liebherr-werk",
+  "liebherr-mcctec",
+  "linde material handling austria",
+  "lindner traktorenwerk",
+  "lindner-recyclingtech",
+  "linxfour",
+  "lisec",
+  "maplan",
+  "mark hydraulik",
+  "odonics",
+  "phoenix contact",
+  "pia automation austria",
+  "pilz ges",
+  "prewave",
+  "primetals technologies austria",
+  "pth products",
+  "pureloop",
+  "pöttinger landtechnik",
+  "quomatic",
+  "reqpool",
+  "ringspann austria",
+  "rockster gmbh",
+  "rt engineering",
+  "rübig",
+  "scheuch",
+  "schunk intec",
+  "securikett",
+  "sew-eurodrive",
+  "sick gmbh",
+  "siemens energy austria",
+  "sigmatek",
+  "skf sealing solutions austria",
+  "still gesellschaft",
+  "stiwa",
+  "sysparency",
+  "tele haase",
+  "terratec maschinenbau",
+  "tgw logistics",
+  "tgw systems",
+  "trench austria",
+  "trumpf maschinen austria",
+  "tttech",
+  "untha",
+  "scio automation",
+  "viewpointsystem",
+  "wacker neuson linz",
+  "weidmüller",
+  "westtech maschinenbau",
+  "wfl millturn",
+  "windmöller & hölscher austria",
+  "winkelbauer",
+  "wittenstein",
+  "wittmann battenfeld",
+  "zühlke engineering (austria)",
 ];
 
 // ── NISG 2026 reference data ─────────────────────────────────────────────────
@@ -178,7 +292,7 @@ async function fetchCompanyData(companyName, loc, lang, signal) {
   var exJson  = '{"gegenstand":"...","onace_code":"28.99","onace_label":"Herst. sonstiger Spezialmaschinen","onace_found":true,"rechtsform":"GmbH","ort":"Wien","firmenabc_url":"https://www.firmenabc.at/...","firmenbuch_nummer":"FN 12345 a","firmenbuch_gericht":"Handelsgericht Wien","mitarbeiter_geschaetzt":null,"umsatz_geschaetzt":null,"products":"Spezialmaschinen für die Glasindustrie","vdma_at_member":true,"vdma_at_member_reason":"auf vdma.eu/de/oesterreich-mitglieder aufgeführt"}';
   var de = lang === "de";
   var vdmaHint = knownHint
-    ? (de ? " (Firma ist wahrscheinlich VDMA Österreich-Mitglied — bitte auf vdma.eu bestätigen.)" : " (Company is likely a VDMA Österreich member — please confirm on vdma.eu.)")
+    ? (de ? " (Firma ist gemäß der vollständigen offiziellen VDMA Österreich-Mitgliederliste bereits als Mitglied identifiziert — bitte trotzdem kurz auf vdma.eu bestätigen.)" : " (Company is already identified as a member per the full official VDMA Österreich members list — please still briefly confirm on vdma.eu.)")
     : "";
   var prompt = de
     ? ('Suche auf firmenabc.at nach "' + query + '" (URL-Muster: ' + faUrl + '). Wenn kein ÖNACE-Code auffindbar ist, ergänzend auf northdata.de bzw. northdata.at, JustizOnline-Firmenbuch und der offiziellen Unternehmenswebsite suchen. Firmenabc.at zeigt den ÖNACE-Branchencode explizit an.\nZUSÄTZLICH: Prüfe auf ' + VDMA_AT_MEMBERS_URL + ', ob "' + (companyName || "") + '" als VDMA Österreich-Mitglied gelistet ist.' + vdmaHint + '\nExtrahiere: gegenstand, onace_code (im Format NN.NN oder NN.NN-NN — ohne Sektionsbuchstabe), onace_label, onace_found, rechtsform, ort, firmenabc_url, firmenbuch_nummer (Format „FN 12345 a"), firmenbuch_gericht (z.B. „Handelsgericht Wien"), mitarbeiter_geschaetzt (Zahl oder null), umsatz_geschaetzt (Jahresumsatz in Mio. Euro oder null), products (max. 12 Produkte/Tätigkeiten), vdma_at_member (true/false/null wenn unklar), vdma_at_member_reason (kurzer Beleg oder null).\nAntworte NUR als JSON: ' + exJson)
