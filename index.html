@@ -22,6 +22,10 @@
     a.card-bsig:hover { border-color: #F97F08; }
     a.card-bsig .desc { color: #c7d2fe; }
     a.card-bsig .badge { display: inline-block; align-self: flex-start; margin-top: 0.25rem; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #F97F08; background: rgba(249,127,8,0.12); padding: 2px 8px; border-radius: 3px; }
+    a.card-nisg { background: #7f1d1d; border-color: #c8102e; }
+    a.card-nisg:hover { border-color: #fca5a5; }
+    a.card-nisg .desc { color: #fecaca; }
+    a.card-nisg .badge { display: inline-block; align-self: flex-start; margin-top: 0.25rem; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fca5a5; background: rgba(252,165,165,0.12); padding: 2px 8px; border-radius: 3px; }
     .foot { color: #52525b; font-size: 12px; text-align: center; max-width: 32rem; line-height: 1.55; margin-top: 1rem; }
     .foot a { color: #a5b4fc; }
   </style>
@@ -37,13 +41,19 @@
         <span class="desc">Prüft für deutsche Maschinen-/Elektronikhersteller, ob sie unter das BSIG 2025 (NIS-2-Umsetzung) fallen — inklusive WZ-Klassifikation, MSP-Hinweisen und Erheblichkeitsschwelle.</span>
         <span class="badge">VDMA Corporate Design</span>
       </a>
+      <a class="card card-nisg" href="./nisg.html">
+        <span class="icon">🇦🇹</span>
+        <span class="title">NISG 2026 Scope Checker</span>
+        <span class="desc">Prüft für österreichische Unternehmen, ob sie als wesentliche oder wichtige Einrichtung unter das NISG 2026 (NIS-2-Umsetzung Österreich) fallen — inklusive Sektor-Klassifikation und Size-Cap-Rule.</span>
+        <span class="badge">In Kraft ab 1. Oktober 2026</span>
+      </a>
       <a class="card" href="./suno.html">
         <span class="icon">🎵</span>
         <span class="title">SUNO Song Creator</span>
         <span class="desc">Generiert optimierte Songprompts für SUNO v5.5 — Lyrics, Style, Struktur, mit Claude-Feedback und localStorage-Drafts.</span>
       </a>
     </div>
-    <p class="foot">Der API-Key wird zwischen beiden Apps geteilt (gleicher <code>localStorage</code>-Eintrag). Empfohlen: in der <a href="https://console.anthropic.com/settings/limits" target="_blank" rel="noopener">Anthropic Console</a> ein monatliches Spend Limit setzen.</p>
+    <p class="foot">Der API-Key wird zwischen allen Apps geteilt (gleicher <code>localStorage</code>-Eintrag). Empfohlen: in der <a href="https://console.anthropic.com/settings/limits" target="_blank" rel="noopener">Anthropic Console</a> ein monatliches Spend Limit setzen.</p>
   </main>
 </body>
 </html>
