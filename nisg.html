@@ -121,8 +121,12 @@
     }
 
     async function boot() {
-      if (!getKey()) { renderKeyGate(); return; }
-
+      // App mounts without a key so visitors can preview the UI and use
+      // the deterministic ÖNACE direct mode. Missing key surfaces later
+      // as a greyed-out AI toggle inside the app (and a 401 if AI is
+      // somehow triggered, which the app already handles via AUTH_ERROR).
+      // renderKeyGate is kept as unreachable code for now — planned
+      // removal in a cleanup.
       try {
         const res = await fetch("./nisg.tsx", { cache: "no-cache" });
         if (!res.ok) throw new Error("nisg.tsx konnte nicht geladen werden (HTTP " + res.status + ").");

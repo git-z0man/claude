@@ -454,6 +454,9 @@ function mk(l) {
     modeYes:  de ? "Ja — WZ-Nummer(n) direkt eingeben" : "Yes — enter WZ code(s) directly",
     modeNo:   de ? "Nein — Erweiterte Analyse" : "No — Extended Analysis",
     modeNoHint: de ? "KI-Analyse · erfordert ein Claude-Konto (Anthropic)" : "AI analysis · requires a Claude account (Anthropic)",
+    modeNoDisabled: de ? "API-Key erforderlich — über ⚙ oben rechts hinzufügen" : "API key required — add via ⚙ top-right",
+    noKeyBannerT:   de ? "Nur Direktmodus verfügbar" : "Direct mode only",
+    noKeyBannerB:   de ? "Ohne Anthropic API-Key steht die KI-gestützte Firmenanalyse nicht zur Verfügung. Sie können die App vollständig ansehen und den Direktmodus (bekannte WZ-Nummer) nutzen. Für die KI-Analyse: Key über ⚙ oben rechts hinzufügen." : "Without an Anthropic API key the AI-assisted company analysis is not available. You can browse the whole app and use direct mode (known WZ code). To enable AI analysis, add a key via the ⚙ icon top-right.",
     wzL:      de ? "WZ-Nummer(n) (DESTATIS 2008)" : "WZ code(s) (DESTATIS 2008)",
     wzPh:     de ? "z.B. 28.41" : "e.g. 28.41",
     wzHint:   de ? "BSIG-relevanter Bereich: 26.xx–30.99 · Unternehmen können mehrere WZ-Nummern haben — alle hinzufügen." : "BSIG-relevant range: 26.xx–30.99 · Companies may have multiple WZ codes — add all of them.",
@@ -1405,9 +1408,19 @@ function ApiStatusBar({ lang, onReset }) {
   );
 }
 
+// One-shot read of the shared "anthropicApiKey" localStorage entry. Set in
+// the ⚙ Settings modal (which does location.reload() on save), so we don't
+// need to re-check on every render — a component-level snapshot at mount is
+// stable. Returns false in artifact-preview contexts where localStorage may
+// not exist or the key was never set.
+function hasStoredApiKey() {
+  try { return !!localStorage.getItem("anthropicApiKey"); } catch(_) { return false; }
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   var [lang, setLang]         = useState("de");
+  var [hasApiKey]             = useState(hasStoredApiKey);
   var [mode, setMode]         = useState(null);
   var [wzInputs, setWzInputs] = useState([""]);   // ← array for multiple WZ
   var [wzHelpOpen, setWzHelpOpen]             = useState(false);
@@ -1695,20 +1708,33 @@ export default function App() {
         <ApiStatusBar lang={lang} onReset={reset}/>
         <p style={{ fontSize: 13.5, color: "#4b5563", marginBottom: 22, lineHeight: 1.6 }}>{t.hint}</p>
 
+        {!result && !hasApiKey && (
+          <div style={{ marginBottom: 18, padding: "10px 14px", background: "#FFF7E6", border: "1px solid #fde68a", borderRadius: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <MI name="key_off" size={14} color="#B45309"/>{t.noKeyBannerT}
+            </div>
+            <p style={{ fontSize: 12.5, color: "#92400e", margin: 0, lineHeight: 1.55 }}>{t.noKeyBannerB}</p>
+          </div>
+        )}
+
         {!result && (
           <div style={{ marginBottom: 22 }}>
             <div style={S.lbl}>{t.modeL}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
               {["known", "analyze"].map(function(m, i) {
                 var sel = mode === m;
+                var disabled = (m === "analyze") && !hasApiKey;
                 return (
-                  <div key={m} role="button" tabIndex={0}
-                    onClick={function() { setMode(m); setResult(null); clearErrors(); setCompData(null); setStep(-1); setMspSels([false,false,false,false]); setItResult(null); setWzHelpOpen(false); }}
-                    onKeyDown={function(e) { if (e.key === "Enter") setMode(m); }}
-                    style={{ flex: 1, minWidth: 200, padding: "14px 18px", borderRadius: 4, border: "2px solid " + (sel ? "#222F5C" : "#E3E3E6"), background: sel ? "#eff6ff" : "#fafafa", cursor: "pointer", fontWeight: sel ? 700 : 400, fontSize: 14, color: sel ? "#222F5C" : "#374151", lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div key={m} role="button" tabIndex={disabled ? -1 : 0}
+                    aria-disabled={disabled}
+                    onClick={disabled ? undefined : function() { setMode(m); setResult(null); clearErrors(); setCompData(null); setStep(-1); setMspSels([false,false,false,false]); setItResult(null); setWzHelpOpen(false); }}
+                    onKeyDown={disabled ? undefined : function(e) { if (e.key === "Enter") setMode(m); }}
+                    title={disabled ? t.modeNoDisabled : ""}
+                    style={{ flex: 1, minWidth: 200, padding: "14px 18px", borderRadius: 4, border: "2px solid " + (sel ? "#222F5C" : "#E3E3E6"), background: sel ? "#eff6ff" : "#fafafa", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, fontWeight: sel ? 700 : 400, fontSize: 14, color: sel ? "#222F5C" : "#374151", lineHeight: 1.4, display: "flex", alignItems: "center", gap: 8 }}>
                     <MI name={i === 0 ? "pin" : "search"} size={18} color={sel ? "#222F5C" : "#6b7280"}/>
                     <span>{i === 0 ? t.modeYes : t.modeNo}
-                      {i === 1 && <div style={{ fontSize: 11, color: "#324C9C", marginTop: 5, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><MI name="smart_toy" size={14} color="#324C9C"/>{t.modeNoHint}</div>}
+                      {i === 1 && !disabled && <div style={{ fontSize: 11, color: "#324C9C", marginTop: 5, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><MI name="smart_toy" size={14} color="#324C9C"/>{t.modeNoHint}</div>}
+                      {i === 1 && disabled && <div style={{ fontSize: 11, color: "#B45309", marginTop: 5, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><MI name="key_off" size={14} color="#B45309"/>{t.modeNoDisabled}</div>}
                     </span>
                   </div>
                 );
