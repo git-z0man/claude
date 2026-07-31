@@ -14,136 +14,166 @@ const VDMA_HILFEN   = "https://www.vdma.eu/de/viewer/-/v2article/render/16156189
 const VDMA_AT_MEMBERSHIP = "https://www.vdma.eu/de/oesterreich";
 const VDMA_AT_MEMBERS_URL = "https://www.vdma.eu/de/oesterreich-mitglieder";
 
-// Vetted allowlist of VDMA Österreich members — full list transcribed from
+// Vetted catalog of VDMA Österreich members — full list transcribed from
 // vdma.eu/de/oesterreich-mitglieder (vdma.eu is bot-blocked to our
-// build-time fetch, so the list was supplied manually). Each entry is a
-// distinctive lowercase substring; the match happens via case-insensitive
-// substring against the user-supplied company name. Substrings are chosen
-// to be specific enough to avoid false positives against unrelated DE-only
-// entities that share a token (e.g. "trumpf maschinen austria" instead of
-// just "trumpf", so a German TRUMPF SE + Co. KG query doesn't wrongly
-// flag). Used (a) to seed the phase-1 prompt with a strong "likely member"
-// hint and (b) as a UI fallback when Claude's web_search returns null.
-const KNOWN_VDMA_AT_MEMBERS = [
-  "3 s schnecken",
-  "agilox",
-  "andritz",
-  "apv - technische produkte",
-  "arburg gesmbh",
-  "autonoma technologies",
-  "bachmann electronic",
-  "battenfeld-cincinnati austria",
-  "baumüller austria",
-  "bbg baugeräte",
-  "beckhoff automation gmbh",
-  "becom electronics",
-  "bekum maschinenfabrik",
-  "robert bosch ag",
-  "braun maschinenfabrik",
-  "busatis",
-  "cancom austria",
-  "cloudflight austria",
-  "copa-data",
-  "cosmo consult",
-  "cubicure",
-  "danube dynamics",
-  "ds automotion",
-  "ecosio",
-  "einböck",
-  "engel austria",
-  "eplan gmbh",
-  "erema",
-  "eschlböck",
-  "evk di kerschhaggl",
-  "evon gmbh",
-  "f&s bondtec",
-  "fabasoft approve",
-  "fanuc österreich",
-  "festo gesellschaft",
-  "findustrial",
-  "fmw förderanlagen",
-  "geislinger",
-  "ger4tech",
-  "geroldinger",
-  "hahn automation group austria",
-  "halo-electronic",
-  "franz hauer",
-  "hawe österreich",
-  "heitec systemtechnik",
-  "hella fahrzeugteile austria",
-  "henn gmbh",
-  "henn industrial",
-  "holz-her maschinenbau",
-  "hörmann klatt",
-  "industrie informatik",
-  "innio jenbacher",
-  "inteco melting",
-  "jawa management",
-  "kaeser kompressoren",
-  "karl dungs",
-  "keba",
-  "keycycle",
-  "knapp ag",
-  "koenig & bauer (at)",
-  "komptech",
-  "kosme",
-  "maschinenfabrik laska",
-  "lbh gmbh",
-  "liebherr-werk",
-  "liebherr-mcctec",
-  "linde material handling austria",
-  "lindner traktorenwerk",
-  "lindner-recyclingtech",
-  "linxfour",
-  "lisec",
-  "maplan",
-  "mark hydraulik",
-  "odonics",
-  "phoenix contact",
-  "pia automation austria",
-  "pilz ges",
-  "prewave",
-  "primetals technologies austria",
-  "pth products",
-  "pureloop",
-  "pöttinger landtechnik",
-  "quomatic",
-  "reqpool",
-  "ringspann austria",
-  "rockster gmbh",
-  "rt engineering",
-  "rübig",
-  "scheuch",
-  "schunk intec",
-  "securikett",
-  "sew-eurodrive",
-  "sick gmbh",
-  "siemens energy austria",
-  "sigmatek",
-  "skf sealing solutions austria",
-  "still gesellschaft",
-  "stiwa",
-  "sysparency",
-  "tele haase",
-  "terratec maschinenbau",
-  "tgw logistics",
-  "tgw systems",
-  "trench austria",
-  "trumpf maschinen austria",
-  "tttech",
-  "untha",
-  "scio automation",
-  "viewpointsystem",
-  "wacker neuson linz",
-  "weidmüller",
-  "westtech maschinenbau",
-  "wfl millturn",
-  "windmöller & hölscher austria",
-  "winkelbauer",
-  "wittenstein",
-  "wittmann battenfeld",
-  "zühlke engineering (austria)",
+// build-time fetch, so the list was supplied manually).
+//
+// Each entry:
+//   match       — distinctive lowercase substring for the case-insensitive
+//                 name check (long enough to avoid false-positive leaks
+//                 across the DE/AT border, e.g. "trumpf maschinen austria"
+//                 rather than just "trumpf").
+//   displayName — the legal name as VDMA lists it, shown in the direct-
+//                 mode typeahead so users recognise their own company.
+//   city        — short location hint for typeahead disambiguation
+//                 (e.g. "ANDRITZ HYDRO" in Wien vs "ANDRITZ AG" in Graz).
+//   onace       — best-effort ÖNACE-2025 4-digit code where the company's
+//                 business is clearly identifiable from public info
+//                 (~80 of ~120 entries). null where the ÖNACE would be a
+//                 guess — the typeahead still surfaces the entry so users
+//                 can search externally via the deep-link buttons.
+//
+// The vendored substring array `KNOWN_VDMA_AT_MEMBERS` is derived below
+// from the catalog to keep both surfaces (AI prompt hint + UI fallback +
+// new typeahead) in sync from one source.
+const VDMA_AT_CATALOG = [
+  { match: "3 s schnecken",                 displayName: "3 S Schnecken + Spindeln + Spiralen Bearbeitungsges. m.b.H.", city: "Roitham, OÖ",              onace: "28.15" },
+  { match: "agilox",                        displayName: "AGILOX Services GmbH",                                        city: "Neukirchen b. Lambach, OÖ", onace: "28.22" },
+  { match: "andritz fabrics",               displayName: "ANDRITZ Fabrics and Rolls GmbH",                              city: "Gloggnitz, NÖ",            onace: "28.95" },
+  { match: "andritz ag",                    displayName: "ANDRITZ AG (Headquarters ANDRITZ GROUP)",                     city: "Graz, Stmk",               onace: "28.99" },
+  { match: "andritz hydro",                 displayName: "ANDRITZ HYDRO GmbH",                                          city: "Wien",                     onace: "28.11" },
+  { match: "apv - technische produkte",     displayName: "APV - Technische Produkte GmbH",                              city: "Hötzelsdorf, NÖ",          onace: "28.30" },
+  { match: "arburg gesmbh",                 displayName: "ARBURG GesmbH",                                               city: "Wien",                     onace: "28.96" },
+  { match: "autonoma technologies",         displayName: "Autonoma Technologies GmbH",                                  city: "Linz, OÖ",                 onace: "62.01" },
+  { match: "bachmann electronic",           displayName: "Bachmann electronic GmbH",                                    city: "Feldkirch, Vlbg",          onace: "26.51" },
+  { match: "battenfeld-cincinnati austria", displayName: "battenfeld-cincinnati Austria GmbH",                          city: "Wien",                     onace: "28.96" },
+  { match: "baumüller austria",             displayName: "Baumüller Austria GmbH",                                      city: "Pasching, OÖ",             onace: "27.11" },
+  { match: "bbg baugeräte",                 displayName: "BBG Baugeräte GmbH",                                          city: "Kapfenberg, Stmk",         onace: "28.92" },
+  { match: "beckhoff automation gmbh",      displayName: "Beckhoff Automation GmbH",                                    city: "Bürs, Vlbg",               onace: "26.51" },
+  { match: "becom electronics",             displayName: "BECOM Electronics GmbH",                                      city: "Wien",                     onace: "26.11" },
+  { match: "bekum maschinenfabrik",         displayName: "Bekum Maschinenfabrik Traismauer GesmbH",                     city: "Traismauer, NÖ",           onace: "28.96" },
+  { match: "robert bosch ag",               displayName: "Robert Bosch AG",                                             city: "Hallein, Sbg",             onace: "28.99" },
+  { match: "braun maschinenfabrik",         displayName: "BRAUN Maschinenfabrik GmbH",                                  city: "Vöcklabruck, OÖ",          onace: "28.30" },
+  { match: "busatis",                       displayName: "Busatis GmbH",                                                city: "Purgstall, NÖ",            onace: "28.30" },
+  { match: "cancom austria",                displayName: "CANCOM Austria AG",                                           city: "Wien",                     onace: "62.09" },
+  { match: "cloudflight austria",           displayName: "Cloudflight Austria GmbH",                                    city: "Linz, OÖ",                 onace: "62.01" },
+  { match: "copa-data",                     displayName: "COPA-DATA GmbH",                                              city: "Salzburg",                 onace: "58.29" },
+  { match: "cosmo consult",                 displayName: "COSMO CONSULT GmbH",                                          city: "Seiersberg-Pirka, Stmk",   onace: "62.02" },
+  { match: "cubicure",                      displayName: "Cubicure GmbH",                                               city: "Wien",                     onace: "28.96" },
+  { match: "danube dynamics",               displayName: "Danube Dynamics Embedded Solutions GmbH",                     city: "Linz, OÖ",                 onace: "62.01" },
+  { match: "ds automotion",                 displayName: "DS Automotion GmbH",                                          city: "Linz, OÖ",                 onace: "28.22" },
+  { match: "ecosio",                        displayName: "ecosio GmbH",                                                 city: "Wien",                     onace: "62.02" },
+  { match: "einböck",                       displayName: "Einböck GmbH",                                                city: "Dorf a.d. Pram, OÖ",       onace: "28.30" },
+  { match: "engel austria",                 displayName: "ENGEL AUSTRIA GmbH",                                          city: "Schwertberg, OÖ",          onace: "28.96" },
+  { match: "eplan gmbh",                    displayName: "EPLAN GmbH",                                                  city: "Ardagger Stift, NÖ",       onace: "58.29" },
+  { match: "erema engineering",             displayName: "EREMA Engineering Recycling Maschinen und Anlagen Ges.m.b.H.",city: "Ansfelden, OÖ",            onace: "28.96" },
+  { match: "erema group",                   displayName: "EREMA Group GmbH",                                            city: "Ansfelden, OÖ",            onace: "28.96" },
+  { match: "eschlböck",                     displayName: "Eschlböck Maschinenfabrik GmbH",                              city: "Prambachkirchen, OÖ",      onace: "28.99" },
+  { match: "evk di kerschhaggl",            displayName: "EVK DI Kerschhaggl GmbH",                                     city: "Raaba, Stmk",              onace: "26.51" },
+  { match: "evon gmbh",                     displayName: "evon GmbH",                                                   city: "St. Ruprecht a.d. Raab, Stmk", onace: "26.51" },
+  { match: "f&s bondtec",                   displayName: "F&S BONDTEC Semiconductor GmbH",                              city: "Braunau am Inn, OÖ",       onace: "28.99" },
+  { match: "fabasoft approve",              displayName: "Fabasoft Approve GmbH",                                       city: "Linz, OÖ",                 onace: "58.29" },
+  { match: "fanuc österreich",              displayName: "FANUC Österreich GmbH",                                       city: "Vorchdorf, OÖ",            onace: "28.99" },
+  { match: "festo gesellschaft",            displayName: "Festo Gesellschaft m.b.H.",                                   city: "Wien",                     onace: "28.12" },
+  { match: "findustrial",                   displayName: "Findustrial GmbH",                                            city: "Schörfling a. Attersee, OÖ", onace: "62.01" },
+  { match: "fmw förderanlagen",             displayName: "FMW Förderanlagen GmbH",                                      city: "Kirchstetten, NÖ",         onace: "28.22" },
+  { match: "geislinger",                    displayName: "Geislinger GmbH",                                             city: "Hallwang, Sbg",            onace: "28.15" },
+  { match: "ger4tech",                      displayName: "GER4TECH Mechatronik GmbH",                                   city: "Redlham, OÖ",              onace: "28.99" },
+  { match: "geroldinger",                   displayName: "GEROLDINGER GMBH",                                            city: "Sigharting, OÖ",           onace: "28.99" },
+  { match: "hahn automation group austria", displayName: "HAHN Automation Group Austria GmbH",                          city: "Kremsmünster, OÖ",         onace: "28.99" },
+  { match: "halo-electronic",               displayName: "HALO-electronic GmbH",                                        city: "Lustenau, Vlbg",           onace: "26.30" },
+  { match: "franz hauer",                   displayName: "Franz Hauer GmbH & Co. KG",                                   city: "Statzendorf, NÖ",          onace: "28.30" },
+  { match: "hawe österreich",               displayName: "HAWE Österreich GmbH",                                        city: "Gerersdorf, NÖ",           onace: "28.12" },
+  { match: "heitec systemtechnik",          displayName: "HEITEC Systemtechnik GmbH",                                   city: "Ardagger Stift, NÖ",       onace: "28.99" },
+  { match: "hella fahrzeugteile austria",   displayName: "HELLA Fahrzeugteile Austria GmbH",                            city: "Großpetersdorf, Bgld",     onace: "29.31" },
+  { match: "henn gmbh",                     displayName: "Henn GmbH & Co. KG",                                          city: "Dornbirn, Vlbg",           onace: "29.32" },
+  { match: "henn industrial",               displayName: "Henn Industrial Group GmbH & Co. KG",                         city: "Dornbirn, Vlbg",           onace: "29.32" },
+  { match: "holz-her maschinenbau",         displayName: "HOLZ-HER Maschinenbau GmbH",                                  city: "Voitsberg, Stmk",          onace: "28.49" },
+  { match: "hörmann klatt",                 displayName: "HÖRMANN Klatt Conveyors GmbH",                                city: "Neumarkt a. Wallersee, Sbg", onace: "28.22" },
+  { match: "industrie informatik",          displayName: "Industrie Informatik GmbH",                                   city: "Linz, OÖ",                 onace: "58.29" },
+  { match: "innio jenbacher",               displayName: "Innio Jenbacher GmbH & Co OG",                                city: "Jenbach, Tirol",           onace: "28.11" },
+  { match: "inteco melting",                displayName: "INTECO melting and casting technologies GmbH",                city: "Bruck a.d. Mur, Stmk",     onace: "28.91" },
+  { match: "jawa management",               displayName: "JAWA Management Software GmbH",                               city: "Graz, Stmk",               onace: "58.29" },
+  { match: "kaeser kompressoren",           displayName: "Kaeser Kompressoren Ges.m.b.H.",                              city: "Linz, OÖ",                 onace: "28.13" },
+  { match: "karl dungs",                    displayName: "Karl Dungs Ges.m.b.H.",                                       city: "Salzburg",                 onace: "28.14" },
+  { match: "keba group",                    displayName: "KEBA Group AG",                                               city: "Linz, OÖ",                 onace: "26.51" },
+  { match: "keba industrial",               displayName: "KEBA Industrial Automation GmbH",                             city: "Linz, OÖ",                 onace: "26.51" },
+  { match: "keycycle",                      displayName: "KEYCYCLE GmbH",                                               city: "Ansfelden, OÖ",            onace: "28.96" },
+  { match: "knapp ag",                      displayName: "KNAPP AG",                                                    city: "Hart bei Graz, Stmk",      onace: "28.22" },
+  { match: "koenig & bauer (at)",           displayName: "Koenig & Bauer (AT) GmbH",                                    city: "Maria-Enzersdorf, NÖ",     onace: "28.99" },
+  { match: "komptech",                      displayName: "Komptech GmbH",                                               city: "Frohnleiten, Stmk",        onace: "28.99" },
+  { match: "kosme",                         displayName: "KOSME Gesellschaft mbH",                                      city: "Sollenau, NÖ",             onace: "28.29" },
+  { match: "maschinenfabrik laska",         displayName: "Maschinenfabrik LASKA Gesellschaft m.b.H",                    city: "Traun, OÖ",                onace: "28.93" },
+  { match: "lbh gmbh",                      displayName: "LBH GmbH",                                                    city: "Wolfsegg am Hausruck, OÖ", onace: null    },
+  { match: "liebherr-werk telfs",           displayName: "Liebherr-Werk Telfs GmbH",                                    city: "Telfs, Tirol",             onace: "28.92" },
+  { match: "liebherr-mcctec",               displayName: "Liebherr-MCCtec GmbH",                                        city: "Nenzing, Vlbg",            onace: "28.22" },
+  { match: "liebherr-werk bischofshofen",   displayName: "Liebherr-Werk Bischofshofen GmbH",                            city: "Bischofshofen, Sbg",       onace: "28.92" },
+  { match: "liebherr-werk nenzing",         displayName: "Liebherr-Werk Nenzing GmbH",                                  city: "Nenzing, Vlbg",            onace: "28.22" },
+  { match: "linde material handling austria", displayName: "Linde Material Handling Austria GmbH",                      city: "Linz, OÖ",                 onace: "28.22" },
+  { match: "lindner traktorenwerk",         displayName: "Lindner Traktorenwerk Ges.m.b.H.",                            city: "Kundl, Tirol",             onace: "28.30" },
+  { match: "lindner-recyclingtech",         displayName: "Lindner-Recyclingtech GmbH",                                  city: "Spittal a.d. Drau, Ktn",   onace: "28.99" },
+  { match: "linxfour",                      displayName: "Linxfour GmbH",                                               city: "Wien",                     onace: "62.01" },
+  { match: "lisec austria",                 displayName: "LISEC Austria GmbH",                                          city: "Seitenstetten, NÖ",        onace: "28.99" },
+  { match: "lisec holding",                 displayName: "Lisec Holding GmbH",                                          city: "Seitenstetten, NÖ",        onace: "28.99" },
+  { match: "maplan",                        displayName: "MAPLAN GmbH",                                                 city: "Kottingbrunn, NÖ",         onace: "28.96" },
+  { match: "mark hydraulik",                displayName: "MARK Hydraulik GmbH",                                         city: "Spital am Pyhrn, OÖ",      onace: "28.12" },
+  { match: "odonics",                       displayName: "ODONICS YOUR-TOOL GmbH",                                      city: "Freundorf, NÖ",            onace: "25.73" },
+  { match: "phoenix contact",               displayName: "PHOENIX CONTACT GmbH",                                        city: "Wien",                     onace: "27.33" },
+  { match: "pia automation austria",        displayName: "PIA Automation Austria GmbH",                                 city: "Grambach/Graz, Stmk",      onace: "28.99" },
+  { match: "pilz ges",                      displayName: "Pilz Ges. m.b.H. Sichere Automation",                         city: "Wien",                     onace: "26.51" },
+  { match: "prewave",                       displayName: "Prewave GmbH",                                                city: "Wien",                     onace: "62.01" },
+  { match: "primetals technologies austria",displayName: "Primetals Technologies Austria GmbH",                         city: "Linz, OÖ",                 onace: "28.91" },
+  { match: "pth products",                  displayName: "PTH Products Maschinenbau GmbH",                              city: "Neuberg a.d. Mürz, Stmk",  onace: "28.99" },
+  { match: "pureloop",                      displayName: "PureLoop GmbH (member of EREMA group)",                       city: "Ansfelden, OÖ",            onace: "28.96" },
+  { match: "pöttinger landtechnik",         displayName: "PÖTTINGER Landtechnik GmbH",                                  city: "Grieskirchen, OÖ",         onace: "28.30" },
+  { match: "quomatic",                      displayName: "Quomatic.AI GmbH",                                            city: "Traun, OÖ",                onace: "62.01" },
+  { match: "reqpool",                       displayName: "ReqPOOL Group GmbH",                                          city: "Linz, OÖ",                 onace: "62.02" },
+  { match: "ringspann austria",             displayName: "RINGSPANN Austria GmbH",                                      city: "Neunkirchen, NÖ",          onace: "28.15" },
+  { match: "rockster gmbh",                 displayName: "Rockster GmbH",                                               city: "St. Florian, OÖ",          onace: "28.92" },
+  { match: "rt engineering",                displayName: "RT Engineering GmbH",                                         city: "Hofkirchen a.d. Trattnach, OÖ", onace: null   },
+  { match: "rübig",                         displayName: "Rübig GmbH & Co. KG",                                         city: "Wels, OÖ",                 onace: "25.61" },
+  { match: "scheuch gmbh",                  displayName: "Scheuch GmbH",                                                city: "Aurolzmünster, OÖ",        onace: "28.25" },
+  { match: "scheuch components",            displayName: "Scheuch COMPONENTS GmbH",                                     city: "Aurolzmünster, OÖ",        onace: "28.25" },
+  { match: "scheuch ligno",                 displayName: "Scheuch LIGNO GmbH",                                          city: "Mehrnbach, OÖ",            onace: "28.25" },
+  { match: "scheuch management",            displayName: "Scheuch Management Holding GmbH",                             city: "Aurolzmünster, OÖ",        onace: "28.25" },
+  { match: "schunk intec",                  displayName: "SCHUNK Intec GmbH",                                           city: "Allhaming, OÖ",            onace: "28.99" },
+  { match: "securikett",                    displayName: "Securikett Ulrich & Horn GmbH",                               city: "Münchendorf, NÖ",          onace: "17.29" },
+  { match: "sew-eurodrive",                 displayName: "SEW-EURODRIVE Ges.m.b.H.",                                    city: "Wien",                     onace: "28.15" },
+  { match: "sick gmbh",                     displayName: "SICK GmbH",                                                   city: "Wiener Neudorf, NÖ",       onace: "26.51" },
+  { match: "siemens energy austria",        displayName: "Siemens Energy Austria GmbH",                                 city: "Wien",                     onace: "28.11" },
+  { match: "sigmatek",                      displayName: "SIGMATEK GmbH & Co. KG",                                      city: "Lamprechtshausen, Sbg",    onace: "26.51" },
+  { match: "skf sealing solutions austria", displayName: "SKF Sealing Solutions Austria GmbH",                          city: "Judenburg, Stmk",          onace: "28.15" },
+  { match: "still gesellschaft",            displayName: "STILL Gesellschaft m.b.H.",                                   city: "Wiener Neudorf, NÖ",       onace: "28.22" },
+  { match: "stiwa advanced",                displayName: "STIWA Advanced Products GmbH",                                city: "Gampern, OÖ",              onace: "28.99" },
+  { match: "stiwa ams",                     displayName: "STIWA AMS GmbH",                                              city: "Attnang-Puchheim, OÖ",     onace: "62.01" },
+  { match: "stiwa automation",              displayName: "STIWA Automation GmbH",                                       city: "Attnang-Puchheim, OÖ",     onace: "28.99" },
+  { match: "stiwa holding",                 displayName: "STIWA Holding GmbH",                                          city: "Attnang-Puchheim, OÖ",     onace: "28.99" },
+  { match: "sysparency",                    displayName: "Sysparency GmbH",                                             city: "Linz, OÖ",                 onace: "62.01" },
+  { match: "tele haase",                    displayName: "TELE Haase Steuergeräte Ges.m.b.H.",                          city: "Wien",                     onace: "27.90" },
+  { match: "terratec maschinenbau",         displayName: "TerraTec Maschinenbau GmbH",                                  city: "Bludenz, Vlbg",            onace: "28.99" },
+  { match: "tgw logistics",                 displayName: "TGW Logistics GmbH",                                          city: "Marchtrenk, OÖ",           onace: "28.22" },
+  { match: "tgw systems",                   displayName: "TGW Systems Integration GmbH",                                city: "Marchtrenk, OÖ",           onace: "28.22" },
+  { match: "trench austria",                displayName: "Trench Austria GmbH",                                         city: "Leonding, OÖ",             onace: "27.11" },
+  { match: "trumpf maschinen austria",      displayName: "TRUMPF Maschinen Austria GmbH & Co. KG",                      city: "Pasching, OÖ",             onace: "28.41" },
+  { match: "tttech",                        displayName: "TTTech Computertechnik AG",                                   city: "Wien",                     onace: "62.01" },
+  { match: "untha",                         displayName: "UNTHA shredding technology GmbH",                             city: "Kuchl, Sbg",               onace: "28.99" },
+  { match: "scio automation",               displayName: "SCIO Automation Austria GmbH",                                city: "Albersdorf-Prebuch, Stmk", onace: "28.99" },
+  { match: "viewpointsystem",               displayName: "Viewpointsystem GmbH",                                        city: "Wien",                     onace: "26.70" },
+  { match: "wacker neuson linz",            displayName: "Wacker Neuson Linz GmbH",                                     city: "Hörsching, OÖ",            onace: "28.92" },
+  { match: "weidmüller",                    displayName: "Weidmüller GmbH",                                             city: "Wiener Neudorf, NÖ",       onace: "27.33" },
+  { match: "westtech maschinenbau",         displayName: "Westtech Maschinenbau GmbH",                                  city: "Prambachkirchen, OÖ",      onace: "28.99" },
+  { match: "wfl millturn",                  displayName: "WFL Millturn Technologies GmbH & Co. KG",                     city: "Linz, OÖ",                 onace: "28.41" },
+  { match: "windmöller & hölscher austria", displayName: "Windmöller & Hölscher Austria CEE GmbH & Co. KG",             city: "Wien",                     onace: "28.99" },
+  { match: "winkelbauer",                   displayName: "WINKELBAUER GMBH",                                             city: "Anger, Stmk",              onace: null    },
+  { match: "wittenstein",                   displayName: "WITTENSTEIN GmbH",                                            city: "Bad Vöslau, NÖ",           onace: "28.15" },
+  { match: "wittmann battenfeld",           displayName: "Wittmann Battenfeld GmbH",                                    city: "Kottingbrunn, NÖ",         onace: "28.96" },
+  { match: "zühlke engineering (austria)",  displayName: "Zühlke Engineering (Austria) GmbH",                           city: "Wien",                     onace: "62.02" },
 ];
+
+// Substring array derived from the catalog, so the phase-1 prompt hint,
+// the runtime fallback in fetchCompanyData, and the direct-mode typeahead
+// all read from one source of truth.
+const KNOWN_VDMA_AT_MEMBERS = VDMA_AT_CATALOG.map(function(e) { return e.match; });
 
 // ── NISG 2026 reference data ─────────────────────────────────────────────────
 // Sector definitions are activity-based (per Anlagen 1+2), so the ÖNACE codes
@@ -395,12 +425,38 @@ async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) 
 // Used both to seed the phase-1 prompt with a strong hint and as a fallback
 // when Claude returns null for vdma_at_member.
 function knownVdmaAtMember(name) {
-  if (!name) return false;
+  return !!findVdmaAtCatalogEntry(name);
+}
+
+// Look up the full catalog entry (displayName / city / onace) whose
+// distinctive substring appears in the user-supplied name. Returns the
+// first match (catalog order) or null. First-match is fine because the
+// substrings are chosen to be distinctive enough that natural inputs
+// don't cross-match multiple entries.
+function findVdmaAtCatalogEntry(name) {
+  if (!name) return null;
   var n = String(name).toLowerCase();
-  for (var i = 0; i < KNOWN_VDMA_AT_MEMBERS.length; i++) {
-    if (n.indexOf(KNOWN_VDMA_AT_MEMBERS[i].toLowerCase()) !== -1) return true;
+  for (var i = 0; i < VDMA_AT_CATALOG.length; i++) {
+    if (n.indexOf(VDMA_AT_CATALOG[i].match) !== -1) return VDMA_AT_CATALOG[i];
   }
-  return false;
+  return null;
+}
+
+// Typeahead: return catalog entries whose displayName or match key
+// contains the query as a case-insensitive substring. Caps at 8 hits so
+// the dropdown stays scannable. Empty/short queries return [] to avoid
+// showing the whole 100-entry catalog before the user types anything.
+function suggestVdmaAtEntries(query) {
+  var q = String(query || "").trim().toLowerCase();
+  if (q.length < 2) return [];
+  var out = [];
+  for (var i = 0; i < VDMA_AT_CATALOG.length && out.length < 8; i++) {
+    var e = VDMA_AT_CATALOG[i];
+    if (e.match.indexOf(q) !== -1 || e.displayName.toLowerCase().indexOf(q) !== -1) {
+      out.push(e);
+    }
+  }
+  return out;
 }
 
 // ── Phase 1: company data from firmenabc.at / Northdata AT / Firmenbuch ──────
@@ -541,6 +597,15 @@ function mk(l) {
     directIncomplete: de ? "ÖNACE-Zuordnung getroffen — Größenklasse eingeben, um vollständige Einrichtungsart (wesentlich/wichtig) zu bestimmen." : "Sector matched — enter size to determine full entity type (essential/important).",
     directSourceLabel: de ? "Deterministische ÖNACE-Zuordnung gegen NISG Anlagen 1+2 (ohne KI)." : "Deterministic ÖNACE lookup against NISG Annexes 1+2 (no AI).",
     directMultiSector: de ? "Mehrfachzuordnung möglich — bitte tatsächliche Tätigkeit intern präzisieren." : "Multiple sectors possible — please refine actual activity internally.",
+    directCompL:      de ? "Firma (optional — für ÖNACE-Autovorschlag aus dem VDMA Österreich-Katalog)" : "Company (optional — for ÖNACE auto-suggest from the VDMA Österreich catalog)",
+    directCompPh:     de ? "z.B. ENGEL AUSTRIA, TRUMPF, KNAPP …" : "e.g. ENGEL AUSTRIA, TRUMPF, KNAPP …",
+    directVdmaHitOnace:   de ? "VDMA Österreich-Mitglied · ÖNACE {c} übernommen" : "VDMA Österreich member · ÖNACE {c} filled in",
+    directVdmaHitNoOnace: de ? "VDMA Österreich-Mitglied — ÖNACE nicht im Katalog hinterlegt, bitte extern nachschlagen (Links unten)." : "VDMA Österreich member — no ÖNACE catalogued, please look it up externally (links below).",
+    directExtSearchL:  de ? "Firma extern nachschlagen (öffnet neuen Tab)" : "Look up company externally (opens in new tab)",
+    directExtFa:       de ? "firmenabc.at (zeigt ÖNACE explizit an)" : "firmenabc.at (shows ÖNACE explicitly)",
+    directExtNd:       de ? "Northdata" : "Northdata",
+    directExtWko:      de ? "WKO Firmen A-Z" : "WKO business directory",
+    directExtHint:     de ? "Firmenname eingeben, dann auf eine Quelle klicken. Der ÖNACE-Code steht auf der jeweiligen Firmenseite." : "Enter a company name, then click a source. The ÖNACE code is on the individual company page.",
     compL:    de ? "Firmenname" : "Company name",
     compPh:   de ? "z.B. ENGEL AUSTRIA GmbH" : "e.g. ENGEL AUSTRIA GmbH",
     locL:     de ? "Bundesland / Ort" : "State / City",
@@ -731,6 +796,8 @@ export default function App() {
   var [onaceInputs, setOnaceInputs] = useState([""]);
   var [directEmployees, setDirectEmployees] = useState("");
   var [directTurnover,  setDirectTurnover]  = useState("");
+  var [directCompany, setDirectCompany]     = useState("");
+  var [directVdmaHit, setDirectVdmaHit]     = useState(null); // catalog entry when auto-matched
   var [busy, setBusy]   = useState(false);
   var [step, setStep]   = useState(-1);
   var [errors, setErrors] = useState({ general: "", phase1: "", phase2: "" });
@@ -746,6 +813,7 @@ export default function App() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     setComp(""); setLoc(""); setProd(""); setOnaceInputs([""]);
     setDirectEmployees(""); setDirectTurnover("");
+    setDirectCompany(""); setDirectVdmaHit(null);
     setResult(null); setCompData(null); setStep(-1); setBusy(false);
     runningRef.current = false;
     clearErrors();
@@ -840,6 +908,40 @@ export default function App() {
       unclassifiable: false,
       exception_applies: false,
     });
+  }
+
+  // Direct-mode: user typed / edited the company name. Re-check against
+  // the VDMA catalog. On new match: remember it and, if the catalog knows
+  // an ÖNACE, prefill the first ÖNACE input (only if that field is empty
+  // or was previously filled by the same auto-suggest, so we never
+  // overwrite user-typed codes).
+  function onDirectCompanyChange(v) {
+    setDirectCompany(v);
+    var entry = findVdmaAtCatalogEntry(v);
+    setDirectVdmaHit(entry);
+    if (entry && entry.onace) {
+      var previousAutoOnace = directVdmaHit && directVdmaHit.onace;
+      setOnaceInputs(function(prev) {
+        var first = String(prev[0] || "").trim();
+        if (first === "" || first === previousAutoOnace) {
+          var next = prev.slice();
+          next[0] = entry.onace;
+          return next;
+        }
+        return prev;
+      });
+    }
+  }
+
+  // Build a search URL for the three external sources supported by the
+  // deep-link buttons. All open in a new tab so the browser handles CORS
+  // + rendering — no client-side scraping.
+  function directExtSearchUrl(source, q) {
+    var enc = encodeURIComponent(q || "");
+    if (source === "firmenabc") return "https://www.firmenabc.at/search?q=" + enc;
+    if (source === "northdata") return "https://www.northdata.de/?query="   + enc;
+    if (source === "wko")       return "https://firmen.wko.at/SearchSimple.aspx?text=" + enc;
+    return "https://www.google.com/search?q=" + encodeURIComponent("site:firmenabc.at " + (q || ""));
   }
 
   async function handleAnalyze() {
@@ -1016,6 +1118,55 @@ export default function App() {
         {/* Direct mode form */}
         {mode === "direct" && (
           <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+            {/* VDMA-catalog typeahead: types company → auto-fills ÖNACE
+                when the catalog knows one. Suggestions dropdown only shows
+                after ≥2 characters via suggestVdmaAtEntries. */}
+            <div>
+              <label style={S.lbl}>{t.directCompL}</label>
+              <input style={S.inp} placeholder={t.directCompPh} value={directCompany}
+                onChange={function(e) { onDirectCompanyChange(e.target.value); }}
+                autoComplete="off" spellCheck={false} list="vdma-at-datalist"/>
+              <datalist id="vdma-at-datalist">
+                {suggestVdmaAtEntries(directCompany).map(function(entry, i) {
+                  return <option key={i} value={entry.displayName}>{entry.city}{entry.onace ? " · ÖNACE " + entry.onace : ""}</option>;
+                })}
+              </datalist>
+              {directVdmaHit && directVdmaHit.onace && (
+                <div style={{ marginTop: 6, fontSize: 12, color: "#166534", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 4, padding: "5px 9px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <MI name="verified" size={13} color="#166534"/>
+                  {t.directVdmaHitOnace.replace("{c}", directVdmaHit.onace)}
+                </div>
+              )}
+              {directVdmaHit && !directVdmaHit.onace && (
+                <div style={{ marginTop: 6, fontSize: 12, color: "#92400e", background: "#FFF7E6", border: "1px solid #fde68a", borderRadius: 4, padding: "5px 9px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <MI name="info" size={13} color="#92400e"/>
+                  {t.directVdmaHitNoOnace}
+                </div>
+              )}
+            </div>
+
+            {/* Deep-link buttons: no CORS/AI needed. Uses either the
+                company name typed above, or nothing (site landing pages
+                still work). Opens in new tab. */}
+            <div>
+              <label style={S.lbl}>{t.directExtSearchL}</label>
+              <div style={{ fontSize: 11.5, color: "#6b7280", marginBottom: 6 }}>{t.directExtHint}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <a href={directExtSearchUrl("firmenabc", directCompany)} target="_blank" rel="noreferrer"
+                   style={{ background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 4, padding: "6px 10px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <MI name="search" size={13} color="#991b1b"/>{t.directExtFa}<ExtIcon/>
+                </a>
+                <a href={directExtSearchUrl("northdata", directCompany)} target="_blank" rel="noreferrer"
+                   style={{ background: "#eff6ff", color: "#324C9C", border: "1px solid #bfdbfe", borderRadius: 4, padding: "6px 10px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <MI name="search" size={13} color="#324C9C"/>{t.directExtNd}<ExtIcon/>
+                </a>
+                <a href={directExtSearchUrl("wko", directCompany)} target="_blank" rel="noreferrer"
+                   style={{ background: "#f5f3ff", color: "#5b21b6", border: "1px solid #e9d5ff", borderRadius: 4, padding: "6px 10px", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <MI name="search" size={13} color="#5b21b6"/>{t.directExtWko}<ExtIcon/>
+                </a>
+              </div>
+            </div>
+
             <div>
               <label style={S.lbl}>{t.onaceL}</label>
               <div style={{ fontSize: 11.5, color: "#6b7280", marginBottom: 8 }}>{t.onaceHint}</div>
