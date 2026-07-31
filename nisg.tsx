@@ -648,6 +648,9 @@ function mk(l) {
     verdictWicH: de ? "Voraussichtlich WICHTIGE Einrichtung — NISG 2026 Anlage 2" : "Likely IMPORTANT entity — NISG 2026 Annex 2",
     verdictWicB: de ? "Ihr Unternehmen fällt voraussichtlich als wichtige Einrichtung in den Anwendungsbereich des NISG 2026 (Anlage 2)." : "Your company likely falls in scope of NISG 2026 as an important entity (Annex 2).",
     verdictOutH: de ? "Voraussichtlich außerhalb des Anwendungsbereichs" : "Likely outside scope",
+    verdictPendH:de ? "Sektor zugeordnet — Größenklasse fehlt" : "Sector matched — size class missing",
+    verdictPendB:de ? "Der ÖNACE-Code wurde einem NISG-Sektor zugeordnet. Ob es sich um eine wesentliche oder wichtige Einrichtung handelt, hängt von der Unternehmensgröße ab. Bitte tragen Sie Mitarbeiterzahl und/oder Jahresumsatz oben ein und starten Sie die Prüfung erneut." : "The ÖNACE code was matched to a NISG sector. Whether the entity is essential or important depends on company size. Please enter employees and/or annual turnover above and re-run the check.",
+    entPending:  de ? "Größe entscheidet" : "Size determines",
     verdictOutB: de ? "Ihr Unternehmen fällt nach den vorliegenden Angaben voraussichtlich nicht unter das NISG 2026 — entweder weil kein einschlägiger Sektor vorliegt oder weil die Size-Cap-Rule greift. Prüfen Sie die Size-Cap-Ausnahmen (z.B. DNS, TLD, öffentliche Verwaltung, alleiniger Anbieter)." : "Based on the available information your company likely does not fall under NISG 2026 — either no relevant sector applies or the size-cap rule excludes you. Check the size-cap exceptions (DNS, TLD, public administration, sole provider, …).",
     unclassH:    de ? "Sektor konnte nicht bestimmt werden" : "Sector could not be determined",
     unclassB:    de ? "Die KI konnte anhand der vorliegenden Angaben keinen NISG-Sektor zuordnen. Bitte konkrete Tätigkeiten oder Produkte im Feld „Produkte / Tätigkeiten“ ergänzen und Analyse erneut starten." : "The AI could not assign a NISG sector based on the available information. Please add concrete activities or products in the \"Products / activities\" field and re-run the analysis.",
@@ -872,7 +875,13 @@ export default function App() {
     if (matches.length === 0) {
       reasoning = t.directNoMatch;
     } else if (sizeClass === "unbekannt") {
+      // Sector matched but no size supplied — do NOT render this as a green
+      // "outside scope" verdict (which was the bug the ÖNACE-27.33 report
+      // surfaced). Flag as "unbestimmt" so the amber pending panel renders
+      // and the user is asked for size.
+      entityType = "unbestimmt";
       reasoning = t.directIncomplete + " " + t.directSourceLabel;
+      if (matches.length > 1) reasoning += " " + t.directMultiSector;
     } else if (sizeClass === "klein") {
       entityType = "keine";
       reasoning = (lang === "de"
@@ -987,11 +996,16 @@ export default function App() {
   }
 
   // ── Result panel colors keyed off entity_type ────────────────────────────
+  // "unbestimmt" = direct mode matched a sector but the user hasn't
+  // supplied size yet. Distinct amber verdict so we never render a green
+  // "outside scope" for a company that IS in a NISG sector, just because
+  // its size is unknown.
   function verdictColors(r) {
     if (!r) return { bg: "#f9fafb", bdr: "#e5e7eb", col: "#374151", head: "" };
     if (r.unclassifiable) return { bg: "#f9fafb", bdr: "#e5e7eb", col: "#374151", head: t.unclassH };
     if (r.entity_type === "wesentlich") return { bg: "#fef2f2", bdr: "#fca5a5", col: "#991b1b", head: t.verdictWesH };
     if (r.entity_type === "wichtig")    return { bg: "#fff7ed", bdr: "#fdba74", col: "#9a3412", head: t.verdictWicH };
+    if (r.entity_type === "unbestimmt") return { bg: "#FFF7E6", bdr: "#fde68a", col: "#B45309", head: t.verdictPendH };
     return { bg: "#f0fdf4", bdr: "#86efac", col: "#166534", head: t.verdictOutH };
   }
 
@@ -1000,6 +1014,7 @@ export default function App() {
     if (r.unclassifiable) return t.unclassB;
     if (r.entity_type === "wesentlich") return t.verdictWesB;
     if (r.entity_type === "wichtig")    return t.verdictWicB;
+    if (r.entity_type === "unbestimmt") return t.verdictPendB;
     return t.verdictOutB;
   }
 
@@ -1007,6 +1022,7 @@ export default function App() {
     if (!r || r.unclassifiable) return null;
     if (r.entity_type === "wesentlich") return { text: t.entWes, bg: "#fee2e2", col: "#991b1b" };
     if (r.entity_type === "wichtig")    return { text: t.entWich, bg: "#ffedd5", col: "#9a3412" };
+    if (r.entity_type === "unbestimmt") return { text: t.entPending, bg: "#FFF7E6", col: "#B45309" };
     return { text: t.entKeine, bg: "#f3f4f6", col: "#374151" };
   }
 
