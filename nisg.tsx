@@ -187,6 +187,125 @@ const SIZE_CAP_EXCEPTIONS = [
   "Vom Bundesministerium namentlich als wesentlich/wichtig eingestufte Einrichtungen",
 ];
 
+// ÖNACE code prefix → NISG sector keys. Manually derived from the
+// NISG_SECTORS_A1/A2 hint strings above so the mapping stays close to the
+// legal source. Some codes deliberately appear at multiple precision levels
+// (e.g. "20.11" as Wasserstoff maps to A1.01 Energie, "20" as parent maps
+// to A2.03 Chemikalien) — the matcher below collects all levels so overlaps
+// are surfaced rather than hidden. Similarly, 26.60 and 32.50 are both
+// medical-device manufacturing (A1.05 Gesundheit) and part of general
+// manufacturing (A2.05); 63.11 is both A1.08 Digitale Infrastruktur and
+// A1.09 IKT-Dienste B2B.
+const ONACE_TO_SECTOR_KEYS = {
+  // Anlage 1 — Energie
+  "35.11": ["A1.01"], "35.12": ["A1.01"], "35.13": ["A1.01"], "35.14": ["A1.01"],
+  "35.21": ["A1.01"], "35.22": ["A1.01"], "35.23": ["A1.01"],
+  "35.30": ["A1.01"],
+  "06.10": ["A1.01"], "06.20": ["A1.01"],
+  "19.20": ["A1.01"],
+  "49.50": ["A1.01"],
+  "20.11": ["A1.01"],
+  // Anlage 1 — Verkehr
+  "51.10": ["A1.02"], "51.21": ["A1.02"], "52.23": ["A1.02"],
+  "49.10": ["A1.02"], "49.20": ["A1.02"], "52.21": ["A1.02"],
+  "50.10": ["A1.02"], "50.20": ["A1.02"], "50.30": ["A1.02"], "50.40": ["A1.02"],
+  // Anlage 1 — Bankwesen
+  "64.19": ["A1.03"],
+  // Anlage 1 — Finanzmarktinfrastrukturen
+  "66.11": ["A1.04"], "66.12": ["A1.04"],
+  // Anlage 1 — Gesundheit (Medizinprodukte overlap A2.05 verarbeitendes Gewerbe)
+  "86.10": ["A1.05"],
+  "26.60": ["A1.05", "A2.05"],
+  "32.50": ["A1.05", "A2.05"],
+  "21.10": ["A1.05"], "21.20": ["A1.05"],
+  // Anlage 1 — Trinkwasser
+  "36.00": ["A1.06"], "36": ["A1.06"],
+  // Anlage 1 — Abwasser
+  "37.00": ["A1.07"], "37": ["A1.07"],
+  // Anlage 1 — Digitale Infrastruktur (63.11 also IKT B2B)
+  "63.11": ["A1.08", "A1.09"],
+  "61.10": ["A1.08"], "61.20": ["A1.08"], "61.30": ["A1.08"], "61.90": ["A1.08"],
+  // Anlage 1 — IKT-Dienstverwaltung B2B
+  "62.02": ["A1.09"], "62.09": ["A1.09"],
+  // Anlage 1 — Öffentliche Verwaltung
+  "84.11": ["A1.10"], "84.12": ["A1.10"], "84.13": ["A1.10"],
+  // Anlage 1 — Weltraum (30.30 also verarbeitendes Gewerbe)
+  "74.90": ["A1.11"],
+  "30.30": ["A1.11", "A2.05"],
+  // Anlage 2 — Post- und Kurierdienste
+  "53.10": ["A2.01"], "53.20": ["A2.01"],
+  // Anlage 2 — Abfallbewirtschaftung
+  "38.11": ["A2.02"], "38.12": ["A2.02"], "38.21": ["A2.02"], "38.22": ["A2.02"],
+  "38.31": ["A2.02"], "38.32": ["A2.02"], "39.00": ["A2.02"], "39": ["A2.02"],
+  // Anlage 2 — Chemikalien (whole division 20; 20.11 more specifically A1.01)
+  "20":    ["A2.03"],
+  "46.75": ["A2.03"],
+  // Anlage 2 — Lebensmittel (divisions 10, 11 + Großhandel 46.3x)
+  "10":    ["A2.04"],
+  "11":    ["A2.04"],
+  "46.31": ["A2.04"], "46.32": ["A2.04"], "46.33": ["A2.04"], "46.34": ["A2.04"],
+  "46.35": ["A2.04"], "46.36": ["A2.04"], "46.37": ["A2.04"], "46.38": ["A2.04"], "46.39": ["A2.04"],
+  // Anlage 2 — Verarbeitendes Gewerbe (divisions 26-30 wholesale)
+  "26":    ["A2.05"],
+  "27":    ["A2.05"],
+  "28":    ["A2.05"],
+  "29":    ["A2.05"],
+  "30":    ["A2.05"],
+  // Anlage 2 — Digitale Dienste
+  "63.12": ["A2.06"], "63.99": ["A2.06"],
+  // Anlage 2 — Forschung
+  "72.11": ["A2.07"], "72.19": ["A2.07"],
+};
+
+// Given an ÖNACE code, return every NISG sector that matches at any prefix
+// depth (longest → shortest). Collects across depths because a single code
+// can legitimately belong to more than one sector (e.g. 20.11 = A1.01
+// hydrogen + A2.03 chemistry as parent division). Returns [] when nothing
+// matches (out of scope).
+function lookupSectorsForOnace(code) {
+  var raw = String(code || "").trim().replace(/^[A-Za-z]/, "");
+  if (!raw) return [];
+  var base = raw.split("-")[0]; // NN.NN-NN → NN.NN
+  var seen = {};
+  var parts = base.split(".");
+  for (var n = parts.length; n >= 1; n--) {
+    var key = parts.slice(0, n).join(".");
+    var matched = ONACE_TO_SECTOR_KEYS[key];
+    if (matched) {
+      for (var i = 0; i < matched.length; i++) seen[matched[i]] = true;
+    }
+  }
+  var out = [];
+  var all = NISG_SECTORS_A1.concat(NISG_SECTORS_A2);
+  for (var j = 0; j < all.length; j++) {
+    if (seen[all[j].key]) {
+      out.push({
+        key:   all[j].key,
+        name:  all[j].name,
+        annex: all[j].key.indexOf("A1") === 0 ? "1" : "2",
+      });
+    }
+  }
+  return out;
+}
+
+// EU Recommendation 2003/361 size class from optional numeric inputs.
+// employees ≥ 250 OR turnover > 50M € OR balance > 43M € → gross
+// employees ≥ 50  OR turnover > 10M € OR balance > 10M € → mittel
+// else                                                    → klein
+// Returns "unbekannt" when neither employees nor turnover are supplied
+// (we treat missing balance-sheet data as inconclusive on its own).
+function computeSizeClass(employees, turnover) {
+  var e = (employees === "" || employees == null) ? null : Number(employees);
+  var t = (turnover  === "" || turnover  == null) ? null : Number(turnover);
+  if ((e == null || isNaN(e)) && (t == null || isNaN(t))) return "unbekannt";
+  var isLarge  = (e != null && e >= 250) || (t != null && t > 50);
+  var isMedium = (e != null && e >= 50)  || (t != null && t > 10);
+  if (isLarge)  return "gross";
+  if (isMedium) return "mittel";
+  return "klein";
+}
+
 // Division-level ÖNACE 2025 = NACE Rev 2 divisions (same top-level structure).
 const VALID_ONACE_DIVISIONS = new Set([
   "01","02","03","05","06","07","08","09",
@@ -408,8 +527,20 @@ function mk(l) {
     subtitle: de ? "Österreich · in Kraft ab 1. Oktober 2026" : "Austria · in force from 1 October 2026",
     forLine:  de ? "Für IT-Sicherheitsverantwortliche österreichischer Unternehmen" : "For IT security officers in Austrian companies",
     modeL:    de ? "Kennen Sie Ihre ÖNACE-Nummer(n)?" : "Do you know your ÖNACE code(s)?",
-    modeYes:  de ? "Ja — ÖNACE direkt eingeben" : "Yes — enter ÖNACE code(s) directly",
+    modeYes:  de ? "Ja — ÖNACE direkt eingeben (ohne KI)" : "Yes — enter ÖNACE code(s) directly (no AI)",
     modeNo:   de ? "Nein — Firma / Produkte analysieren (KI)" : "No — analyse company / products (AI)",
+    modeNoDisabled: de ? "API-Key erforderlich — über ⚙ oben rechts hinzufügen" : "API key required — add via ⚙ top-right",
+    noKeyBannerT:   de ? "Direktmodus aktiv — kein API-Key erforderlich" : "Direct mode active — no API key required",
+    noKeyBannerB:   de ? "Ohne Anthropic API-Key steht die KI-gestützte Firmenanalyse nicht zur Verfügung. Direktmodus (ÖNACE-Zuordnung gegen NISG Anlagen 1+2) funktioniert vollständig offline. Für die KI-Analyse: Key über ⚙ oben rechts hinzufügen." : "Without an Anthropic API key the AI-assisted company analysis is not available. Direct mode (ÖNACE lookup against NISG Annexes 1+2) works fully offline. To enable AI analysis, add a key via the ⚙ icon top-right.",
+    empL:     de ? "Mitarbeiter (optional)" : "Employees (optional)",
+    empPh:    de ? "z.B. 250" : "e.g. 250",
+    turnL:    de ? "Jahresumsatz in Mio. € (optional)" : "Annual turnover in € million (optional)",
+    turnPh:   de ? "z.B. 45" : "e.g. 45",
+    sizeHelp: de ? "Für vollständige Zuordnung nach Size-Cap-Rule (EU 2003/361) — leer lassen für reine Sektor-Zuordnung." : "For full classification per size-cap rule (EU 2003/361) — leave empty for sector-only lookup.",
+    directNoMatch:  de ? "Kein NISG-Sektor für diesen ÖNACE-Code gefunden. Dieser Code fällt voraussichtlich nicht in den Anwendungsbereich des NISG 2026 nach Anlagen 1 oder 2." : "No NISG sector matched for this ÖNACE code. This code likely doesn't fall under NISG 2026 Annexes 1 or 2.",
+    directIncomplete: de ? "ÖNACE-Zuordnung getroffen — Größenklasse eingeben, um vollständige Einrichtungsart (wesentlich/wichtig) zu bestimmen." : "Sector matched — enter size to determine full entity type (essential/important).",
+    directSourceLabel: de ? "Deterministische ÖNACE-Zuordnung gegen NISG Anlagen 1+2 (ohne KI)." : "Deterministic ÖNACE lookup against NISG Annexes 1+2 (no AI).",
+    directMultiSector: de ? "Mehrfachzuordnung möglich — bitte tatsächliche Tätigkeit intern präzisieren." : "Multiple sectors possible — please refine actual activity internally.",
     compL:    de ? "Firmenname" : "Company name",
     compPh:   de ? "z.B. ENGEL AUSTRIA GmbH" : "e.g. ENGEL AUSTRIA GmbH",
     locL:     de ? "Bundesland / Ort" : "State / City",
@@ -580,14 +711,26 @@ function ApiStatusBar({ lang, onReset }) {
   );
 }
 
+// One-shot read of the shared "anthropicApiKey" localStorage entry. Set in
+// the ⚙ Settings modal (which does location.reload() on save), so a
+// mount-time snapshot stays valid for the lifetime of the render.
+function hasStoredApiKey() {
+  try { return !!localStorage.getItem("anthropicApiKey"); } catch(_) { return false; }
+}
+
 // ── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   var [lang, setLang]   = useState("de");
-  var [mode, setMode]   = useState("ai");
+  var [hasApiKey]       = useState(hasStoredApiKey);
+  // Default to direct (deterministic) mode when no key is present — AI
+  // mode requires an Anthropic call and would immediately 401.
+  var [mode, setMode]   = useState(hasApiKey ? "ai" : "direct");
   var [comp, setComp]   = useState("");
   var [loc, setLoc]     = useState("");
   var [prod, setProd]   = useState("");
   var [onaceInputs, setOnaceInputs] = useState([""]);
+  var [directEmployees, setDirectEmployees] = useState("");
+  var [directTurnover,  setDirectTurnover]  = useState("");
   var [busy, setBusy]   = useState(false);
   var [step, setStep]   = useState(-1);
   var [errors, setErrors] = useState({ general: "", phase1: "", phase2: "" });
@@ -602,6 +745,7 @@ export default function App() {
   function reset() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     setComp(""); setLoc(""); setProd(""); setOnaceInputs([""]);
+    setDirectEmployees(""); setDirectTurnover("");
     setResult(null); setCompData(null); setStep(-1); setBusy(false);
     runningRef.current = false;
     clearErrors();
@@ -630,26 +774,69 @@ export default function App() {
       }
       parsed.push({ code: raw });
     }
-    // Direct mode: we don't have enough info to classify sector/size → show a
-    // hint panel instead of guessing. This mode is a shortcut for users who
-    // already know their ÖNACE and want to feed it into the AI phase later.
-    // For v1 we simply pre-fill the products field with the codes and let
-    // them run the AI flow next. Alternatively, we surface the codes as a
-    // "direct" result the AI can be re-run against.
+
+    // Deterministic ÖNACE → NISG-sector match against Anlagen 1+2 (no AI).
+    // For multiple ÖNACE inputs: use the first as "primary", but collect
+    // matched sectors across all of them so users see the full picture.
+    var primary = parsed[0].code;
+    var allMatches = {};
+    for (var k = 0; k < parsed.length; k++) {
+      var ms = lookupSectorsForOnace(parsed[k].code);
+      for (var mi = 0; mi < ms.length; mi++) allMatches[ms[mi].key] = ms[mi];
+    }
+    var matches = Object.keys(allMatches).map(function(k2) { return allMatches[k2]; });
+
+    var sizeClass = computeSizeClass(directEmployees, directTurnover);
+    var sizeReason = "";
+    if (sizeClass !== "unbekannt") {
+      var bits = [];
+      if (directEmployees !== "") bits.push(directEmployees + (lang === "de" ? " Mitarbeiter" : " employees"));
+      if (directTurnover  !== "") bits.push((lang === "de" ? "Umsatz " : "turnover ") + directTurnover + " Mio. €");
+      sizeReason = bits.join(", ");
+    }
+
+    // Verdict: no sectors → out of scope; sector + size → entity_type;
+    // sector + no size → keep entity_type null-ish with incomplete note.
+    var hasA1 = matches.some(function(m) { return m.annex === "1"; });
+    var hasA2 = matches.some(function(m) { return m.annex === "2"; });
+    var entityType = "keine";
+    var reasoning;
+    if (matches.length === 0) {
+      reasoning = t.directNoMatch;
+    } else if (sizeClass === "unbekannt") {
+      reasoning = t.directIncomplete + " " + t.directSourceLabel;
+    } else if (sizeClass === "klein") {
+      entityType = "keine";
+      reasoning = (lang === "de"
+        ? "Kleinunternehmen (Size-Cap-Rule EU 2003/361): <50 Mitarbeiter und ≤10 Mio. € Umsatz. Fällt regulär nicht unter NISG 2026 — Ausnahmen (DNS/TLD/öffentliche Verwaltung/alleiniger Anbieter) sind separat zu prüfen."
+        : "Small enterprise (size-cap rule EU 2003/361): <50 employees and ≤€10M turnover. Generally not in scope — check size-cap exceptions (DNS/TLD/public administration/sole provider) separately.");
+    } else {
+      entityType = hasA1 ? "wesentlich" : (hasA2 ? "wichtig" : "keine");
+      reasoning = (lang === "de"
+        ? ("Zuordnung nach ÖNACE + Size-Cap-Rule EU 2003/361 (" + (sizeReason || sizeClass) + "). " + t.directSourceLabel)
+        : ("Classification via ÖNACE + size-cap rule EU 2003/361 (" + (sizeReason || sizeClass) + "). " + t.directSourceLabel));
+      if (matches.length > 1) reasoning += " " + t.directMultiSector;
+    }
+
+    var primaryMatch = matches[0] || null;
     setResult({
       directMode: true,
-      primary_onace: parsed[0].code,
+      primary_onace: primary,
       primary_onace_label: null,
       all_entries: parsed,
-      primary_sector: null,
-      sector_annex: null,
-      entity_type: "keine",
-      size_class: "unbekannt",
-      confidence: lang === "de" ? "niedrig" : "low",
-      reasoning: lang === "de"
-        ? "ÖNACE-Codes direkt eingegeben. Für eine vollständige NISG-Zuordnung bitte auch Tätigkeiten/Produkte im KI-Modus prüfen — der ÖNACE allein reicht nicht, da NISG tätigkeitsbezogen abgrenzt."
-        : "ÖNACE codes entered directly. For a full NISG classification, also run the AI mode with activities/products — ÖNACE alone is insufficient because NISG delimits by activity, not code range.",
+      primary_sector: primaryMatch ? (primaryMatch.key + " " + primaryMatch.name) : null,
+      sector_annex: primaryMatch ? primaryMatch.annex : null,
+      matched_sectors: matches.map(function(m) { return m.key + " " + m.name; }),
+      entity_type: entityType,
+      size_class: sizeClass,
+      size_reason: sizeReason || null,
+      confidence: lang === "de" ? "hoch" : "high",
+      reasoning: reasoning,
       sources_used: ["direct"],
+      // No-match on a valid ÖNACE is a deterministic "out of scope" verdict,
+      // not "unclassifiable" — the code was accepted, the lookup ran, the
+      // answer is "not covered by Anlagen 1+2". The grey unclassifiable panel
+      // is reserved for the AI-mode case where the model couldn't decide.
       unclassifiable: false,
       exception_applies: false,
     });
@@ -747,15 +934,35 @@ export default function App() {
       </div>
 
       <div style={{ padding: "20px 32px 32px" }}>
-        <ApiStatusBar lang={lang} onReset={function() { location.reload(); }}/>
+        {hasApiKey && <ApiStatusBar lang={lang} onReset={function() { location.reload(); }}/>}
+
+        {!hasApiKey && (
+          <div style={{ marginBottom: 14, padding: "10px 14px", background: "#FFF7E6", border: "1px solid #fde68a", borderRadius: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <MI name="key_off" size={14} color="#B45309"/>{t.noKeyBannerT}
+            </div>
+            <p style={{ fontSize: 12.5, color: "#92400e", margin: 0, lineHeight: 1.55 }}>{t.noKeyBannerB}</p>
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div style={{ marginBottom: 18 }}>
           <div style={S.lbl}>{t.modeL}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={function() { setMode("ai"); setResult(null); clearErrors(); }}
-              style={Object.assign({}, mode === "ai" ? S.pri : S.sec, { flex: 1, minWidth: 200 })}>
-              <MI name="smart_toy" size={16} color={mode === "ai" ? "#fff" : AT_INK}/>{t.modeNo}
+            <button
+              onClick={hasApiKey ? function() { setMode("ai"); setResult(null); clearErrors(); } : undefined}
+              disabled={!hasApiKey}
+              aria-disabled={!hasApiKey}
+              title={!hasApiKey ? t.modeNoDisabled : ""}
+              style={Object.assign({}, mode === "ai" ? S.pri : S.sec, { flex: 1, minWidth: 200, opacity: hasApiKey ? 1 : 0.55, cursor: hasApiKey ? "pointer" : "not-allowed", flexDirection: "column", alignItems: "flex-start" })}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <MI name="smart_toy" size={16} color={mode === "ai" && hasApiKey ? "#fff" : AT_INK}/>{t.modeNo}
+              </span>
+              {!hasApiKey && (
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B45309", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <MI name="key_off" size={12} color="#B45309"/>{t.modeNoDisabled}
+                </span>
+              )}
             </button>
             <button onClick={function() { setMode("direct"); setResult(null); clearErrors(); }}
               style={Object.assign({}, mode === "direct" ? S.pri : S.sec, { flex: 1, minWidth: 200 })}>
@@ -828,6 +1035,19 @@ export default function App() {
               })}
               <button onClick={addOnace} style={{ background: "transparent", color: AT_RED, border: "none", padding: 0, fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginTop: 4 }}>{t.addOnace}</button>
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={S.lbl}>{t.empL}</label>
+                <input style={S.inp} placeholder={t.empPh} value={directEmployees} inputMode="numeric"
+                  onChange={function(e) { setDirectEmployees(e.target.value.replace(/[^0-9]/g, "")); }}/>
+              </div>
+              <div>
+                <label style={S.lbl}>{t.turnL}</label>
+                <input style={S.inp} placeholder={t.turnPh} value={directTurnover} inputMode="decimal"
+                  onChange={function(e) { setDirectTurnover(e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".")); }}/>
+              </div>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#6b7280" }}>{t.sizeHelp}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.pri} onClick={handleDirectCheck}>
                 <MI name="fact_check" size={16} color="#fff"/> {t.checkNow}
