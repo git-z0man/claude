@@ -649,7 +649,7 @@ function mk(l) {
     verdictWicB: de ? "Ihr Unternehmen fällt voraussichtlich als wichtige Einrichtung in den Anwendungsbereich des NISG 2026 (Anlage 2)." : "Your company likely falls in scope of NISG 2026 as an important entity (Annex 2).",
     verdictOutH: de ? "Voraussichtlich außerhalb des Anwendungsbereichs" : "Likely outside scope",
     verdictPendH:de ? "Sektor zugeordnet — Größenklasse fehlt" : "Sector matched — size class missing",
-    verdictPendB:de ? "Der ÖNACE-Code wurde einem NISG-Sektor zugeordnet. Ob es sich um eine wesentliche oder wichtige Einrichtung handelt, hängt von der Unternehmensgröße ab. Bitte tragen Sie Mitarbeiterzahl und/oder Jahresumsatz oben ein und starten Sie die Prüfung erneut." : "The ÖNACE code was matched to a NISG sector. Whether the entity is essential or important depends on company size. Please enter employees and/or annual turnover above and re-run the check.",
+    verdictPendB:de ? "Der ÖNACE-Code wurde einem NISG-Sektor zugeordnet. Für Anlage 2 gilt „wichtig“ bereits ab mittlerer Größe (≥50 Mitarbeiter oder >10 Mio. € Umsatz). Für Anlage 1 gilt „wichtig“ ab mittlerer und „wesentlich“ ab großer Größe (≥250 MA oder >50 Mio. € Umsatz). Bitte tragen Sie Mitarbeiterzahl und/oder Jahresumsatz oben ein und starten Sie die Prüfung erneut." : "The ÖNACE code was matched to a NISG sector. Annex 2 entities are always \"important\" from medium size (≥50 employees or >€10M turnover). Annex 1 entities are \"important\" at medium size and \"essential\" only at large size (≥250 employees or >€50M turnover). Please enter employees and/or annual turnover above and re-run the check.",
     entPending:  de ? "Größe entscheidet" : "Size determines",
     verdictOutB: de ? "Ihr Unternehmen fällt nach den vorliegenden Angaben voraussichtlich nicht unter das NISG 2026 — entweder weil kein einschlägiger Sektor vorliegt oder weil die Size-Cap-Rule greift. Prüfen Sie die Size-Cap-Ausnahmen (z.B. DNS, TLD, öffentliche Verwaltung, alleiniger Anbieter)." : "Based on the available information your company likely does not fall under NISG 2026 — either no relevant sector applies or the size-cap rule excludes you. Check the size-cap exceptions (DNS, TLD, public administration, sole provider, …).",
     unclassH:    de ? "Sektor konnte nicht bestimmt werden" : "Sector could not be determined",
@@ -888,10 +888,36 @@ export default function App() {
         ? "Kleinunternehmen (Size-Cap-Rule EU 2003/361): <50 Mitarbeiter und ≤10 Mio. € Umsatz. Fällt regulär nicht unter NISG 2026 — Ausnahmen (DNS/TLD/öffentliche Verwaltung/alleiniger Anbieter) sind separat zu prüfen."
         : "Small enterprise (size-cap rule EU 2003/361): <50 employees and ≤€10M turnover. Generally not in scope — check size-cap exceptions (DNS/TLD/public administration/sole provider) separately.");
     } else {
-      entityType = hasA1 ? "wesentlich" : (hasA2 ? "wichtig" : "keine");
+      // sizeClass is "mittel" or "gross". Per NIS-2 Art. 3:
+      //   - Anlage 1 (wesentliche Sektoren) + gross → wesentlich
+      //   - Anlage 1 (wesentliche Sektoren) + mittel → wichtig (nicht wesentlich —
+      //     der wesentlich-Ceiling erfordert ≥250 MA oder >50 Mio. €/>43 Mio. €).
+      //   - Anlage 2 (wichtige Sektoren) + mittel oder gross → immer wichtig
+      //     (Anlage 2 kennt keine Einstufung als wesentliche Einrichtung).
+      // Vorher: hasA1 wurde bei beiden Größenklassen als wesentlich klassifiziert,
+      // was für mittelgroße Anlage-1-Betriebe falsch war.
+      var isLarge = sizeClass === "gross";
+      if (hasA1 && isLarge)      entityType = "wesentlich";
+      else if (hasA1 || hasA2)   entityType = "wichtig";
+      else                       entityType = "keine";
+      var ruleNote = (lang === "de"
+        ? (entityType === "wesentlich"
+            ? " · Anlage-1-Sektor bei großer Unternehmensgröße → wesentliche Einrichtung."
+            : entityType === "wichtig"
+              ? (hasA1 && !isLarge
+                  ? " · Anlage-1-Sektor bei mittlerer Größe → wichtige Einrichtung (wesentlich erst ab ≥250 MA oder >50 Mio. € Umsatz / >43 Mio. € Bilanz)."
+                  : " · Anlage-2-Sektor ab mittlerer Größe → wichtige Einrichtung (Anlage 2 kennt keine Einstufung wesentlich).")
+              : "")
+        : (entityType === "wesentlich"
+            ? " · Annex-1 sector + large size → essential entity."
+            : entityType === "wichtig"
+              ? (hasA1 && !isLarge
+                  ? " · Annex-1 sector + medium size → important entity (essential threshold requires ≥250 employees or >€50M turnover / >€43M balance)."
+                  : " · Annex-2 sector at medium size or above → important entity (Annex 2 never classifies as essential).")
+              : ""));
       reasoning = (lang === "de"
-        ? ("Zuordnung nach ÖNACE + Size-Cap-Rule EU 2003/361 (" + (sizeReason || sizeClass) + "). " + t.directSourceLabel)
-        : ("Classification via ÖNACE + size-cap rule EU 2003/361 (" + (sizeReason || sizeClass) + "). " + t.directSourceLabel));
+        ? ("Zuordnung nach ÖNACE + Size-Cap-Rule EU 2003/361 (" + (sizeReason || sizeClass) + ")." + ruleNote + " " + t.directSourceLabel)
+        : ("Classification via ÖNACE + size-cap rule EU 2003/361 (" + (sizeReason || sizeClass) + ")." + ruleNote + " " + t.directSourceLabel));
       if (matches.length > 1) reasoning += " " + t.directMultiSector;
     }
 
