@@ -602,10 +602,10 @@ function mk(l) {
     directVdmaHitOnace:   de ? "VDMA Österreich-Mitglied · ÖNACE {c} übernommen" : "VDMA Österreich member · ÖNACE {c} filled in",
     directVdmaHitNoOnace: de ? "VDMA Österreich-Mitglied — ÖNACE nicht im Katalog hinterlegt, bitte extern nachschlagen (Links unten)." : "VDMA Österreich member — no ÖNACE catalogued, please look it up externally (links below).",
     directExtSearchL:  de ? "Firma extern nachschlagen (öffnet neuen Tab)" : "Look up company externally (opens in new tab)",
-    directExtFa:       de ? "firmenabc.at (zeigt ÖNACE explizit an)" : "firmenabc.at (shows ÖNACE explicitly)",
+    directExtFa:       de ? "firmenabc.at (via Google)" : "firmenabc.at (via Google)",
     directExtNd:       de ? "Northdata" : "Northdata",
-    directExtWko:      de ? "WKO Firmen A-Z" : "WKO business directory",
-    directExtHint:     de ? "Firmenname eingeben, dann auf eine Quelle klicken. Der ÖNACE-Code steht auf der jeweiligen Firmenseite." : "Enter a company name, then click a source. The ÖNACE code is on the individual company page.",
+    directExtWko:      de ? "WKO Firmen A-Z (via Google)" : "WKO business directory (via Google)",
+    directExtHint:     de ? "Firmenname eingeben, dann auf eine Quelle klicken. Der ÖNACE-Code steht auf der jeweiligen Firmenseite (firmenabc.at zeigt ihn explizit an). Für firmenabc.at und WKO wird eine Google-Suche verwendet, weil beide Portale keine URL-basierte Direktsuche anbieten." : "Enter a company name, then click a source. The ÖNACE code is on the individual company page (firmenabc.at shows it explicitly). firmenabc.at and WKO route through Google because neither portal exposes a URL-based direct search.",
     compL:    de ? "Firmenname" : "Company name",
     compPh:   de ? "z.B. ENGEL AUSTRIA GmbH" : "e.g. ENGEL AUSTRIA GmbH",
     locL:     de ? "Bundesland / Ort" : "State / City",
@@ -971,12 +971,23 @@ export default function App() {
   // Build a search URL for the three external sources supported by the
   // deep-link buttons. All open in a new tab so the browser handles CORS
   // + rendering — no client-side scraping.
+  //
+  // firmenabc.at + WKO Firmen A-Z can't be constructed from a company
+  // name: firmenabc.at uses TYPO3 indexed_search with a per-query cHash
+  // hash that we can't forge from the client (the site's own /search?q=
+  // and /suche?q= paths return 404), and WKO Firmen A-Z resolves each
+  // company to an unpredictable /{name-slug}/ page rather than a search
+  // endpoint. Fall back to a Google site: search, which reliably lands
+  // the user on the right company page in one extra click. Northdata
+  // has a real query param and works directly.
   function directExtSearchUrl(source, q) {
-    var enc = encodeURIComponent(q || "");
-    if (source === "firmenabc") return "https://www.firmenabc.at/search?q=" + enc;
-    if (source === "northdata") return "https://www.northdata.de/?query="   + enc;
-    if (source === "wko")       return "https://firmen.wko.at/SearchSimple.aspx?text=" + enc;
-    return "https://www.google.com/search?q=" + encodeURIComponent("site:firmenabc.at " + (q || ""));
+    var raw = (q || "").trim();
+    var enc = encodeURIComponent(raw);
+    var siteQ = function(host) { return "https://www.google.com/search?q=" + encodeURIComponent("site:" + host + " " + raw); };
+    if (source === "firmenabc") return raw ? siteQ("firmenabc.at") : "https://www.firmenabc.at/";
+    if (source === "northdata") return raw ? ("https://www.northdata.de/?query=" + enc) : "https://www.northdata.de/";
+    if (source === "wko")       return raw ? siteQ("firmen.wko.at") : "https://firmen.wko.at/";
+    return siteQ("firmenabc.at");
   }
 
   async function handleAnalyze() {
