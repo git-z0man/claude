@@ -305,14 +305,20 @@ async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) 
 async function fetchCompanyData(companyName, loc, lang, signal) {
   var ndQuery = loc ? companyName + ", " + loc : companyName;
   var ndUrl   = "https://www.northdata.de/" + encodeURIComponent(loc ? companyName + "," + loc : companyName);
-  var exJson = '{"gegenstand":"...","nace_code":"28.93","nace_found":true,"rechtsform":"GmbH","ort":"Muenchen","northdata_url":"https://www.northdata.de/...","hr_nummer":"HRB 12345","amtsgericht":"Muenchen","products":"Werkzeugmaschinen, Linearmotoren","candidates":[]}';
+  var exJson = '{"gegenstand":"...","nace_code":"28.93","nace_found":true,"nace_source":"handelsregister","nace_evidence":"WZ 28.93 auf der Registerseite ausgewiesen","rechtsform":"GmbH","ort":"Muenchen","northdata_url":"https://www.northdata.de/...","hr_nummer":"HRB 12345","amtsgericht":"Muenchen","products":"Werkzeugmaschinen, Linearmotoren","candidates":[]}';
   var de = lang === "de";
+  // The register-provenance rule. Without it the model infers a plausible
+  // code from the Gegenstand text and reports it as if the register had
+  // published it — which the UI then cites verbatim as a register fact.
+  var naceRule = de
+    ? "\nHERKUNFT DES NACE-CODES — WICHTIG: Setze `nace_found` NUR dann auf true, wenn der Code auf einer der Quellseiten TATSÄCHLICH ABGEDRUCKT ist und du ihn wörtlich ablesen kannst. Northdata zeigt in der Regel KEINEN NACE-/WZ-Code an (nur Gegenstand, Registerdaten, Finanzkennzahlen) — erfinde in diesem Fall keinen Code und melde ihn nicht als gefunden.\nWenn du den Code lediglich aus dem Unternehmensgegenstand oder den Produkten ERSCHLIESST, setze `nace_found: false`, `nace_source: \"inferred\"` und trage deinen erschlossenen Code trotzdem in `nace_code` ein (er wird dann als Hinweis, nicht als Registerbeleg verwendet).\n`nace_source`: \"northdata\" | \"handelsregister\" | \"website\" | \"inferred\" | null.\n`nace_evidence`: wörtliches Zitat der Fundstelle (max. 200 Zeichen) oder null, wenn erschlossen.\n"
+    : "\nNACE CODE PROVENANCE — IMPORTANT: Set `nace_found` to true ONLY if the code is ACTUALLY PRINTED on one of the source pages and you can read it verbatim. Northdata usually does NOT display a NACE/WZ code (only business purpose, register data, financials) — in that case do not invent one and do not report it as found.\nIf you merely INFER the code from the business purpose or products, set `nace_found: false`, `nace_source: \"inferred\"`, and still put your inferred code in `nace_code` (it will be used as a hint, not as a register citation).\n`nace_source`: \"northdata\" | \"handelsregister\" | \"website\" | \"inferred\" | null.\n`nace_evidence`: verbatim quote of where you read it (max 200 chars) or null if inferred.\n";
   var ambiguityRule = de
     ? "\nEINDEUTIGKEIT: Wenn der eingegebene Firmenname mehrdeutig ist (mehrere deutsche Firmen mit ähnlichem Namen, Abkürzung, Tippfehler) oder du dir bei der eindeutigen Zuordnung nicht sicher bist, gib statt der Einzelfirma nur `candidates: [{name, city, hint}]` mit bis zu 5 möglichen Firmen zurück (name = vollständiger Firmenname wie im Handelsregister, city = Sitzort, hint = kurze Beschreibung z.B. Rechtsform / Branche / HR-Nummer). Setze in diesem Fall die anderen Felder (gegenstand, nace_code, ...) auf null. Beispiel: Eingabe „Bosch“ → candidates:[{name:\"Robert Bosch GmbH\",city:\"Stuttgart\",hint:\"Konzernmutter, Kraftfahrzeugtechnik\"},{name:\"Bosch Rexroth AG\",city:\"Lohr am Main\",hint:\"Antriebs- und Steuerungstechnik\"}].\nWenn die Firma eindeutig identifizierbar ist, `candidates` leer lassen ([]).\n"
     : "\nUNIQUENESS: If the input company name is ambiguous (multiple German companies with similar names, abbreviation, typo) or you're unsure about a unique match, return `candidates: [{name, city, hint}]` with up to 5 possibilities instead of a single company (name = full legal name from Handelsregister, city = registered office, hint = short description e.g. legal form / sector / HR number). In that case set the other fields (gegenstand, nace_code, ...) to null. Example: input \"Bosch\" → candidates:[{name:\"Robert Bosch GmbH\",city:\"Stuttgart\",hint:\"parent, automotive\"},{name:\"Bosch Rexroth AG\",city:\"Lohr am Main\",hint:\"drive and control tech\"}].\nWhen the company is unambiguously identifiable, leave `candidates` empty ([]).\n";
   var prompt = de
-    ? ('Suche auf northdata.de nach "' + ndQuery + '" (URL-Muster: ' + ndUrl + ') sowie auf handelsregister.de und der offiziellen Unternehmenswebsite.' + ambiguityRule + '\nExtrahiere: gegenstand, nace_code (oder null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12 Produkte), candidates (leer oder Liste bei Mehrdeutigkeit).\nAntworte NUR als JSON: ' + exJson)
-    : ('Search northdata.de for "' + ndQuery + '" (URL pattern: ' + ndUrl + ') as well as handelsregister.de and the official company website.' + ambiguityRule + '\nExtract: gegenstand, nace_code (or null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12), candidates (empty or list on ambiguity).\nReply ONLY as JSON: ' + exJson);
+    ? ('Suche auf northdata.de nach "' + ndQuery + '" (URL-Muster: ' + ndUrl + ') sowie auf handelsregister.de und der offiziellen Unternehmenswebsite.' + ambiguityRule + naceRule + '\nExtrahiere: gegenstand, nace_code (oder null), nace_found, nace_source, nace_evidence, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12 Produkte), candidates (leer oder Liste bei Mehrdeutigkeit).\nAntworte NUR als JSON: ' + exJson)
+    : ('Search northdata.de for "' + ndQuery + '" (URL pattern: ' + ndUrl + ') as well as handelsregister.de and the official company website.' + ambiguityRule + naceRule + '\nExtract: gegenstand, nace_code (or null), nace_found, nace_source, nace_evidence, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12), candidates (empty or list on ambiguity).\nReply ONLY as JSON: ' + exJson);
   var txt = await callClaude([{ role: "user", content: prompt }], true, 1100, signal, 40000);
   var parsed = parseJson(txt);
   // Ambiguous case — Claude returned candidates instead of a unique match.
@@ -321,7 +327,17 @@ async function fetchCompanyData(companyName, loc, lang, signal) {
     return { ambiguous: true, candidates: parsed.candidates };
   }
   if (!parsed.gegenstand && !parsed.products) throw new Error("No usable data returned");
+  // Belt and braces: a code the model says it inferred, or one it claims to
+  // have "found" without naming a source page, is not a register citation.
+  if (parsed.nace_source === "inferred" || !parsed.nace_source) parsed.nace_found = false;
   return parsed;
+}
+
+// A NACE code counts as register-sourced only when the model reported both a
+// real source page and a verbatim quote from it. Everything else is a hint.
+function naceFromRegister(cd) {
+  return !!(cd && cd.nace_found && cd.nace_code && cd.nace_evidence &&
+            (cd.nace_source === "northdata" || cd.nace_source === "handelsregister"));
 }
 
 // Additional WZ labels for 25.xx (relevant for boundary cases)
@@ -370,25 +386,30 @@ function relevantWzLabels(hint) {
 }
 
 async function analyzeWZ(company, products, compData, lang, signal) {
-  if (compData && compData.nace_found && compData.nace_code) {
+  // Skip the product analysis ONLY for a code we can actually attribute to a
+  // register page. An inferred code falls through and gets analysed properly.
+  if (naceFromRegister(compData)) {
     var code = compData.nace_code, num = parseFloat(code);
     if (num >= 26 && num < 31) {
+      var srcName = compData.nace_source === "northdata" ? "Northdata" : "handelsregister.de";
       return {
         primary_wz: code, primary_label: WZ_LABELS[code] || WZ_LABELS[String(Math.floor(num))] || "",
         in_scope: true, confidence: lang === "de" ? "hoch" : "high",
         reasoning: lang === "de"
-          ? "NACE-Code " + code + " direkt aus Handelsregister (Northdata) — im Anwendungsbereich BSIG 2025 Anlage 2 Nr. 5."
-          : "NACE code " + code + " taken directly from commercial register (Northdata) — within scope of BSIG 2025 Annex 2 No. 5.",
-        alternative_wz: [], sources_used: ["northdata"], skippedClassification: true,
+          ? "NACE-Code " + code + " wörtlich ausgewiesen auf " + srcName + " („" + compData.nace_evidence + "“) — im Anwendungsbereich BSIG 2025 Anlage 2 Nr. 5."
+          : "NACE code " + code + " stated verbatim on " + srcName + " (“" + compData.nace_evidence + "”) — within scope of BSIG 2025 Annex 2 No. 5.",
+        alternative_wz: [], sources_used: [compData.nace_source], skippedClassification: true,
       };
     }
   }
   var de = lang === "de";
   var contextParts = [];
   if (compData) {
-    var naceNote = compData.nace_found
+    var naceNote = naceFromRegister(compData)
       ? (de ? "NACE laut Register (außerhalb BSIG-Bereich): " : "NACE from register (outside BSIG scope): ") + compData.nace_code
-      : (de ? "Kein NACE-Code im Register" : "No NACE code in register");
+      : compData.nace_code
+        ? (de ? "Kein NACE-Code im Register ausgewiesen. Aus dem Gegenstand erschlossener Hinweis (NICHT als Beleg verwenden, eigenständig prüfen): " : "No NACE code stated in the register. Hint inferred from the business purpose (do NOT treat as evidence, verify independently): ") + compData.nace_code
+        : (de ? "Kein NACE-Code im Register" : "No NACE code in register");
     contextParts.push("\nHandelsregister/Northdata:\n- Gegenstand: " + (compData.gegenstand || "-") + "\n- " + naceNote + "\n- " + [compData.rechtsform, compData.ort].filter(Boolean).join(" - "));
     if (compData.hr_nummer) contextParts.push("\n- HR: " + compData.hr_nummer + (compData.amtsgericht ? " AG " + compData.amtsgericht : ""));
   }
@@ -444,7 +465,7 @@ async function analyzeWZ(company, products, compData, lang, signal) {
     parsed.primary_label = null;
     parsed.in_scope = false;
   }
-  var ndOutOfScope = compData && compData.nace_found && compData.nace_code;
+  var ndOutOfScope = naceFromRegister(compData);
   if (ndOutOfScope && parsed.in_scope) { parsed.northdataOverride = true; parsed.northdataWz = compData.nace_code; }
   return parsed;
 }
@@ -497,6 +518,8 @@ function mk(l) {
     colGegenstand:    de ? "Unternehmensgegenstand" : "Business Purpose",
     nacePresentBadge: de ? "NACE explizit" : "NACE explicit",
     naceAbsentBadge:  de ? "kein NACE-Code" : "no NACE code",
+    naceInferredBadge: de ? "KI-erschlossen" : "AI-inferred",
+    naceInferredNote:  de ? "Nicht im Register ausgewiesen — aus dem Unternehmensgegenstand abgeleitet." : "Not stated in the register — derived from the business purpose.",
     inScopeH:  de ? "Im Anwendungsbereich — BSIG 2025 Anlage 2 Nr. 5" : "Within Scope — BSIG 2025 Annex 2 No. 5",
     inScopeB:  de ? "Mindestens eine der angegebenen WZ-Nummern liegt im Bereich 26–30. Ihr Unternehmen fällt damit grundsätzlich unter Anlage 2 Nr. 5 BSIG 2025." : "At least one of the entered WZ codes falls within range 26–30. Your company is generally covered by Annex 2 No. 5 BSIG 2025.",
     outScopeH: de ? "Voraussichtlich außerhalb des Anwendungsbereichs" : "Likely Outside Scope",
@@ -919,11 +942,19 @@ function SrcSummaryCard({ t, compData, companyName }) {
         </div>
       )}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
-        {compData.nace_found && compData.nace_code ? (
+        {naceFromRegister(compData) ? (
           <div style={{ background: wzInScope ? "#ecfdf5" : "#f9fafb", border: "1.5px solid " + (wzInScope ? "#86efac" : "#E3E3E6"), borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
             <div style={{ fontWeight: 900, fontSize: 26, color: wzInScope ? "#166534" : "#222F5C", lineHeight: 1 }}>{compData.nace_code}</div>
             <div style={{ fontSize: 10, background: "#ECFDF3", color: "#166534", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="check" size={12} color="#166534"/>{t.nacePresentBadge}</div>
             {WZ_LABELS[compData.nace_code] && <div style={{ fontSize: 10.5, color: "#374151", marginTop: 5, lineHeight: 1.35 }}>{WZ_LABELS[compData.nace_code]}</div>}
+            {compData.nace_evidence && <div style={{ fontSize: 10, color: "#6b7280", marginTop: 5, lineHeight: 1.4, fontStyle: "italic" }}>„{compData.nace_evidence}“</div>}
+          </div>
+        ) : compData.nace_code ? (
+          <div style={{ background: "#FFF7E6", border: "1.5px solid #FBBF24", borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
+            <div style={{ fontWeight: 900, fontSize: 26, color: "#B45309", lineHeight: 1 }}>{compData.nace_code}</div>
+            <div style={{ fontSize: 10, background: "#FFF7E6", color: "#B45309", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="smart_toy" size={12} color="#B45309"/>{t.naceInferredBadge}</div>
+            {WZ_LABELS[compData.nace_code] && <div style={{ fontSize: 10.5, color: "#374151", marginTop: 5, lineHeight: 1.35 }}>{WZ_LABELS[compData.nace_code]}</div>}
+            <div style={{ fontSize: 10, color: "#92400e", marginTop: 5, lineHeight: 1.4 }}>{t.naceInferredNote}</div>
           </div>
         ) : (
           <div style={{ background: "#FFF7E6", border: "1.5px solid #FBBF24", borderRadius: 8, padding: "10px 14px", textAlign: "center", minWidth: 110 }}>
