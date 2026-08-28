@@ -305,13 +305,21 @@ async function callClaude(messages, useWebSearch, maxTokens, signal, timeoutMs) 
 async function fetchCompanyData(companyName, loc, lang, signal) {
   var ndQuery = loc ? companyName + ", " + loc : companyName;
   var ndUrl   = "https://www.northdata.de/" + encodeURIComponent(loc ? companyName + "," + loc : companyName);
-  var exJson = '{"gegenstand":"...","nace_code":"28.93","nace_found":true,"rechtsform":"GmbH","ort":"Muenchen","northdata_url":"https://www.northdata.de/...","hr_nummer":"HRB 12345","amtsgericht":"Muenchen","products":"Werkzeugmaschinen, Linearmotoren"}';
+  var exJson = '{"gegenstand":"...","nace_code":"28.93","nace_found":true,"rechtsform":"GmbH","ort":"Muenchen","northdata_url":"https://www.northdata.de/...","hr_nummer":"HRB 12345","amtsgericht":"Muenchen","products":"Werkzeugmaschinen, Linearmotoren","candidates":[]}';
   var de = lang === "de";
+  var ambiguityRule = de
+    ? "\nEINDEUTIGKEIT: Wenn der eingegebene Firmenname mehrdeutig ist (mehrere deutsche Firmen mit ähnlichem Namen, Abkürzung, Tippfehler) oder du dir bei der eindeutigen Zuordnung nicht sicher bist, gib statt der Einzelfirma nur `candidates: [{name, city, hint}]` mit bis zu 5 möglichen Firmen zurück (name = vollständiger Firmenname wie im Handelsregister, city = Sitzort, hint = kurze Beschreibung z.B. Rechtsform / Branche / HR-Nummer). Setze in diesem Fall die anderen Felder (gegenstand, nace_code, ...) auf null. Beispiel: Eingabe „Bosch“ → candidates:[{name:\"Robert Bosch GmbH\",city:\"Stuttgart\",hint:\"Konzernmutter, Kraftfahrzeugtechnik\"},{name:\"Bosch Rexroth AG\",city:\"Lohr am Main\",hint:\"Antriebs- und Steuerungstechnik\"}].\nWenn die Firma eindeutig identifizierbar ist, `candidates` leer lassen ([]).\n"
+    : "\nUNIQUENESS: If the input company name is ambiguous (multiple German companies with similar names, abbreviation, typo) or you're unsure about a unique match, return `candidates: [{name, city, hint}]` with up to 5 possibilities instead of a single company (name = full legal name from Handelsregister, city = registered office, hint = short description e.g. legal form / sector / HR number). In that case set the other fields (gegenstand, nace_code, ...) to null. Example: input \"Bosch\" → candidates:[{name:\"Robert Bosch GmbH\",city:\"Stuttgart\",hint:\"parent, automotive\"},{name:\"Bosch Rexroth AG\",city:\"Lohr am Main\",hint:\"drive and control tech\"}].\nWhen the company is unambiguously identifiable, leave `candidates` empty ([]).\n";
   var prompt = de
-    ? ('Suche auf northdata.de nach "' + ndQuery + '" (URL-Muster: ' + ndUrl + ') sowie auf handelsregister.de und der offiziellen Unternehmenswebsite.\nExtrahiere: gegenstand, nace_code (oder null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12 Produkte).\nAntworte NUR als JSON: ' + exJson)
-    : ('Search northdata.de for "' + ndQuery + '" (URL pattern: ' + ndUrl + ') as well as handelsregister.de and the official company website.\nExtract: gegenstand, nace_code (or null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12).\nReply ONLY as JSON: ' + exJson);
-  var txt = await callClaude([{ role: "user", content: prompt }], true, 900, signal, 40000);
+    ? ('Suche auf northdata.de nach "' + ndQuery + '" (URL-Muster: ' + ndUrl + ') sowie auf handelsregister.de und der offiziellen Unternehmenswebsite.' + ambiguityRule + '\nExtrahiere: gegenstand, nace_code (oder null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12 Produkte), candidates (leer oder Liste bei Mehrdeutigkeit).\nAntworte NUR als JSON: ' + exJson)
+    : ('Search northdata.de for "' + ndQuery + '" (URL pattern: ' + ndUrl + ') as well as handelsregister.de and the official company website.' + ambiguityRule + '\nExtract: gegenstand, nace_code (or null), nace_found, rechtsform, ort, northdata_url, hr_nummer, amtsgericht, products (max. 12), candidates (empty or list on ambiguity).\nReply ONLY as JSON: ' + exJson);
+  var txt = await callClaude([{ role: "user", content: prompt }], true, 1100, signal, 40000);
   var parsed = parseJson(txt);
+  // Ambiguous case — Claude returned candidates instead of a unique match.
+  // Hand the list to the UI so the user picks; do NOT throw.
+  if (Array.isArray(parsed.candidates) && parsed.candidates.length > 0 && !parsed.gegenstand && !parsed.products) {
+    return { ambiguous: true, candidates: parsed.candidates };
+  }
   if (!parsed.gegenstand && !parsed.products) throw new Error("No usable data returned");
   return parsed;
 }
@@ -735,6 +743,9 @@ function mk(l) {
     errAuth:      de ? "Authentifizierungsfehler. Bitte Claude-Konto prüfen." : "Authentication error. Please check your Claude account.",
     errAborted:   de ? "Analyse abgebrochen." : "Analysis cancelled.",
     errPhase1:    de ? "Unternehmenssuche fehlgeschlagen. Bitte Firmennamen prüfen oder nur Produkte eingeben." : "Company lookup failed. Please check the company name or enter products only.",
+    candidatesH:  de ? "Mehrere mögliche Firmen gefunden" : "Multiple possible companies found",
+    candidatesB:  de ? "Der eingegebene Name konnte nicht eindeutig einem einzelnen deutschen Unternehmen zugeordnet werden. Bitte wählen Sie die gemeinte Firma, um die Analyse mit der korrekten Zuordnung fortzusetzen." : "The name you entered couldn't be unambiguously mapped to a single German company. Please pick the intended one to re-run the analysis with the correct identity.",
+    candidatesCancel: de ? "Abbrechen" : "Cancel",
     errPhase2:    de ? "WZ-Klassifikation fehlgeschlagen. Bitte erneut versuchen." : "WZ classification failed. Please try again.",
     reset:        de ? "Neue Prüfung" : "New check",
     disclaimer:   de ? "Erstorientierung — ersetzt keine Rechts- oder Fachberatung. Rechtsstand: BSIG 2025 (in Kraft seit 6. Dezember 2025) · DESTATIS WZ 2008." : "For initial orientation only — does not replace legal or specialist advice. Legal status: BSIG 2025 (in force since 6 December 2025) · DESTATIS WZ 2008.",
@@ -1429,6 +1440,7 @@ export default function App() {
   var [loc,  setLoc]          = useState("");
   var [prod, setProd]         = useState("");
   var [compData, setCompData] = useState(null);
+  var [candidates, setCandidates] = useState(null); // ambiguous-result picker
   var [result, setResult]     = useState(null);
   var [mspSels, setMspSels]   = useState([false, false, false, false]);
   var [itResult, setItResult] = useState(null);
@@ -1448,7 +1460,7 @@ export default function App() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     runningRef.current = false;
     setMode(null); setWzInputs([""]); setComp(""); setLoc(""); setProd("");
-    setCompData(null); setResult(null); setMspSels([false, false, false, false]);
+    setCompData(null); setCandidates(null); setResult(null); setMspSels([false, false, false, false]);
     setItResult(null); clearErrors(); setBusy(false); setStep(-1);
     setWzHelpOpen(false); setWzHelpResultOpen(false);
   }
@@ -1505,13 +1517,20 @@ export default function App() {
     var ctrl = new AbortController();
     abortRef.current = ctrl;
     runningRef.current = true;
-    setBusy(true); clearErrors(); setResult(null); setCompData(null);
+    setBusy(true); clearErrors(); setResult(null); setCompData(null); setCandidates(null);
     setMspSels([false, false, false, false]); setItResult(null); setWzHelpResultOpen(false);
     var cd = null;
     setStep(0);
     try {
       cd = await fetchCompanyData(comp, loc, lang, ctrl.signal);
       if (ctrl.signal.aborted) { runningRef.current = false; return; }
+      // Ambiguous — Claude returned candidate list instead of unique data.
+      // Stop Phase 2 and hand the list to the UI picker.
+      if (cd && cd.ambiguous) {
+        setCandidates(cd.candidates || []);
+        runningRef.current = false; abortRef.current = null; setBusy(false); setStep(-1);
+        return;
+      }
       if (prod.trim()) cd = Object.assign({}, cd, { products: prod.trim() });
       setCompData(cd);
     } catch(e) {
@@ -1815,6 +1834,41 @@ export default function App() {
                     {t.cancelBtn}
                   </button>
                 </div>
+              </div>
+            )}
+            {/* Ambiguity picker — Claude returned candidates instead of a
+                unique company match. User picks one, we re-run with the
+                full name + city as `comp` / `loc` so the AI gets an
+                unambiguous query the second time. */}
+            {candidates && candidates.length > 0 && !busy && (
+              <div style={{ padding: "13px 15px", background: "#FFF7E6", border: "1.5px solid #f59e0b", borderRadius: 8, marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#B45309", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  <MI name="help_outline" size={16} color="#B45309"/>{t.candidatesH}
+                </div>
+                <p style={{ fontSize: 12.5, color: "#92400e", margin: "0 0 10px", lineHeight: 1.55 }}>{t.candidatesB}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {candidates.map(function(c, i) {
+                    return (
+                      <button key={i}
+                        onClick={function() {
+                          setComp(c.name || "");
+                          if (c.city) setLoc(c.city);
+                          setCandidates(null);
+                          setTimeout(handleAnalyze, 0);
+                        }}
+                        style={{ textAlign: "left", background: "#fff", border: "1.5px solid #fde68a", borderRadius: 6, padding: "10px 12px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: "#222F5C" }}>{c.name || "—"}</span>
+                        <span style={{ fontSize: 12, color: "#4b5563" }}>
+                          {c.city ? c.city : ""}{c.city && c.hint ? " · " : ""}{c.hint ? c.hint : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={function() { setCandidates(null); }}
+                  style={{ marginTop: 10, background: "transparent", color: "#92400e", border: "none", padding: 0, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  ← {t.candidatesCancel}
+                </button>
               </div>
             )}
             {errors.phase1 && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 8, background: "#FEF0F0", padding: "8px 12px", borderRadius: 4, display: "flex", alignItems: "flex-start", gap: 6 }}><MI name="warning" size={16} color="#dc2626"/><span>{errors.phase1}</span></p>}
