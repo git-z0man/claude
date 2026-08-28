@@ -3313,27 +3313,37 @@ function relevantWzLabels(hint) {
 }
 
 async function analyzeWZ(company, products, compData, lang, signal) {
-  // Skip the product analysis ONLY for a code we can actually attribute to a
-  // register page. An inferred code falls through and gets analysed properly.
-  if (naceFromRegister(compData)) {
-    var code = compData.nace_code, num = parseFloat(code);
-    if (num >= 26 && num < 31) {
-      var srcName = compData.nace_source === "northdata" ? "Northdata" : "handelsregister.de";
-      return {
-        primary_wz: code, primary_label: WZ_LABELS[code] || WZ_LABELS[String(Math.floor(num))] || "",
-        in_scope: true, confidence: lang === "de" ? "hoch" : "high",
-        reasoning: lang === "de"
-          ? "NACE-Code " + code + " wörtlich ausgewiesen auf " + srcName + " („" + compData.nace_evidence + "“) — im Anwendungsbereich BSIG 2025 Anlage 2 Nr. 5."
-          : "NACE code " + code + " stated verbatim on " + srcName + " (“" + compData.nace_evidence + "”) — within scope of BSIG 2025 Annex 2 No. 5.",
-        alternative_wz: [], sources_used: [compData.nace_source], skippedClassification: true,
-      };
-    }
-  }
+  // The product analysis always runs. There used to be a shortcut here that
+  // returned the register NACE directly whenever naceFromRegister() was true,
+  // and that shortcut was the whole bug:
+  //
+  //   naceFromRegister() can only check that the model SAID there was a source
+  //   and SUPPLIED an evidence quote. Both fields are model-generated. A
+  //   fabricated quote satisfies the guard exactly as well as a real one, and
+  //   then the shortcut made it final — high confidence, "explizit" badge, and
+  //   the product classification (and with it the whole GP 2019 catalogue)
+  //   skipped, so nothing downstream could ever contradict it.
+  //
+  //   SUEVIA HAIGES ("Tränkebecken, Kälber-Iglus, Kuhbürsten und
+  //   Entmistungsanlagen für die Tierhaltung") came back as 28.93, machinery
+  //   for the food and tobacco industry, sourced to a Northdata page that
+  //   carries no NACE code at all. The catalogue says 28.30 via 2830 86 602 /
+  //   2830 86 609.
+  //
+  // Self-reported provenance is a hint, never a verdict: it is passed into the
+  // analysis below as one input among the products and the catalogue hits, and
+  // has to survive them.
   var de = lang === "de";
   var contextParts = [];
   if (compData) {
     var naceNote = naceFromRegister(compData)
-      ? (de ? "NACE laut Register (außerhalb BSIG-Bereich): " : "NACE from register (outside BSIG scope): ") + compData.nace_code
+      ? (de
+          ? "NACE angeblich wörtlich im Register ausgewiesen: " + compData.nace_code +
+            (compData.nace_evidence ? " (angeführter Beleg: „" + compData.nace_evidence + "“)" : "") +
+            ". ACHTUNG: Diese Herkunftsangabe stammt aus einer Websuche und ist NICHT verifiziert — Northdata zeigt für viele Firmen gar keinen NACE-Code. Prüfe sie gegen den Unternehmensgegenstand und die Katalogtreffer unten. Widersprechen sich Code und Erzeugnisse, folge den Erzeugnissen und weise in reasoning auf den Widerspruch hin."
+          : "NACE claimed to be stated verbatim in the register: " + compData.nace_code +
+            (compData.nace_evidence ? " (cited evidence: \"" + compData.nace_evidence + "\")" : "") +
+            ". CAUTION: this provenance claim comes from a web search and is NOT verified — Northdata shows no NACE code at all for many companies. Check it against the business purpose and the catalogue hits below. If the code and the products disagree, follow the products and flag the conflict in reasoning.")
       : compData.nace_code
         ? (de ? "Kein NACE-Code im Register ausgewiesen. Aus dem Gegenstand erschlossener Hinweis (NICHT als Beleg verwenden, eigenständig prüfen): " : "No NACE code stated in the register. Hint inferred from the business purpose (do NOT treat as evidence, verify independently): ") + compData.nace_code
         : (de ? "Kein NACE-Code im Register" : "No NACE code in register");
@@ -3458,7 +3468,10 @@ function mk(l) {
     srcCompTitle: de ? "Handelsregister-Quellenvergleich" : "Commercial Register Sources",
     srcCompNote:  de ? "Kombinierte Abfrage: Northdata, Handelsregister und Unternehmenswebsite." : "Combined query: Northdata, commercial register and company website.",
     colGegenstand:    de ? "Unternehmensgegenstand" : "Business Purpose",
-    nacePresentBadge: de ? "NACE explizit" : "NACE explicit",
+    // Deliberately not "explizit"/"explicit": the provenance is what the web
+    // search reported, and nothing in the app has verified it against the
+    // register page. Saying "explizit" turned an unchecked claim into a fact.
+    nacePresentBadge: de ? "NACE laut Quelle · ungeprüft" : "NACE per source · unverified",
     naceAbsentBadge:  de ? "kein NACE-Code" : "no NACE code",
     naceInferredBadge: de ? "KI-erschlossen" : "AI-inferred",
     naceInferredNote:  de ? "Nicht im Register ausgewiesen — aus dem Unternehmensgegenstand abgeleitet." : "Not stated in the register — derived from the business purpose.",
@@ -3479,7 +3492,6 @@ function mk(l) {
     wzOutScope: de ? "Außerhalb" : "Out of scope",
     aiWzNoteTitle: de ? "KI-generierte WZ-Klassifikation" : "AI-generated WZ classification",
     aiWzNote:  de ? "Diese WZ-Nummer wurde durch KI-Analyse ermittelt und sollte intern bestätigt werden." : "This WZ code was determined by AI analysis and should be internally verified.",
-    callsSaved: de ? "2 API-Aufrufe gespart (NACE direkt aus Register)" : "2 API calls saved (NACE direct from register)",
     wzHelp: {
       trigger: de ? "Wo finde ich meine WZ-Nummern?" : "Where do I find my WZ codes?",
       legal:   de ? "Gemäß der Gesetzesbegründung zum BSIG 2025 sind die in Anlage 2 genannten NACE-Codes identisch mit den WZ-Nummern der DESTATIS-Klassifikation 2008." : "According to the explanatory memorandum to BSIG 2025, the NACE codes in Annex 2 are identical to the WZ codes of DESTATIS WZ 2008.",
@@ -3890,7 +3902,7 @@ function SrcSummaryCard({ t, compData, companyName }) {
         {naceFromRegister(compData) ? (
           <div style={{ background: wzInScope ? "#ecfdf5" : "#f9fafb", border: "1.5px solid " + (wzInScope ? "#86efac" : "#E3E3E6"), borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
             <div style={{ fontWeight: 900, fontSize: 26, color: wzInScope ? "#166534" : "#222F5C", lineHeight: 1 }}>{compData.nace_code}</div>
-            <div style={{ fontSize: 10, background: "#ECFDF3", color: "#166534", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="check" size={12} color="#166534"/>{t.nacePresentBadge}</div>
+            <div style={{ fontSize: 10, background: "#eff6ff", color: "#324C9C", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="travel_explore" size={12} color="#324C9C"/>{t.nacePresentBadge}</div>
             {WZ_LABELS[compData.nace_code] && <div style={{ fontSize: 10.5, color: "#374151", marginTop: 5, lineHeight: 1.35 }}>{WZ_LABELS[compData.nace_code]}</div>}
             {compData.nace_evidence && <div style={{ fontSize: 10, color: "#6b7280", marginTop: 5, lineHeight: 1.4, fontStyle: "italic" }}>„{compData.nace_evidence}“</div>}
           </div>
@@ -4873,11 +4885,6 @@ export default function App() {
 
         {result && (
           <>
-            {result.skippedClassification && (
-              <div style={{ background: "#ECFDF3", border: "1px solid #86efac", borderRadius: 4, padding: "6px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#166534", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <MI name="bolt" size={14} color="#166534"/>{t.callsSaved}
-              </div>
-            )}
 
             <div style={{ borderRadius: 12, border: "2px solid " + scC, overflow: "hidden", marginTop: 4 }}>
 
