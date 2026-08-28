@@ -3031,6 +3031,49 @@ function gpClassify(query) {
 }
 
 
+// What the RESULT PANEL shows, which is deliberately narrower than what the
+// model receives. The model wants breadth — recall@15 is 91% against
+// precision@1 of 59%, so the wide list is what lets it find the right entry.
+// The reader wants only what bears on the verdict.
+//
+// Showing the raw list conflated the two. For a livestock-equipment maker the
+// second-ranked hit was "Schürfwagen (Scraper)", a self-propelled road grader
+// pulled in by the English product term "Manure Scrapers", and four
+// Heizkörper/Backofen entries arrived on the word "beheizt" — all displayed
+// under a heading that called them checked catalogue entries.
+//
+// So: every hit for the class actually chosen (the evidence), plus other
+// classes only when they are genuine rivals — within 80% of the chosen
+// class's best score. Anything below that is retrieval noise and is dropped
+// from the display, never from the prompt.
+function gpDisplayHits(query, chosenWz, limit) {
+  var hits = gpSearch(query, 25);
+  if (!hits.length) return [];
+  var cap = limit || 6;
+
+  var best = {};
+  hits.forEach(function(h) {
+    if (!best[h.wz] || h.score > best[h.wz]) best[h.wz] = h.score;
+  });
+  var chosenBest = (chosenWz && best[chosenWz]) || hits[0].score;
+
+  var out = [];
+  hits.forEach(function(h) {
+    if (h.wz === chosenWz && out.length < 4) {
+      out.push(Object.assign({}, h, { supports: true }));
+    }
+  });
+  var seenRival = {};
+  hits.forEach(function(h) {
+    if (h.wz === chosenWz || seenRival[h.wz] || out.length >= cap) return;
+    if (best[h.wz] >= 0.8 * chosenBest) {
+      seenRival[h.wz] = 1;
+      out.push(Object.assign({}, h, { supports: false }));
+    }
+  });
+  return out;
+}
+
 // Render retrieved catalogue entries for the Phase-2 prompt. This goes in the
 // DYNAMIC part of the message, never the cached static prefix.
 //
@@ -3392,13 +3435,6 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   ];
   var txt    = await callClaude([{ role: "user", content: msgContent }], false, 2500, signal, 30000);
   var parsed = parseJson(txt);
-  // Carry the catalogue hits into the result so the UI can show what the
-  // classification was checked against, and the user can verify a Meldenummer
-  // the way they would in the PDF.
-  if (gpQuery) {
-    var gpRes = gpClassify(gpQuery);
-    if (gpRes) parsed.gp_hits = gpRes.top.slice(0, 6);
-  }
   // Normalize alternative_wz: API may return objects instead of strings
   if (Array.isArray(parsed.alternative_wz)) {
     parsed.alternative_wz = parsed.alternative_wz.map(function(entry) {
@@ -3416,6 +3452,13 @@ async function analyzeWZ(company, products, compData, lang, signal) {
     parsed.primary_wz = null;
     parsed.primary_label = null;
     parsed.in_scope = false;
+  }
+  // Catalogue entries for the result panel. Computed AFTER the model has
+  // chosen a class, so the panel can show the entries backing that choice
+  // rather than the raw ranking the model was given to sift.
+  if (gpQuery) {
+    var chosen = parsed.primary_wz == null ? null : String(parsed.primary_wz).trim();
+    parsed.gp_hits = gpDisplayHits(gpQuery, chosen, 6);
   }
   var ndOutOfScope = naceFromRegister(compData);
   if (ndOutOfScope && parsed.in_scope) { parsed.northdataOverride = true; parsed.northdataWz = compData.nace_code; }
@@ -3720,8 +3763,12 @@ function mk(l) {
     errAuth:      de ? "Authentifizierungsfehler. Bitte Claude-Konto prüfen." : "Authentication error. Please check your Claude account.",
     errAborted:   de ? "Analyse abgebrochen." : "Analysis cancelled.",
     errPhase1:    de ? "Unternehmenssuche fehlgeschlagen. Bitte Firmennamen prüfen oder nur Produkte eingeben." : "Company lookup failed. Please check the company name or enter products only.",
-    gpHitsTitle:  de ? "GP 2019 Güterverzeichnis — geprüfte Katalogeinträge" : "GP 2019 product catalogue — entries checked",
-    gpHitsHint:   de ? "Treffer aus dem amtlichen Güterverzeichnis (Statistisches Bundesamt, Abt. 25–30). Die Meldenummer trägt die WZ-Klasse in den ersten vier Ziffern — damit lässt sich die Einstufung direkt im Original-PDF nachschlagen." : "Hits from the official Destatis product index (div. 25–30). The Meldenummer carries the WZ class in its first four digits, so the classification can be checked directly against the original PDF.",
+    // Not "geprüfte Katalogeinträge": nothing here was verified, these are the
+    // entries the classification was weighed against.
+    gpHitsTitle:  de ? "GP 2019 Güterverzeichnis — herangezogene Katalogeinträge" : "GP 2019 product catalogue — entries considered",
+    gpAlternatives: de ? "Weitere in Betracht gezogene Klassen" : "Other classes considered",
+    srcGp:        de ? "GP 2019 Güterverzeichnis" : "GP 2019 product catalogue",
+    gpHitsHint:   de ? "Einträge aus dem amtlichen Güterverzeichnis (Statistisches Bundesamt, Abt. 25–30), gegen die diese Einstufung geprüft wurde. Die Meldenummer trägt die WZ-Klasse in den ersten vier Ziffern — damit lässt sich jede Zeile direkt im Original-PDF nachschlagen." : "Entries from the official Destatis product index (div. 25–30) that this classification was weighed against. The Meldenummer carries the WZ class in its first four digits, so every row can be looked up directly in the original PDF.",
     gpOutOfScope: de ? "außerhalb Anlage 2 Nr. 5" : "outside Annex 2 No. 5",
     candidatesH:  de ? "Mehrere mögliche Firmen gefunden" : "Multiple possible companies found",
     candidatesB:  de ? "Der eingegebene Name konnte nicht eindeutig einem einzelnen deutschen Unternehmen zugeordnet werden. Bitte wählen Sie die gemeinte Firma, um die Analyse mit der korrekten Zuordnung fortzusetzen." : "The name you entered couldn't be unambiguously mapped to a single German company. Please pick the intended one to re-run the analysis with the correct identity.",
@@ -3751,6 +3798,11 @@ var SRC_META = {
   destatis:             { icon: "analytics",       bg: "#ECFDF3", col: "#166534" },
   products:             { icon: "settings",        bg: "#fef9c3", col: "#854d0e" },
   direct:               { icon: "edit",            bg: "#f3f4f6", col: "#374151" },
+  // The model names the catalogue as a source; without an entry here the raw
+  // token "gp_2019" was rendering as the chip label.
+  gp_2019:              { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
+  gp2019:               { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
+  "gp 2019":            { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
 };
 
 function TrashIcon() {
@@ -4542,7 +4594,8 @@ export default function App() {
   }
 
   function SrcBadges({ used }) {
-    var srcMap = { northdata: t.srcNd, "handelsregister.ai": t.srcHr, destatis: t.srcDest, products: t.srcProd, direct: t.srcDirect };
+    var srcMap = { northdata: t.srcNd, "handelsregister.ai": t.srcHr, destatis: t.srcDest, products: t.srcProd, direct: t.srcDirect,
+                   gp_2019: t.srcGp, gp2019: t.srcGp, "gp 2019": t.srcGp };
     return (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {(used || []).map(function(k) {
@@ -4961,19 +5014,37 @@ export default function App() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                     <MI name="menu_book" size={14} color="#374151"/>{t.gpHitsTitle}
                   </div>
-                  <p style={{ fontSize: 11.5, color: "#6b7280", margin: "0 0 9px", lineHeight: 1.5 }}>{t.gpHitsHint}</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <p style={{ fontSize: 11.5, color: "#6b7280", margin: "0 0 11px", lineHeight: 1.5 }}>{t.gpHitsHint}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                     {result.gp_hits.map(function(h, i) {
-                      var div = parseInt(h.wz.slice(0, 2), 10);
-                      var out = !(div >= 26 && div < 31);
+                      var dv = parseInt(h.wz.slice(0, 2), 10);
+                      var out = !(dv >= 26 && dv < 31);
+                      var prev = i > 0 ? result.gp_hits[i - 1] : null;
+                      // A single divider marks where the entries backing the
+                      // verdict end and merely-competing classes begin, so the
+                      // two are never read as one undifferentiated list.
+                      var startsAlts = !!(prev && prev.supports && !h.supports);
                       return (
-                        <div key={i} style={{ display: "flex", gap: 9, alignItems: "baseline", fontSize: 12.5, lineHeight: 1.45 }}>
-                          <code style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}>{gpFormatCode(h.gp)}</code>
-                          <span style={{ fontWeight: 700, color: out ? "#B45309" : "#166534", whiteSpace: "nowrap", flexShrink: 0 }}>
-                            {h.wz}{out ? " · " + t.gpOutOfScope : ""}
-                          </span>
-                          <span style={{ color: "#4b5563" }}>{h.label}</span>
-                        </div>
+                        <React.Fragment key={i}>
+                          {startsAlts && (
+                            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .4, marginTop: 3, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                              {t.gpAlternatives}
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 12.5, lineHeight: 1.5, opacity: h.supports ? 1 : .7 }}>
+                            <code style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}>{gpFormatCode(h.gp)}</code>
+                            <span style={{
+                              fontWeight: 800, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0,
+                              borderRadius: 4, padding: "1px 6px",
+                              background: h.supports ? (out ? "#FFF7E6" : "#ECFDF3") : "#f3f4f6",
+                              color: out ? "#B45309" : (h.supports ? "#166534" : "#6b7280"),
+                            }}>{h.wz}</span>
+                            <span style={{ color: h.supports ? "#374151" : "#6b7280" }}>
+                              {h.label}
+                              {out && <strong style={{ color: "#B45309", fontWeight: 700 }}> · {t.gpOutOfScope}</strong>}
+                            </span>
+                          </div>
+                        </React.Fragment>
                       );
                     })}
                   </div>
