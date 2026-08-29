@@ -3031,6 +3031,49 @@ function gpClassify(query) {
 }
 
 
+// What the RESULT PANEL shows, which is deliberately narrower than what the
+// model receives. The model wants breadth — recall@15 is 91% against
+// precision@1 of 59%, so the wide list is what lets it find the right entry.
+// The reader wants only what bears on the verdict.
+//
+// Showing the raw list conflated the two. For a livestock-equipment maker the
+// second-ranked hit was "Schürfwagen (Scraper)", a self-propelled road grader
+// pulled in by the English product term "Manure Scrapers", and four
+// Heizkörper/Backofen entries arrived on the word "beheizt" — all displayed
+// under a heading that called them checked catalogue entries.
+//
+// So: every hit for the class actually chosen (the evidence), plus other
+// classes only when they are genuine rivals — within 80% of the chosen
+// class's best score. Anything below that is retrieval noise and is dropped
+// from the display, never from the prompt.
+function gpDisplayHits(query, chosenWz, limit) {
+  var hits = gpSearch(query, 25);
+  if (!hits.length) return [];
+  var cap = limit || 6;
+
+  var best = {};
+  hits.forEach(function(h) {
+    if (!best[h.wz] || h.score > best[h.wz]) best[h.wz] = h.score;
+  });
+  var chosenBest = (chosenWz && best[chosenWz]) || hits[0].score;
+
+  var out = [];
+  hits.forEach(function(h) {
+    if (h.wz === chosenWz && out.length < 4) {
+      out.push(Object.assign({}, h, { supports: true }));
+    }
+  });
+  var seenRival = {};
+  hits.forEach(function(h) {
+    if (h.wz === chosenWz || seenRival[h.wz] || out.length >= cap) return;
+    if (best[h.wz] >= 0.8 * chosenBest) {
+      seenRival[h.wz] = 1;
+      out.push(Object.assign({}, h, { supports: false }));
+    }
+  });
+  return out;
+}
+
 // Render retrieved catalogue entries for the Phase-2 prompt. This goes in the
 // DYNAMIC part of the message, never the cached static prefix.
 //
@@ -3313,27 +3356,37 @@ function relevantWzLabels(hint) {
 }
 
 async function analyzeWZ(company, products, compData, lang, signal) {
-  // Skip the product analysis ONLY for a code we can actually attribute to a
-  // register page. An inferred code falls through and gets analysed properly.
-  if (naceFromRegister(compData)) {
-    var code = compData.nace_code, num = parseFloat(code);
-    if (num >= 26 && num < 31) {
-      var srcName = compData.nace_source === "northdata" ? "Northdata" : "handelsregister.de";
-      return {
-        primary_wz: code, primary_label: WZ_LABELS[code] || WZ_LABELS[String(Math.floor(num))] || "",
-        in_scope: true, confidence: lang === "de" ? "hoch" : "high",
-        reasoning: lang === "de"
-          ? "NACE-Code " + code + " wörtlich ausgewiesen auf " + srcName + " („" + compData.nace_evidence + "“) — im Anwendungsbereich BSIG 2025 Anlage 2 Nr. 5."
-          : "NACE code " + code + " stated verbatim on " + srcName + " (“" + compData.nace_evidence + "”) — within scope of BSIG 2025 Annex 2 No. 5.",
-        alternative_wz: [], sources_used: [compData.nace_source], skippedClassification: true,
-      };
-    }
-  }
+  // The product analysis always runs. There used to be a shortcut here that
+  // returned the register NACE directly whenever naceFromRegister() was true,
+  // and that shortcut was the whole bug:
+  //
+  //   naceFromRegister() can only check that the model SAID there was a source
+  //   and SUPPLIED an evidence quote. Both fields are model-generated. A
+  //   fabricated quote satisfies the guard exactly as well as a real one, and
+  //   then the shortcut made it final — high confidence, "explizit" badge, and
+  //   the product classification (and with it the whole GP 2019 catalogue)
+  //   skipped, so nothing downstream could ever contradict it.
+  //
+  //   SUEVIA HAIGES ("Tränkebecken, Kälber-Iglus, Kuhbürsten und
+  //   Entmistungsanlagen für die Tierhaltung") came back as 28.93, machinery
+  //   for the food and tobacco industry, sourced to a Northdata page that
+  //   carries no NACE code at all. The catalogue says 28.30 via 2830 86 602 /
+  //   2830 86 609.
+  //
+  // Self-reported provenance is a hint, never a verdict: it is passed into the
+  // analysis below as one input among the products and the catalogue hits, and
+  // has to survive them.
   var de = lang === "de";
   var contextParts = [];
   if (compData) {
     var naceNote = naceFromRegister(compData)
-      ? (de ? "NACE laut Register (außerhalb BSIG-Bereich): " : "NACE from register (outside BSIG scope): ") + compData.nace_code
+      ? (de
+          ? "NACE angeblich wörtlich im Register ausgewiesen: " + compData.nace_code +
+            (compData.nace_evidence ? " (angeführter Beleg: „" + compData.nace_evidence + "“)" : "") +
+            ". ACHTUNG: Diese Herkunftsangabe stammt aus einer Websuche und ist NICHT verifiziert — Northdata zeigt für viele Firmen gar keinen NACE-Code. Prüfe sie gegen den Unternehmensgegenstand und die Katalogtreffer unten. Widersprechen sich Code und Erzeugnisse, folge den Erzeugnissen und weise in reasoning auf den Widerspruch hin."
+          : "NACE claimed to be stated verbatim in the register: " + compData.nace_code +
+            (compData.nace_evidence ? " (cited evidence: \"" + compData.nace_evidence + "\")" : "") +
+            ". CAUTION: this provenance claim comes from a web search and is NOT verified — Northdata shows no NACE code at all for many companies. Check it against the business purpose and the catalogue hits below. If the code and the products disagree, follow the products and flag the conflict in reasoning.")
       : compData.nace_code
         ? (de ? "Kein NACE-Code im Register ausgewiesen. Aus dem Gegenstand erschlossener Hinweis (NICHT als Beleg verwenden, eigenständig prüfen): " : "No NACE code stated in the register. Hint inferred from the business purpose (do NOT treat as evidence, verify independently): ") + compData.nace_code
         : (de ? "Kein NACE-Code im Register" : "No NACE code in register");
@@ -3382,13 +3435,6 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   ];
   var txt    = await callClaude([{ role: "user", content: msgContent }], false, 2500, signal, 30000);
   var parsed = parseJson(txt);
-  // Carry the catalogue hits into the result so the UI can show what the
-  // classification was checked against, and the user can verify a Meldenummer
-  // the way they would in the PDF.
-  if (gpQuery) {
-    var gpRes = gpClassify(gpQuery);
-    if (gpRes) parsed.gp_hits = gpRes.top.slice(0, 6);
-  }
   // Normalize alternative_wz: API may return objects instead of strings
   if (Array.isArray(parsed.alternative_wz)) {
     parsed.alternative_wz = parsed.alternative_wz.map(function(entry) {
@@ -3406,6 +3452,13 @@ async function analyzeWZ(company, products, compData, lang, signal) {
     parsed.primary_wz = null;
     parsed.primary_label = null;
     parsed.in_scope = false;
+  }
+  // Catalogue entries for the result panel. Computed AFTER the model has
+  // chosen a class, so the panel can show the entries backing that choice
+  // rather than the raw ranking the model was given to sift.
+  if (gpQuery) {
+    var chosen = parsed.primary_wz == null ? null : String(parsed.primary_wz).trim();
+    parsed.gp_hits = gpDisplayHits(gpQuery, chosen, 6);
   }
   var ndOutOfScope = naceFromRegister(compData);
   if (ndOutOfScope && parsed.in_scope) { parsed.northdataOverride = true; parsed.northdataWz = compData.nace_code; }
@@ -3458,7 +3511,10 @@ function mk(l) {
     srcCompTitle: de ? "Handelsregister-Quellenvergleich" : "Commercial Register Sources",
     srcCompNote:  de ? "Kombinierte Abfrage: Northdata, Handelsregister und Unternehmenswebsite." : "Combined query: Northdata, commercial register and company website.",
     colGegenstand:    de ? "Unternehmensgegenstand" : "Business Purpose",
-    nacePresentBadge: de ? "NACE explizit" : "NACE explicit",
+    // Deliberately not "explizit"/"explicit": the provenance is what the web
+    // search reported, and nothing in the app has verified it against the
+    // register page. Saying "explizit" turned an unchecked claim into a fact.
+    nacePresentBadge: de ? "NACE laut Quelle · ungeprüft" : "NACE per source · unverified",
     naceAbsentBadge:  de ? "kein NACE-Code" : "no NACE code",
     naceInferredBadge: de ? "KI-erschlossen" : "AI-inferred",
     naceInferredNote:  de ? "Nicht im Register ausgewiesen — aus dem Unternehmensgegenstand abgeleitet." : "Not stated in the register — derived from the business purpose.",
@@ -3479,7 +3535,6 @@ function mk(l) {
     wzOutScope: de ? "Außerhalb" : "Out of scope",
     aiWzNoteTitle: de ? "KI-generierte WZ-Klassifikation" : "AI-generated WZ classification",
     aiWzNote:  de ? "Diese WZ-Nummer wurde durch KI-Analyse ermittelt und sollte intern bestätigt werden." : "This WZ code was determined by AI analysis and should be internally verified.",
-    callsSaved: de ? "2 API-Aufrufe gespart (NACE direkt aus Register)" : "2 API calls saved (NACE direct from register)",
     wzHelp: {
       trigger: de ? "Wo finde ich meine WZ-Nummern?" : "Where do I find my WZ codes?",
       legal:   de ? "Gemäß der Gesetzesbegründung zum BSIG 2025 sind die in Anlage 2 genannten NACE-Codes identisch mit den WZ-Nummern der DESTATIS-Klassifikation 2008." : "According to the explanatory memorandum to BSIG 2025, the NACE codes in Annex 2 are identical to the WZ codes of DESTATIS WZ 2008.",
@@ -3708,8 +3763,12 @@ function mk(l) {
     errAuth:      de ? "Authentifizierungsfehler. Bitte Claude-Konto prüfen." : "Authentication error. Please check your Claude account.",
     errAborted:   de ? "Analyse abgebrochen." : "Analysis cancelled.",
     errPhase1:    de ? "Unternehmenssuche fehlgeschlagen. Bitte Firmennamen prüfen oder nur Produkte eingeben." : "Company lookup failed. Please check the company name or enter products only.",
-    gpHitsTitle:  de ? "GP 2019 Güterverzeichnis — geprüfte Katalogeinträge" : "GP 2019 product catalogue — entries checked",
-    gpHitsHint:   de ? "Treffer aus dem amtlichen Güterverzeichnis (Statistisches Bundesamt, Abt. 25–30). Die Meldenummer trägt die WZ-Klasse in den ersten vier Ziffern — damit lässt sich die Einstufung direkt im Original-PDF nachschlagen." : "Hits from the official Destatis product index (div. 25–30). The Meldenummer carries the WZ class in its first four digits, so the classification can be checked directly against the original PDF.",
+    // Not "geprüfte Katalogeinträge": nothing here was verified, these are the
+    // entries the classification was weighed against.
+    gpHitsTitle:  de ? "GP 2019 Güterverzeichnis — herangezogene Katalogeinträge" : "GP 2019 product catalogue — entries considered",
+    gpAlternatives: de ? "Weitere in Betracht gezogene Klassen" : "Other classes considered",
+    srcGp:        de ? "GP 2019 Güterverzeichnis" : "GP 2019 product catalogue",
+    gpHitsHint:   de ? "Einträge aus dem amtlichen Güterverzeichnis (Statistisches Bundesamt, Abt. 25–30), gegen die diese Einstufung geprüft wurde. Die Meldenummer trägt die WZ-Klasse in den ersten vier Ziffern — damit lässt sich jede Zeile direkt im Original-PDF nachschlagen." : "Entries from the official Destatis product index (div. 25–30) that this classification was weighed against. The Meldenummer carries the WZ class in its first four digits, so every row can be looked up directly in the original PDF.",
     gpOutOfScope: de ? "außerhalb Anlage 2 Nr. 5" : "outside Annex 2 No. 5",
     candidatesH:  de ? "Mehrere mögliche Firmen gefunden" : "Multiple possible companies found",
     candidatesB:  de ? "Der eingegebene Name konnte nicht eindeutig einem einzelnen deutschen Unternehmen zugeordnet werden. Bitte wählen Sie die gemeinte Firma, um die Analyse mit der korrekten Zuordnung fortzusetzen." : "The name you entered couldn't be unambiguously mapped to a single German company. Please pick the intended one to re-run the analysis with the correct identity.",
@@ -3739,6 +3798,11 @@ var SRC_META = {
   destatis:             { icon: "analytics",       bg: "#ECFDF3", col: "#166534" },
   products:             { icon: "settings",        bg: "#fef9c3", col: "#854d0e" },
   direct:               { icon: "edit",            bg: "#f3f4f6", col: "#374151" },
+  // The model names the catalogue as a source; without an entry here the raw
+  // token "gp_2019" was rendering as the chip label.
+  gp_2019:              { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
+  gp2019:               { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
+  "gp 2019":            { icon: "menu_book",       bg: "#ECFDF3", col: "#166534" },
 };
 
 function TrashIcon() {
@@ -3890,7 +3954,7 @@ function SrcSummaryCard({ t, compData, companyName }) {
         {naceFromRegister(compData) ? (
           <div style={{ background: wzInScope ? "#ecfdf5" : "#f9fafb", border: "1.5px solid " + (wzInScope ? "#86efac" : "#E3E3E6"), borderRadius: 8, padding: "10px 16px", textAlign: "center", minWidth: 110 }}>
             <div style={{ fontWeight: 900, fontSize: 26, color: wzInScope ? "#166534" : "#222F5C", lineHeight: 1 }}>{compData.nace_code}</div>
-            <div style={{ fontSize: 10, background: "#ECFDF3", color: "#166534", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="check" size={12} color="#166534"/>{t.nacePresentBadge}</div>
+            <div style={{ fontSize: 10, background: "#eff6ff", color: "#324C9C", borderRadius: 4, padding: "2px 6px", fontWeight: 700, marginTop: 5, display: "inline-flex", alignItems: "center", gap: 4 }}><MI name="travel_explore" size={12} color="#324C9C"/>{t.nacePresentBadge}</div>
             {WZ_LABELS[compData.nace_code] && <div style={{ fontSize: 10.5, color: "#374151", marginTop: 5, lineHeight: 1.35 }}>{WZ_LABELS[compData.nace_code]}</div>}
             {compData.nace_evidence && <div style={{ fontSize: 10, color: "#6b7280", marginTop: 5, lineHeight: 1.4, fontStyle: "italic" }}>„{compData.nace_evidence}“</div>}
           </div>
@@ -4530,7 +4594,8 @@ export default function App() {
   }
 
   function SrcBadges({ used }) {
-    var srcMap = { northdata: t.srcNd, "handelsregister.ai": t.srcHr, destatis: t.srcDest, products: t.srcProd, direct: t.srcDirect };
+    var srcMap = { northdata: t.srcNd, "handelsregister.ai": t.srcHr, destatis: t.srcDest, products: t.srcProd, direct: t.srcDirect,
+                   gp_2019: t.srcGp, gp2019: t.srcGp, "gp 2019": t.srcGp };
     return (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
         {(used || []).map(function(k) {
@@ -4873,11 +4938,6 @@ export default function App() {
 
         {result && (
           <>
-            {result.skippedClassification && (
-              <div style={{ background: "#ECFDF3", border: "1px solid #86efac", borderRadius: 4, padding: "6px 12px", marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#166534", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <MI name="bolt" size={14} color="#166534"/>{t.callsSaved}
-              </div>
-            )}
 
             <div style={{ borderRadius: 12, border: "2px solid " + scC, overflow: "hidden", marginTop: 4 }}>
 
@@ -4954,19 +5014,37 @@ export default function App() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                     <MI name="menu_book" size={14} color="#374151"/>{t.gpHitsTitle}
                   </div>
-                  <p style={{ fontSize: 11.5, color: "#6b7280", margin: "0 0 9px", lineHeight: 1.5 }}>{t.gpHitsHint}</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <p style={{ fontSize: 11.5, color: "#6b7280", margin: "0 0 11px", lineHeight: 1.5 }}>{t.gpHitsHint}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                     {result.gp_hits.map(function(h, i) {
-                      var div = parseInt(h.wz.slice(0, 2), 10);
-                      var out = !(div >= 26 && div < 31);
+                      var dv = parseInt(h.wz.slice(0, 2), 10);
+                      var out = !(dv >= 26 && dv < 31);
+                      var prev = i > 0 ? result.gp_hits[i - 1] : null;
+                      // A single divider marks where the entries backing the
+                      // verdict end and merely-competing classes begin, so the
+                      // two are never read as one undifferentiated list.
+                      var startsAlts = !!(prev && prev.supports && !h.supports);
                       return (
-                        <div key={i} style={{ display: "flex", gap: 9, alignItems: "baseline", fontSize: 12.5, lineHeight: 1.45 }}>
-                          <code style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, color: "#374151", whiteSpace: "nowrap", flexShrink: 0 }}>{gpFormatCode(h.gp)}</code>
-                          <span style={{ fontWeight: 700, color: out ? "#B45309" : "#166534", whiteSpace: "nowrap", flexShrink: 0 }}>
-                            {h.wz}{out ? " · " + t.gpOutOfScope : ""}
-                          </span>
-                          <span style={{ color: "#4b5563" }}>{h.label}</span>
-                        </div>
+                        <React.Fragment key={i}>
+                          {startsAlts && (
+                            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: .4, marginTop: 3, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                              {t.gpAlternatives}
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: 10, alignItems: "baseline", fontSize: 12.5, lineHeight: 1.5, opacity: h.supports ? 1 : .7 }}>
+                            <code style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, color: "#6b7280", whiteSpace: "nowrap", flexShrink: 0 }}>{gpFormatCode(h.gp)}</code>
+                            <span style={{
+                              fontWeight: 800, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0,
+                              borderRadius: 4, padding: "1px 6px",
+                              background: h.supports ? (out ? "#FFF7E6" : "#ECFDF3") : "#f3f4f6",
+                              color: out ? "#B45309" : (h.supports ? "#166534" : "#6b7280"),
+                            }}>{h.wz}</span>
+                            <span style={{ color: h.supports ? "#374151" : "#6b7280" }}>
+                              {h.label}
+                              {out && <strong style={{ color: "#B45309", fontWeight: 700 }}> · {t.gpOutOfScope}</strong>}
+                            </span>
+                          </div>
+                        </React.Fragment>
                       );
                     })}
                   </div>
