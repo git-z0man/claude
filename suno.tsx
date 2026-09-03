@@ -1223,7 +1223,8 @@ export default function App() {
       body:JSON.stringify({
         model: modelMode==="fast" ? "claude-sonnet-5" : "claude-opus-5",
         max_tokens:4096,
-        thinking:{type:"disabled"},
+        thinking: modelMode==="fast" ? {type:"disabled"} : {type:"adaptive"},
+        output_config: modelMode==="fast" ? undefined : {effort:"low"},
         system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
       })
