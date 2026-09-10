@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
-var SYSTEM_PROMPT = `You are a professional SUNO v5.5 songwriter. Output exactly 5 code blocks.
+var SYSTEM_PROMPT = `You are a professional SUNO v6 songwriter. Output exactly 5 code blocks.
 
 CORE RULES:
 - Structure tags on own lines only, NEVER inline in lyrics.
@@ -17,8 +17,8 @@ CORE RULES:
 - Front-load Style field: most important genre and mood in first 20-30 words.
 - Suno reads descriptive words, not parameter syntax. NEVER invent colon/percent-style pseudo-tags like [Reverb: 30%], [Bass: 80%], [Stereo Width: Wide], [Vocal Tone: X]. Use plain descriptive adjectives instead (e.g. "reverb-heavy", "punchy bass", "wide stereo image"). Quality comes from model version and the Weirdness/Style Influence sliders - there is no hidden bracket "max quality" mode.
 
-v5.5 PRECISION RULES:
-- Use SPECIFIC descriptors. v5.5 responds to nuance. 5-7 specific tags.
+v6 PRECISION RULES:
+- Use SPECIFIC descriptors. v6 responds to nuance. 5-7 specific tags.
 - Emotion tags MUST be on their OWN line. NEVER stack in pipes.
 - Parentheses ( ) = background vocal layer. NEVER use for instructions.
 - Square brackets [ ] = structure/production cues, not sung.
@@ -38,7 +38,7 @@ EXCLUDE STYLES (auto or manual):
 - If input contains "Exclude: X", output that exact text unchanged in # 5. EXCLUDE - do not rephrase it.
 - If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (e.g. Trap/Hip-Hop -> no autotune, Gospel -> no choir, solo acoustic -> no drums, no synth) and output them as a short comma-separated list in # 5. EXCLUDE.
 - ALWAYS output # 5. EXCLUDE - never leave it empty, whether user-provided or auto-selected.
-- HARD LIMIT 200 chars.
+- HARD LIMIT 1000 chars. Stay well under it: 1-5 exclusions is what Suno processes cleanly.
 
 LYRICS QUALITY (non-negotiable):
 - CONCRETE over abstract: "her toothbrush is still in the cup" beats "I miss her". One picturable image per verse minimum — named place, touchable object, overheard line, or specific time of day.
@@ -433,10 +433,10 @@ function truncateTitle(s) {
   return s.substring(0, 100);
 }
 function truncateExclude(s) {
-  if (!s || s.length <= 200) return s;
-  var cut = s.substring(0, 200);
+  if (!s || s.length <= 1000) return s;
+  var cut = s.substring(0, 1000);
   var lastComma = cut.lastIndexOf(",");
-  var pos = lastComma < 1 ? 200 : lastComma;
+  var pos = lastComma < 1 ? 1000 : lastComma;
   return cut.substring(0, pos).trim();
 }
 function parseOutput(raw) {
@@ -474,7 +474,7 @@ function storageSave(obj) {
 
 var T = {
   en: {
-    appSubtitle:"Powered by Claude - SUNO v5.5 optimized",
+    appSubtitle:"Powered by Claude - SUNO v6 optimized",
     restart:"Restart", restartConfirm:"Reset everything?", yes:"Yes, reset", cancel:"Cancel",
     panelSettings:"Settings", panelResult:"Result",
     searchTitle:"Search & Analyze",
@@ -539,7 +539,7 @@ var T = {
     apiOk:"API connected", apiError:"API not reachable",
   },
   de: {
-    appSubtitle:"Powered by Claude - SUNO v5.5 optimiert",
+    appSubtitle:"Powered by Claude - SUNO v6 optimiert",
     restart:"Neustart", restartConfirm:"Alles zurücksetzen?",
     yes:"Ja, zurücksetzen", cancel:"Abbrechen",
     panelSettings:"Einstellungen", panelResult:"Ergebnis",
@@ -1356,7 +1356,7 @@ export default function App() {
     setLoading(true); setError(""); setOutput(null);
     try{
       var txt=await callSong([
-        "Create a complete optimized SUNO v5.5 song prompt. " +
+        "Create a complete optimized SUNO v6 song prompt. " +
         "Output exactly in the format with 5 separate code blocks."
       ]);
       var parsed=parseOutput(txt);
@@ -2414,14 +2414,14 @@ export default function App() {
               </div>
               <div className="mb-4">
                 <label className="text-xs font-medium text-zinc-300 block mb-1">{t.excludeLabel}</label>
-                <input value={excludeStyle} maxLength={200}
+                <input value={excludeStyle} maxLength={1000}
                   onChange={function(e){setExcludeStyle(e.target.value);}}
                   placeholder={t.excludePlaceholder}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-red-500"/>
                 <div className="flex justify-between items-center mt-1">
                   <p className="text-[10px] text-zinc-500 leading-snug">{t.excludeHint}</p>
-                  <span className={excludeStyle.length>=200?"text-red-400 font-semibold text-[10px] shrink-0 ml-2":"text-zinc-600 text-[10px] shrink-0 ml-2"}>
-                    {excludeStyle.length} / 200 {t.chars}
+                  <span className={excludeStyle.length>=1000?"text-red-400 font-semibold text-[10px] shrink-0 ml-2":"text-zinc-600 text-[10px] shrink-0 ml-2"}>
+                    {excludeStyle.length} / 1000 {t.chars}
                   </span>
                 </div>
               </div>
@@ -2431,7 +2431,7 @@ export default function App() {
                    label:isEn?"Instrumental":"Instrumental",
                    desc:isEn?"No vocals - music only":"Keine Vocals - nur Musik"},
                   {val:voicesMode, set:setVoicesMode, color:"bg-purple-600",
-                   label:isEn?"Voices (v5.5)":"Voices (v5.5)",
+                   label:isEn?"Voices":"Voices",
                    desc:isEn?"Cloned voice - removes gender tags":"Geklonte Stimme - entfernt Gender-Tags"},
                   {val:autoAdvanced, set:setAutoAdvanced, color:"bg-emerald-600",
                    label:isEn?"Auto Mode":"Auto-Modus",
@@ -2750,11 +2750,11 @@ export default function App() {
                         icon="🚫" content={output.exclude||""} t={t}/>
                       <div className="mt-2 flex justify-end items-center gap-2">
                         <span className={
-                          (output.exclude||"").length>200?"text-red-400 font-semibold text-xs":
-                          (output.exclude||"").length>170?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
-                          {(output.exclude||"").length} / 200 {t.chars}
+                          (output.exclude||"").length>1000?"text-red-400 font-semibold text-xs":
+                          (output.exclude||"").length>850?"text-yellow-400 text-xs":"text-zinc-500 text-xs"}>
+                          {(output.exclude||"").length} / 1000 {t.chars}
                         </span>
-                        {(output.exclude||"").length>200&&
+                        {(output.exclude||"").length>1000&&
                           <span className="text-xs text-red-400">{t.tooLong}</span>}
                       </div>
                     </div>

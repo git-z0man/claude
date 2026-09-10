@@ -13,7 +13,7 @@ Live unter: <https://git-z0man.github.io/claude/>
 | `/` (`index.html`) | Landing Page mit Links zu allen Apps |
 | `/bsig.html` | **BSIG 2025 Scope Checker** — prüft, ob ein deutsches Maschinen-/Elektronik-Unternehmen unter das BSIG 2025 (NIS-2-Umsetzung DE) fällt. WZ-Klassifikation, MSP-Hinweise, Erheblichkeitsschwelle. |
 | `/nisg.html` | **NISG 2026 Scope Checker** — prüft, ob ein österreichisches Unternehmen als wesentliche oder wichtige Einrichtung unter das NISG 2026 (NIS-2-Umsetzung AT, in Kraft ab 1. Oktober 2026) fällt. Sektor-Klassifikation gegen Anlagen 1 + 2, Size-Cap-Rule (EU 2003/361), ÖNACE-Recherche via firmenabc.at. |
-| `/suno.html` | **SUNO Song Creator** — generiert optimierte Songprompts für SUNO v5.5. |
+| `/suno.html` | **SUNO Song Creator** — generiert optimierte Songprompts für SUNO v6. |
 
 Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
 `anthropicApiKey`).
