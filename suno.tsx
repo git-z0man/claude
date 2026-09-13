@@ -15,7 +15,8 @@ CORE RULES:
 - CRITICAL: Write ALL lyrics in the Song language specified. Never default to German or any other language.
 - BPM and Key go in Style field ONLY.
 - Front-load Style field: most important genre and mood in first 20-30 words.
-- Suno reads descriptive words, not parameter syntax. NEVER invent colon/percent-style pseudo-tags like [Reverb: 30%], [Bass: 80%], [Stereo Width: Wide], [Vocal Tone: X]. Use plain descriptive adjectives instead (e.g. "reverb-heavy", "punchy bass", "wide stereo image"). Quality comes from model version and the Weirdness/Style Influence sliders - there is no hidden bracket "max quality" mode.
+- Suno reads descriptive words, not parameter syntax. NEVER invent colon/percent-style pseudo-tags like [Reverb: 30%], [Bass: 80%], [Stereo Width: Wide], [Vocal Tone: X]. Use plain descriptive adjectives instead (e.g. "reverb-heavy", "punchy bass", "wide stereo image").
+- Quality comes from the model choice plus the UI controls (Weirdness, Style Influence, Variety, Max Mode, Audio Influence) - never from a bracket tag. v6 does have a real Max Mode, but it is a UI toggle only: [Is_MAX_MODE: MAX], [QUALITY: MAX] and [REALISM: MAX] as text are myths and can even get sung.
 
 v6 PRECISION RULES:
 - Use SPECIFIC descriptors. v6 responds to nuance. 5-7 specific tags.
@@ -23,21 +24,34 @@ v6 PRECISION RULES:
 - Parentheses ( ) = background vocal layer. NEVER use for instructions.
 - Square brackets [ ] = structure/production cues, not sung.
 - ALL CAPS: max 1-3 words per section. Never overuse.
+- v6 reads per-section performance direction reliably. Use directed section tags where a section should change: [Bridge | female | whispered].
+- ERA ANCHOR: name the decade together with the genre. "1980s synthwave" beats "synthwave", "90s boom bap" beats "hip hop". Single biggest win for genre fidelity.
+- GENRE FUSION: bridge the genres explicitly ("jazz-influenced hyperpop"), never list them side by side ("jazz, hyperpop") - side-by-side averages into mush.
+- Style field sweet spot is 400-800 chars even though 1000 is allowed. Under 4 tags = generic, over 10 = the later ones get ignored.
+- AD-LIBS go on their own line between lyric lines: [adlib HEY], [adlib yeah], [adlib uh].
+- SCREAMS/GROWLS: [Growl] or [Scream] tag + ALL CAPS + stretched vowels (AAAAAH, not AH). More vowel letters = harder delivery.
+- DUETS: assign WHOLE sections per singer with [Male] / [Female] / [Both] above the section. Switching mid-verse breaks voice consistency.
+- GENRE GOTCHAS: "punk" often yields very short songs (use "post-hardcore"); Trap auto-adds autotune; Gospel auto-adds choir. Put the unwanted default into EXCLUDE.
 
 INSTRUMENTAL MODE (when requested):
 - Style: include no vocals, no singing, no humming, no choir, no voice
 - Lyrics: use only [Instrumental] tags, leave text empty
 
-AUTO VALUES (when input contains "Weirdness: AUTO" or "Style Influence: AUTO"):
-- You MUST replace AUTO with a concrete integer 0-100 of YOUR choice based on the song's genres, mood and inputs. NEVER output the literal word "AUTO" in the # 3. ADVANCED OPTIONS block.
-- Weirdness ranges to pick from: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
+ADVANCED OPTIONS (# 4) - mirrors Suno's "More Options" panel top to bottom. Output all six rows as plain "Label: value" lines, in exactly this order, no prose:
+Vocal Gender / Duration / Max Mode / Weirdness / Style Influence / Variety
+- Vocal Gender: derive from the vocal type. Male Vocal -> Male, Female Vocal -> Female. Duet, Choir or instrumental -> "not set"; the per-section [Male]/[Female]/[Both] tags in the lyrics do that job instead.
+- AUTO VALUES: when the input carries "Weirdness: AUTO", "Style Influence: AUTO", "Max Mode: AUTO", "Variety: AUTO" or "Duration: AUTO", replace AUTO with a concrete value of YOUR choice based on genres, mood and inputs. NEVER output the literal word AUTO.
+- Weirdness ranges: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
 - Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
-- Example: input has "Weirdness: AUTO" for a Pop ballad — write "Weirdness: 38%" in the output.
+- Duration: "Auto", or a concrete M:SS between 0:10 and 6:00.
+- Max Mode: On for songs over 2 minutes, covers that must stay close to the original, style transfer, or when vocals and style have to stay consistent across the whole track. Off for short ideas - it costs extra credits.
+- Variety: default Off. It lets Suno rewrite the Style prompt, which works against a precisely built style field. Raise it only when the two generated clips should differ more.
+- Example: input has "Weirdness: AUTO" for a Pop ballad -> write "Weirdness: 38%".
 
 EXCLUDE STYLES (auto or manual):
-- If input contains "Exclude: X", output that exact text unchanged in # 5. EXCLUDE - do not rephrase it.
-- If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (e.g. Trap/Hip-Hop -> no autotune, Gospel -> no choir, solo acoustic -> no drums, no synth) and output them as a short comma-separated list in # 5. EXCLUDE.
-- ALWAYS output # 5. EXCLUDE - never leave it empty, whether user-provided or auto-selected.
+- If input contains "Exclude: X", output that exact text unchanged in # 3. EXCLUDE - do not rephrase it.
+- If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (e.g. Trap/Hip-Hop -> no autotune, Gospel -> no choir, solo acoustic -> no drums, no synth) and output them as a short comma-separated list in # 3. EXCLUDE.
+- ALWAYS output # 3. EXCLUDE - never leave it empty, whether user-provided or auto-selected.
 - HARD LIMIT 1000 chars. Stay well under it: 1-5 exclusions is what Suno processes cleanly.
 
 LYRICS QUALITY (non-negotiable):
@@ -71,7 +85,7 @@ GLOSSARY: Adagio(66-76) Andante(76-108) Allegro(120-168) Presto(168-200) Rubato
 Crescendo Decrescendo Staccato Legato Vibrato Tremolo Syncopation Polyrhythm
 Falsetto Belt Melisma Crooning Arpeggio Counterpoint Ostinato Sparse Dense
 
-OUTPUT format with 5 code blocks:
+OUTPUT format with 5 code blocks, following Suno's own page order:
 # 1. LYRICS
 \`\`\`
 [structure + lyrics]
@@ -85,18 +99,22 @@ instruments: ...
 style tags: ...
 recording: ...
 \`\`\`
-# 3. ADVANCED OPTIONS
-\`\`\`
-Weirdness: X%
-Style Influence: X%
-\`\`\`
-# 4. TITLE
-\`\`\`
-Songname
-\`\`\`
-# 5. EXCLUDE
+# 3. EXCLUDE
 \`\`\`
 comma, separated, excluded, elements
+\`\`\`
+# 4. ADVANCED OPTIONS
+\`\`\`
+Vocal Gender: Male
+Duration: Auto
+Max Mode: Off
+Weirdness: X%
+Style Influence: X%
+Variety: Off
+\`\`\`
+# 5. TITLE
+\`\`\`
+Songname
 \`\`\``;
 
 var ANALYZE_PROMPT = `Analyze the artist/song. Return ONLY valid JSON, no text, no backticks.
@@ -448,14 +466,21 @@ function parseOutput(raw) {
   }
   r.lyrics   = exB((raw.match(/# 1\. LYRICS[\s\S]*?(?=# 2\.|$)/i)   || [])[0]);
   r.style    = exB((raw.match(/# 2\. STYLE[\s\S]*?(?=# 3\.|$)/i)    || [])[0]);
-  r.advanced = exB((raw.match(/# 3\. ADVANCED[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
-  r.title    = exB((raw.match(/# 4\.\s*(?:TITLE|TITEL)\b[\s\S]*?(?=# 5\.|$)/i) || [])[0]);
-  r.exclude  = exB((raw.match(/# 5\.\s*(?:EXCLUDE|AUSSCHLUSS)\b[\s\S]*?$/i) || [])[0]);
+  r.exclude  = exB((raw.match(/# 3\.\s*(?:EXCLUDE|AUSSCHLUSS)\b[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
+  r.advanced = exB((raw.match(/# 4\. ADVANCED[\s\S]*?(?=# 5\.|$)/i) || [])[0]);
+  r.title    = exB((raw.match(/# 5\.\s*(?:TITLE|TITEL)\b[\s\S]*?$/i) || [])[0]);
   r.style    = truncateStyle(r.style);
   r.lyrics   = truncateLyrics(r.lyrics);
   r.title    = truncateTitle(r.title);
   r.exclude  = truncateExclude(r.exclude);
   return r;
+}
+// Suno's Duration field runs 0:10 to 6:00 in 5-second steps.
+var DURATION_MIN = 10, DURATION_MAX = 360, DURATION_STEP = 5;
+var VARIETY_STEPS = ["Off","Normal","Extra","High","Max"];
+function fmtDuration(sec) {
+  var m = Math.floor(sec / 60), s = sec % 60;
+  return m + ":" + (s < 10 ? "0" + s : String(s));
 }
 function isIncompleteParse(p, fields) {
   return !p || fields.some(function(f){ return !p[f]; });
@@ -516,6 +541,12 @@ var T = {
     weirdnessMid:"50 balanced", weirdnessRight:"Experimental",
     styleInfluenceLabel:"Style Influence",
     styleLeft:"AI Freedom", styleRight:"Very Strict",
+    durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
+    durationHint:"Suno decides the length, or set it yourself (0:10-6:00, 5-second steps). Custom is browser-only.",
+    maxModeLabel:"Max Mode",
+    maxModeHint:"More compute for precision. Worth it for songs over 2 min, covers and consistent vocals - costs extra credits. Browser-only.",
+    varietyLabel:"Variety",
+    varietyHint:"How much the two generated clips may differ. Off keeps your style prompt untouched - Suno rewrites it on higher steps. Browser-only.",
     generateBtn:"Generate Song Prompt", generating:"Generating...",
     readyTitle:"Ready to Generate",
     readyDesc:"Search an artist or song, choose settings and click Generate.",
@@ -583,6 +614,12 @@ var T = {
     weirdnessMid:"50 ausgewogen", weirdnessRight:"Experimentell",
     styleInfluenceLabel:"Style Influence",
     styleLeft:"KI-Freiheit", styleRight:"Sehr strikt",
+    durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
+    durationHint:"Suno wählt die Länge, oder du gibst sie vor (0:10-6:00, 5-Sekunden-Schritte). Custom nur im Browser.",
+    maxModeLabel:"Max Mode",
+    maxModeHint:"Mehr Rechenaufwand für Präzision. Lohnt bei Songs über 2 Min, Covern und konsistenten Vocals - kostet extra Credits. Nur im Browser.",
+    varietyLabel:"Variety",
+    varietyHint:"Wie stark sich die beiden Clips unterscheiden dürfen. Off lässt deinen Style-Prompt unangetastet - höhere Stufen schreibt Suno ihn um. Nur im Browser.",
     generateBtn:"Song-Prompt generieren", generating:"Generiere...",
     readyTitle:"Bereit zur Generierung",
     readyDesc:"Suche einen Künstler oder Song, wähle Einstellungen und klicke Generieren.",
@@ -957,6 +994,10 @@ export default function App() {
   var [weirdness,        setWeirdness]        = useState(62);
   var [styleInf,         setStyleInf]         = useState(70);
   var [autoAdvanced,     setAutoAdvanced]     = useState(true);
+  var [durationMode,     setDurationMode]     = useState("auto");
+  var [durationSec,      setDurationSec]      = useState(180);
+  var [maxMode,          setMaxMode]          = useState(false);
+  var [variety,          setVariety]          = useState("Off");
   var [modelMode,        setModelMode]        = useState("premium");
   var [searchQ,          setSearchQ]          = useState("");
   var [searching,        setSearching]        = useState(false);
@@ -993,7 +1034,8 @@ export default function App() {
       titleSugg:titleSugg, description:description,
       excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
-      autoAdvanced:autoAdvanced, modelMode:modelMode
+      autoAdvanced:autoAdvanced, durationMode:durationMode, durationSec:durationSec,
+      maxMode:maxMode, variety:variety, modelMode:modelMode
     };
   }
   function pushHistory(out) {
@@ -1041,6 +1083,10 @@ export default function App() {
     if (s.weirdness !== undefined) setWeirdness(s.weirdness);
     if (s.styleInf !== undefined) setStyleInf(s.styleInf);
     if (s.autoAdvanced !== undefined) setAutoAdvanced(s.autoAdvanced);
+    if (s.durationMode !== undefined) setDurationMode(s.durationMode);
+    if (s.durationSec !== undefined) setDurationSec(s.durationSec);
+    if (s.maxMode !== undefined) setMaxMode(s.maxMode);
+    if (s.variety !== undefined) setVariety(s.variety);
   }
   function savePreset() {
     var n = newPresetName.trim(); if (!n) return;
@@ -1053,7 +1099,8 @@ export default function App() {
       lyricThemes:lyricThemes, lyricContent:lyricContent,
       excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
-      autoAdvanced:autoAdvanced, modelMode:modelMode
+      autoAdvanced:autoAdvanced, durationMode:durationMode, durationSec:durationSec,
+      maxMode:maxMode, variety:variety, modelMode:modelMode
     };
     setPresets(function(prev){ return prev.concat([{id:Date.now(), name:n, settings:snap}]); });
     setNewPresetName("");
@@ -1132,6 +1179,10 @@ export default function App() {
       if (s.weirdness!=null)               setWeirdness(s.weirdness);
       if (s.styleInf!=null)                setStyleInf(s.styleInf);
       if (s.autoAdvanced!=null)            setAutoAdvanced(s.autoAdvanced);
+      if (s.durationMode)                  setDurationMode(s.durationMode);
+      if (s.durationSec!=null)             setDurationSec(s.durationSec);
+      if (s.maxMode!=null)                 setMaxMode(s.maxMode);
+      if (s.variety)                       setVariety(s.variety);
       if (s.modelMode)                     setModelMode(s.modelMode);
     }
     setInitialized(true);
@@ -1148,14 +1199,15 @@ export default function App() {
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
         instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
-        modelMode
+        durationMode, durationSec, maxMode, variety, modelMode
       });
     }, 300);
     return function(){ clearTimeout(id); };
   },[initialized,genres,extraGenres,artists,availArtists,moods,energy,tempoTerm,
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
-     excludeStyle,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,modelMode]);
+     excludeStyle,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,
+     durationMode,durationSec,maxMode,variety,modelMode]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -1204,6 +1256,7 @@ export default function App() {
     setTitleSugg(""); setExcludeStyle("");
     setInstrumental(false); setVoicesMode(false);
     setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
+    setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
     setModelMode("premium");
     if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
     else { setOutput(null); setCurrentEntryTs(null); }
@@ -1339,6 +1392,9 @@ export default function App() {
       p.push("Weirdness: "+weirdness+"%");
       p.push("Style Influence: "+styleInf+"%");
     }
+    p.push("Duration: "+(durationMode==="auto" ? "Auto" : fmtDuration(durationSec)));
+    p.push("Max Mode: "+(maxMode?"On":"Off"));
+    p.push("Variety: "+variety);
     if(excludeStyle.trim()) p.push("Exclude: "+excludeStyle.trim());
     if(titleSugg.trim())   p.push("Title: "+titleSugg.trim());
     if(ownLyrics)          p.push("Own Lyrics:\n"+ownLyrics);
@@ -1372,7 +1428,7 @@ export default function App() {
     setLoadingLyrics(true); setError("");
     try{
       var txt=await callSong([
-        "Generate ONLY # 1. LYRICS and # 4. TITLE. " +
+        "Generate ONLY # 1. LYRICS and # 5. TITLE. " +
         "Completely new lyrics. Do NOT output sections 2 or 3."
       ]);
       var p=parseOutput(txt);
@@ -1392,7 +1448,7 @@ export default function App() {
     setLoadingStyle(true); setError("");
     try{
       var extra=[
-        "Generate ONLY # 2. STYLE, # 3. ADVANCED OPTIONS and # 5. EXCLUDE. " +
+        "Generate ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS. " +
         "HARD LIMIT: under 1000 characters for Style. No artist names. Do NOT output sections 1 or 4."
       ];
       if(output&&output.lyrics)
@@ -1419,7 +1475,7 @@ export default function App() {
       var txt=await callSong([
         "Lyrics to optimize:",(output&&output.lyrics)||"",
         "Improve rhyme/flow/structure. Same theme. " +
-        "Output ONLY # 1. LYRICS and # 4. TITLE."
+        "Output ONLY # 1. LYRICS and # 5. TITLE."
       ]);
       var p=parseOutput(txt);
       assertComplete(p, ["lyrics"],
@@ -1440,7 +1496,7 @@ export default function App() {
       var txt=await callSong([
         "Style to optimize:",(output&&output.style)||"",
         "CRITICAL: under 1000 chars. No artist names. " +
-        "Output ONLY # 2. STYLE, # 3. ADVANCED OPTIONS and # 5. EXCLUDE."
+        "Output ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS."
       ]);
       var p=parseOutput(txt);
       assertComplete(p, ["style","exclude"],
@@ -1500,6 +1556,10 @@ export default function App() {
     x += '  <weirdness>'+weirdness+'</weirdness>\n';
     x += '  <styleInf>'+styleInf+'</styleInf>\n';
     x += '  <autoAdvanced>'+autoAdvanced+'</autoAdvanced>\n';
+    x += '  <durationMode>'+esc(durationMode)+'</durationMode>\n';
+    x += '  <durationSec>'+durationSec+'</durationSec>\n';
+    x += '  <maxMode>'+maxMode+'</maxMode>\n';
+    x += '  <variety>'+esc(variety)+'</variety>\n';
     x += '  <modelMode>'+esc(modelMode)+'</modelMode>\n';
     x += '</SunoSongSettings>';
     return x;
@@ -1548,6 +1608,10 @@ export default function App() {
         var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
         var si=getT("styleInf");      if(si) setStyleInf(Number(si));
         var aa=getT("autoAdvanced");  if(aa) setAutoAdvanced(aa==="true");
+        var dm=getT("durationMode");  if(dm) setDurationMode(dm);
+        var dsec=getT("durationSec"); if(dsec) setDurationSec(Number(dsec));
+        var mx=getT("maxMode");       if(mx) setMaxMode(mx==="true");
+        var vy=getT("variety");       if(vy) setVariety(vy);
         var mm2=getT("modelMode");    if(mm2) setModelMode(mm2);
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
@@ -2386,12 +2450,14 @@ export default function App() {
             <Section title={t.advancedTitle}
               onClear={function(){clearWithUndo(t.advancedTitle, function(){
                 var sex=excludeStyle, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
+                var sdm=durationMode, sds=durationSec, smx=maxMode, svy=variety;
                 setExcludeStyle(""); setInstrumental(false); setVoicesMode(false);
                 setWeirdness(62); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
-                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); };
+                setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
+                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); setDurationMode(sdm); setDurationSec(sds); setMaxMode(smx); setVariety(svy); };
               });}}
               id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
-              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium")}>
+              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium"||durationMode!=="auto"||maxMode||variety!=="Off")}>
               <div className="mb-3">
                 <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
                 <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
@@ -2424,6 +2490,39 @@ export default function App() {
                     {excludeStyle.length} / 1000 {t.chars}
                   </span>
                 </div>
+              </div>
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs text-zinc-400">{t.durationLabel}</label>
+                  <span className="text-xs font-semibold text-white">
+                    {durationMode==="auto" ? t.durationAuto : fmtDuration(durationSec)}
+                  </span>
+                </div>
+                <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+                  {[["auto",t.durationAuto],["custom",t.durationCustom]].map(function(opt){
+                    return (
+                      <button key={opt[0]} onClick={function(){setDurationMode(opt[0]);}}
+                        className={"flex-1 py-1 rounded text-xs font-semibold transition-all "+
+                          (durationMode===opt[0]?"bg-sky-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                        {opt[1]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {durationMode==="custom"&&
+                  <input type="range" min={DURATION_MIN} max={DURATION_MAX} step={DURATION_STEP}
+                    value={durationSec}
+                    onChange={function(e){setDurationSec(Number(e.target.value));}}
+                    className="w-full accent-sky-500 mt-2"/>}
+                <p className="text-[10px] text-zinc-500 mt-1 leading-snug">{t.durationHint}</p>
+              </div>
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs text-zinc-400">{t.maxModeLabel}</label>
+                  <Toggle value={maxMode} color="bg-amber-600"
+                    onToggle={function(){setMaxMode(!maxMode);}}/>
+                </div>
+                <p className="text-[10px] text-zinc-500 leading-snug">{t.maxModeHint}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {[
@@ -2496,6 +2595,24 @@ export default function App() {
                         <span>{t.styleLeft}</span>
                         <span>{t.styleRight}</span>
                       </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-zinc-400">{t.varietyLabel}</label>
+                        <span className="text-xs font-semibold text-white">{variety}</span>
+                      </div>
+                      <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+                        {VARIETY_STEPS.map(function(step){
+                          return (
+                            <button key={step} onClick={function(){setVariety(step);}}
+                              className={"flex-1 py-1 rounded text-[11px] font-semibold transition-all "+
+                                (variety===step?"bg-pink-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                              {step}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-zinc-500 mt-1 leading-snug">{t.varietyHint}</p>
                     </div>
                   </>
                 );
@@ -2710,7 +2827,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-end mb-2">
                   <CopyBtn
-                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 4. TITLE\n```\n"+output.title+"\n```\n\n# 5. EXCLUDE\n```\n"+(output.exclude||"")+"\n```"}
+                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 3. EXCLUDE\n```\n"+(output.exclude||"")+"\n```\n\n# 5. TITLE\n```\n"+output.title+"\n```"}
                     label={t.copyAll} doneLabel={t.copied}/>
                 </div>
                 {activeTab==="lyrics"&&(
