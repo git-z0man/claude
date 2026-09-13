@@ -57,6 +57,9 @@ Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
   und mounten die App. Alle stellen einen Settings-Dialog für den API-Key.
 - `index.html` — kleine statische Landing mit Links zu allen Apps.
 - `.nojekyll` — verhindert, dass GitHub Pages Jekyll-Filter anwendet.
+- `suno-v6-reference.md` — Quelldokument für den `SYSTEM_PROMPT` in `suno.tsx`.
+  Der Prompt ist ein Destillat daraus (nur verhaltensrelevante Regeln, weil er
+  bei jedem API-Call mitgeht). Bei Suno-Änderungen erst dort pflegen.
 
 ## Eine neue App hinzufügen
 
