@@ -3416,15 +3416,29 @@ async function analyzeWZ(company, products, compData, lang, signal) {
       "- Ist die Gesellschaft eine reine Holding-, Verwaltungs- oder Beteiligungsgesellschaft (Hinweise: Firmierung mit „Holding\", „Beteiligungen\", „Verwaltung\"; Gegenstand = Erwerb, Halten und Verwalten von Beteiligungen, Konzernleitung, Geschäftsführung für verbundene Unternehmen), dann ist ihre eigene WZ-Nummer 70.10 (Verwaltung und Führung von Unternehmen und Betrieben) bzw. 64.20 (Beteiligungsgesellschaften). Beides liegt AUSSERHALB 26-30: primary_wz=\"70.10\" oder \"64.20\", in_scope=false.\n" +
       "- Produzieren Tochtergesellschaften Waren nach 26-30, ändert das daran NICHTS. Übernimm niemals die WZ einer Tochter für die Mutter.\n" +
       "- Nenne solche Töchter stattdessen in subsidiary_hints als Liste von Firmennamen (soweit bekannt) und setze holding_note auf einen Satz, der erklärt, dass diese Gesellschaften separat zu prüfen sind.\n" +
-      "- Übt die Gesellschaft daneben selbst operative Produktion aus (nicht nur Leitung), ist sie nach dieser operativen Tätigkeit einzustufen. Begründe das dann ausdrücklich.\n"
+      "- Übt die Gesellschaft daneben selbst operative Produktion aus (nicht nur Leitung), ist sie nach dieser operativen Tätigkeit einzustufen. Begründe das dann ausdrücklich.\n" +
+      "PFLICHTFELD entity_type: Lege dich VOR der WZ-Vergabe auf genau einen Wert fest.\n" +
+      "  \"operativ\" = die Gesellschaft stellt selbst her oder erbringt selbst die Leistung.\n" +
+      "  \"holding_rein\" = reine Verwaltungs-, Holding- oder Beteiligungsgesellschaft ohne eigene Produktion. Dann MUSS primary_wz 70.10 oder 64.20 sein und in_scope=false.\n" +
+      "  \"holding_gemischt\" = Verwaltung UND nachweisbar eigene operative Produktion in derselben Gesellschaft.\n" +
+      "  \"unklar\" = die Quellen lassen offen, ob die Gesellschaft selbst produziert.\n" +
+      "PFLICHTFELD own_activity: ein Satz NUR über die Tätigkeit DIESER Gesellschaft. Produkte, die ausschließlich von Töchtern hergestellt werden, gehören hier NICHT hinein, sondern in subsidiary_hints.\n" +
+      "Widerspruch vermeiden: Wenn du in reasoning schreibst, die Gesellschaft sei eine Holding, darf primary_wz nicht aus 26-30 stammen.\n"
     : "\nLEGAL-ENTITY PRINCIPLE (takes precedence): Assess only the named entity's own economic activity, not that of parent, sister or subsidiary companies. Each company is assessed separately.\n" +
       "- If the company is a pure holding, management or investment company (indicators: \"Holding\", \"Beteiligungen\", \"Verwaltung\" in the name; business purpose = acquiring, holding and managing shareholdings, group management, management services for affiliates), then its own WZ is 70.10 (management activities of holding companies) or 64.20 (activities of holding companies). Both are OUTSIDE 26-30: primary_wz=\"70.10\" or \"64.20\", in_scope=false.\n" +
       "- Subsidiaries manufacturing goods under 26-30 change NOTHING about this. Never adopt a subsidiary's WZ for the parent.\n" +
       "- Instead name such subsidiaries in subsidiary_hints as a list of company names (where known) and set holding_note to one sentence explaining that those entities must be assessed separately.\n" +
-      "- If the company also carries out operational production itself (not just management), classify it by that operational activity and say so explicitly.\n";
+      "- If the company also carries out operational production itself (not just management), classify it by that operational activity and say so explicitly.\n" +
+      "REQUIRED FIELD entity_type: commit to exactly one value BEFORE assigning a WZ.\n" +
+      "  \"operativ\" = the company itself manufactures or performs the service.\n" +
+      "  \"holding_rein\" = pure management, holding or investment company with no production of its own. Then primary_wz MUST be 70.10 or 64.20 and in_scope=false.\n" +
+      "  \"holding_gemischt\" = management AND demonstrable own production in the same legal entity.\n" +
+      "  \"unklar\" = the sources leave open whether the company produces anything itself.\n" +
+      "REQUIRED FIELD own_activity: one sentence about THIS company's activity only. Products made solely by subsidiaries do NOT belong here, they belong in subsidiary_hints.\n" +
+      "Avoid self-contradiction: if reasoning calls the company a holding, primary_wz must not come from 26-30.\n";
   var exJson = de
-    ? '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[]}'
-    : '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"high","reasoning":"Max 2 sentences.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[]}';
+    ? '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[],"entity_type":"operativ","own_activity":"Stellt selbst Werkzeugmaschinen her."}'
+    : '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"high","reasoning":"Max 2 sentences.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[],"entity_type":"operativ","own_activity":"Stellt selbst Werkzeugmaschinen her."}';
   var unclassRule = de
     ? "\nNICHT-KLASSIFIZIERBAR: Wenn Produkt-/Taetigkeitsangaben fehlen oder zu unspezifisch sind, setze unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"niedrig\" und erlaeutere in reasoning kurz, welche Angaben fehlen.\n"
     : "\nUNCLASSIFIABLE: If product/activity data is missing or too unspecific, set unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"low\" and briefly explain in reasoning which information is missing.\n";
@@ -3479,9 +3493,45 @@ async function analyzeWZ(company, products, compData, lang, signal) {
     parsed.primary_label = null;
     parsed.in_scope = false;
   }
-  // Catalogue entries for the result panel. Computed AFTER the model has
-  // chosen a class, so the panel can show the entries backing that choice
-  // rather than the raw ranking the model was given to sift.
+  // ── Rechtsträger-Durchsetzung ─────────────────────────────────────────────
+  // Die Prompt-Regel allein genügt nicht. Die Kuhn Industrie Holding GmbH kam
+  // auch mit der Regel als 28.91 zurück, obwohl die Begründung im selben Satz
+  // "ist Holding-Gesellschaft mit Tochtergesellschaften" sagte. Das Modell
+  // beschreibt den Sachverhalt richtig und zieht dann doch die WZ der Tochter.
+  //
+  // Deshalb wird der Widerspruch hier geprüft, nicht erbeten.
+  //
+  // Bewusst NICHT über eine Namensheuristik allein: "X Holding GmbH" kann sehr
+  // wohl die produzierende Gesellschaft sein. Ein pauschales Umstellen auf
+  // "außerhalb" würde aus einem lästigen Fehler (zu viel Prüfaufwand) den
+  // gefährlichen machen (Pflichten übersehen). Umgestellt wird nur, wenn das
+  // Modell sich selbst auf "holding_rein" festgelegt hat. Alles andere wird
+  // markiert und dem Nutzer zur Klärung vorgelegt.
+  var etype = String(parsed.entity_type || "").toLowerCase().trim();
+  var wzNum = parsed.primary_wz == null ? NaN : parseFloat(parsed.primary_wz);
+  var wzInBsig = !isNaN(wzNum) && wzNum >= 26 && wzNum < 31;
+
+  if (etype === "holding_rein" && wzInBsig) {
+    parsed.holding_override = {
+      original_wz: parsed.primary_wz,
+      original_label: parsed.primary_label || null,
+    };
+    parsed.primary_wz = "70.10";
+    parsed.primary_label = WZ_LABELS["70.10"];
+    parsed.in_scope = false;
+    if (parsed.alternative_wz == null || !Array.isArray(parsed.alternative_wz)) parsed.alternative_wz = [];
+    parsed.confidence = de ? "mittel" : "medium";
+  }
+
+  // Holding-Merkmale im Namen oder Gegenstand, aber das Modell hat sich auf
+  // eine operative Einstufung festgelegt. Nicht umstellen, nur zur Klärung
+  // vorlegen: ob die Gesellschaft selbst produziert, ist eine Tatsachenfrage.
+  var hay = ((company || "") + " " + ((compData && compData.gegenstand) || "")).toLowerCase();
+  var holdingMarker = /\bholding\b|beteiligungsgesellschaft|beteiligungen|verwaltungsgesellschaft|konzernleitung/.test(hay);
+  if (!parsed.holding_override && wzInBsig &&
+      (etype === "holding_gemischt" || etype === "unklar" || (holdingMarker && etype !== "operativ"))) {
+    parsed.holding_unresolved = true;
+  }
   if (gpQuery) {
     var chosen = parsed.primary_wz == null ? null : String(parsed.primary_wz).trim();
     parsed.gp_hits = gpDisplayHits(gpQuery, chosen, 6);
@@ -3791,6 +3841,14 @@ function mk(l) {
     errPhase1:    de ? "Unternehmenssuche fehlgeschlagen. Bitte Firmennamen prüfen oder nur Produkte eingeben." : "Company lookup failed. Please check the company name or enter products only.",
     // Not "geprüfte Katalogeinträge": nothing here was verified, these are the
     // entries the classification was weighed against.
+    holdingOverrideTitle: de ? "Einstufung korrigiert — eigene Tätigkeit maßgeblich" : "Classification corrected — own activity governs",
+    holdingOverrideBody: function(orig) {
+      return de
+        ? "Die KI hatte WZ " + orig + " vergeben, das ist die Tätigkeit der Tochtergesellschaften. Die geprüfte Gesellschaft wurde von ihr zugleich als reine Holding eingestuft. Maßgeblich für Anlage 2 Nr. 5 ist die eigene Tätigkeit des Rechtsträgers, daher 70.10 und außerhalb des Anwendungsbereichs. Die Töchter sind eigene Rechtsträger und separat zu prüfen."
+        : "The AI assigned WZ " + orig + ", which is the subsidiaries' activity, while classifying the assessed company itself as a pure holding. Annex 2 No. 5 attaches to the entity's own activity, hence 70.10 and outside scope. The subsidiaries are separate legal entities and must be assessed separately.";
+    },
+    holdingUnclearTitle: de ? "Konzernmerkmale — bitte selbst klären" : "Group indicators — needs your check",
+    holdingUnclearBody: de ? "Firmierung oder Unternehmensgegenstand deuten auf eine Holding- oder Verwaltungsgesellschaft hin, es ist aber nicht belegt, ob diese Gesellschaft selbst produziert. Die oben genannte WZ wurde NICHT umgestellt, weil eine falsche Entwarnung schwerer wiegt als eine zu weite Einstufung. Prüfen Sie, ob die Fertigung in dieser Gesellschaft oder in einer Tochter stattfindet. Findet sie in einer Tochter statt, ist diese Gesellschaft nach ihrer eigenen Tätigkeit einzustufen, in der Regel 70.10." : "The company name or business purpose suggests a holding or management company, but it is not established whether this entity produces anything itself. The WZ above was NOT changed, because a false all-clear is worse than an over-broad classification. Check whether manufacturing sits in this entity or in a subsidiary. If it sits in a subsidiary, this entity is classified by its own activity, usually 70.10.",
     holdingTitle:   de ? "Konzernstruktur — Rechtsträger separat zu prüfen" : "Group structure — entities assessed separately",
     holdingDefault: de ? "Die geprüfte Gesellschaft übt selbst keine Tätigkeit nach Anlage 2 Nr. 5 aus. Verbundene operative Gesellschaften sind eigene Rechtsträger und getrennt zu prüfen." : "The assessed company does not itself carry out an activity under Annex 2 No. 5. Affiliated operating companies are separate legal entities and must be assessed separately.",
     holdingSubs:    de ? "Separat zu prüfen:" : "To assess separately:",
@@ -5044,6 +5102,33 @@ export default function App() {
                   Toechter sind aber eigene Rechtstraeger und separat zu
                   pruefen. Bewusst neutral-blau statt gruen, damit der Block
                   nicht als Entwarnung fuer den Konzern gelesen wird. */}
+              {/* Das Modell hatte eine Fertigungs-WZ aus der Taetigkeit der
+                  Toechter vergeben, obwohl es die Gesellschaft selbst als
+                  reine Holding eingestuft hat. Der Widerspruch wird hier
+                  offengelegt, nicht stillschweigend korrigiert. */}
+              {result.holding_override && (
+                <div style={{ padding: "14px 24px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#324C9C", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <MI name="rule" size={14} color="#324C9C"/>{t.holdingOverrideTitle}
+                  </div>
+                  <p style={{ fontSize: 12.5, color: "#374151", margin: 0, lineHeight: 1.6 }}>
+                    {t.holdingOverrideBody(result.holding_override.original_wz)}
+                  </p>
+                </div>
+              )}
+
+              {/* Holding-Merkmale vorhanden, aber nicht geklaert, ob die
+                  Gesellschaft selbst produziert. Bewusst keine Umstellung:
+                  das waere der gefaehrlichere Fehler. */}
+              {result.holding_unresolved && (
+                <div style={{ padding: "14px 24px", background: "#FFF7E6", borderBottom: "1px solid #FBBF24" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#B45309", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <MI name="help_outline" size={14} color="#B45309"/>{t.holdingUnclearTitle}
+                  </div>
+                  <p style={{ fontSize: 12.5, color: "#92400e", margin: 0, lineHeight: 1.6 }}>{t.holdingUnclearBody}</p>
+                </div>
+              )}
+
               {(result.holding_note || (Array.isArray(result.subsidiary_hints) && result.subsidiary_hints.length > 0)) && (
                 <div style={{ padding: "14px 24px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#324C9C", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
