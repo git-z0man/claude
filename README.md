@@ -70,6 +70,8 @@ Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
 2. `bsig.html` zu `foo.html` kopieren und nur Titel, Icon und den
    `fetch("./bsig.tsx")`-Pfad anpassen.
 3. Link in `index.html` (Landing) ergänzen.
+4. Namen in `APPS` in `scripts/check.mjs` ergänzen, sonst wird die neue
+   App von `npm test` stillschweigend übersprungen.
 
 ## Updates am Artifact einspielen
 
@@ -84,3 +86,38 @@ python3 -m http.server 8000
 
 Dann <http://localhost:8000/> öffnen. (`file://` funktioniert nicht, weil
 `fetch("./bsig.tsx")` einen HTTP-Origin braucht.)
+
+Der API-Key liegt in `localStorage` und gilt pro Origin. Auf
+`localhost:8000` muss er deshalb einmal neu eingetragen werden, der von
+der GitHub-Pages-Seite gilt dort nicht.
+
+## Prüfen vor dem Commit
+
+```sh
+npm install   # einmalig, zieht nur @babel/standalone
+npm test
+```
+
+Die TSX-Dateien werden nicht gebaut, sondern zur Laufzeit im Browser von
+Babel-Standalone kompiliert. Ein Syntaxfehler fällt deshalb nicht beim
+Commit auf, sondern erst beim Laden der Seite, und zwar als weiße Seite
+ohne Fehlermeldung in der Oberfläche. `npm test` zieht diesen Schritt nach
+vorne.
+
+| Befehl | Was er tut |
+|--------|------------|
+| `npm run check` | Kompiliert `bsig`, `nisg` und `suno` genau so, wie ihr Loader es im Browser tut, inklusive der drei Quelltext-Ersetzungen und `new Function`. |
+| `npm test` | Erst `check`, dann die Testfälle zur Rechtsträger-Durchsetzung in `bsig.tsx`. |
+
+Die Transforms in `scripts/check.mjs` sind eine Kopie aus den HTML-Dateien,
+und Kopien driften. Das Skript prüft deshalb vorher, ob die HTML-Datei die
+erwarteten Stellen wörtlich enthält, und schlägt fehl, wenn nicht. Wird ein
+Loader geändert, muss `scripts/check.mjs` mitgeändert werden — das Skript
+sagt dann, welche Stelle es nicht mehr findet.
+
+`scripts/holding.test.mjs` schneidet den Rechtsträger-Block aus `bsig.tsx`
+heraus und führt ihn aus, statt ihn nachzubauen. Wichtiger als der
+korrigierte Fall sind dort die Fälle, die **nicht** umgestellt werden
+dürfen: eine Gesellschaft mit „Holding" in der Firmierung kann sehr wohl
+die produzierende sein, und eine falsche Entwarnung wäre der gefährlichere
+Fehler.
