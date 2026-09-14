@@ -16,6 +16,14 @@ const BECK_NEG_URL  = "https://beck-online.beck.de/?sec=ICAgIGJlY2swODE1MDgxNTA4
 const NORTHDATA_BASE = "https://www.northdata.de";
 
 const WZ_LABELS = {
+  // Out-of-scope classes that nonetheless come up constantly, because the
+  // entity being checked is a group parent rather than a plant. Without a
+  // label here the result tile rendered the code with no description.
+  "64.20":   "Beteiligungsgesellschaften",
+  "64.2":    "Beteiligungsgesellschaften",
+  "70.10":   "Verwaltung und Führung von Unternehmen und Betrieben",
+  "70.1":    "Verwaltung und Führung von Unternehmen und Betrieben",
+  "70.10.0": "Verwaltung und Führung von Unternehmen und Betrieben",
   "26":      "Herst. von Datenverarbeitungsgeräten, elektronischen u. optischen Erzeugnissen",
   "26.1":    "Herst. von elektronischen Bauelementen und Leiterplatten",
   "26.11":   "Herst. von elektronischen Bauelementen",
@@ -3396,9 +3404,27 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   var scopeRule = de
     ? "\nSCOPE: in_scope=true fuer WZ 26.xx-30.99. Wichtig: Der Handelsregister-NACE kann unvollständig sein. Prüfe die tatsächlichen Produkte sorgfältig.\n"
     : "\nSCOPE: in_scope=true for WZ 26.xx-30.99. Important: The commercial register NACE may be incomplete. Check the actual products carefully.\n";
+  // Adressat der BSIG-Pflichten ist die einzelne Einrichtung, also der
+  // Rechtstraeger. Die Sektorzuordnung nach Anlage 2 Nr. 5 knuepft an dessen
+  // EIGENE Taetigkeit an. Ohne diese Regel hat das Modell die Taetigkeit der
+  // Tochtergesellschaften auf die Mutter uebertragen: die Kuhn Industrie
+  // Holding GmbH wurde als 28.96 gefuehrt, obwohl die Begruendung selbst
+  // feststellte, die Holding sei Verwaltung (70.10). Die Konzernverbindung
+  // ist fuer die SCHWELLENWERTE nach § 28 erheblich, nicht fuer den Sektor.
+  var entityRule = de
+    ? "\nRECHTSTRÄGER-PRINZIP (vorrangig): Bewertet wird ausschließlich die eigene wirtschaftliche Tätigkeit der genannten Einrichtung, nicht die von Mutter-, Schwester- oder Tochtergesellschaften. Jede Gesellschaft wird für sich betrachtet.\n" +
+      "- Ist die Gesellschaft eine reine Holding-, Verwaltungs- oder Beteiligungsgesellschaft (Hinweise: Firmierung mit „Holding\", „Beteiligungen\", „Verwaltung\"; Gegenstand = Erwerb, Halten und Verwalten von Beteiligungen, Konzernleitung, Geschäftsführung für verbundene Unternehmen), dann ist ihre eigene WZ-Nummer 70.10 (Verwaltung und Führung von Unternehmen und Betrieben) bzw. 64.20 (Beteiligungsgesellschaften). Beides liegt AUSSERHALB 26-30: primary_wz=\"70.10\" oder \"64.20\", in_scope=false.\n" +
+      "- Produzieren Tochtergesellschaften Waren nach 26-30, ändert das daran NICHTS. Übernimm niemals die WZ einer Tochter für die Mutter.\n" +
+      "- Nenne solche Töchter stattdessen in subsidiary_hints als Liste von Firmennamen (soweit bekannt) und setze holding_note auf einen Satz, der erklärt, dass diese Gesellschaften separat zu prüfen sind.\n" +
+      "- Übt die Gesellschaft daneben selbst operative Produktion aus (nicht nur Leitung), ist sie nach dieser operativen Tätigkeit einzustufen. Begründe das dann ausdrücklich.\n"
+    : "\nLEGAL-ENTITY PRINCIPLE (takes precedence): Assess only the named entity's own economic activity, not that of parent, sister or subsidiary companies. Each company is assessed separately.\n" +
+      "- If the company is a pure holding, management or investment company (indicators: \"Holding\", \"Beteiligungen\", \"Verwaltung\" in the name; business purpose = acquiring, holding and managing shareholdings, group management, management services for affiliates), then its own WZ is 70.10 (management activities of holding companies) or 64.20 (activities of holding companies). Both are OUTSIDE 26-30: primary_wz=\"70.10\" or \"64.20\", in_scope=false.\n" +
+      "- Subsidiaries manufacturing goods under 26-30 change NOTHING about this. Never adopt a subsidiary's WZ for the parent.\n" +
+      "- Instead name such subsidiaries in subsidiary_hints as a list of company names (where known) and set holding_note to one sentence explaining that those entities must be assessed separately.\n" +
+      "- If the company also carries out operational production itself (not just management), classify it by that operational activity and say so explicitly.\n";
   var exJson = de
-    ? '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false}'
-    : '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"high","reasoning":"Max 2 sentences.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false}';
+    ? '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"hoch","reasoning":"Max 2 Saetze.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[]}'
+    : '{"primary_wz":"28.41","primary_label":"Herst. von Maschinen fuer die Metallbearbeitung","in_scope":true,"confidence":"high","reasoning":"Max 2 sentences.","sources_used":["products"],"alternative_wz":[],"is_msp_hint":false,"msp_hint_reason":null,"unclassifiable":false,"holding_note":null,"subsidiary_hints":[]}';
   var unclassRule = de
     ? "\nNICHT-KLASSIFIZIERBAR: Wenn Produkt-/Taetigkeitsangaben fehlen oder zu unspezifisch sind, setze unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"niedrig\" und erlaeutere in reasoning kurz, welche Angaben fehlen.\n"
     : "\nUNCLASSIFIABLE: If product/activity data is missing or too unspecific, set unclassifiable=true, primary_wz=null, primary_label=null, in_scope=false, confidence=\"low\" and briefly explain in reasoning which information is missing.\n";
@@ -3416,8 +3442,8 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   // stable regardless of the per-call NACE hint.
   var fullWzList = relevantWzLabels(null);
   var staticPrefix = de
-    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + confRule + unclassRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + fullWzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\n\nAntworte NUR als JSON nach diesem Schema: " + exJson)
-    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + confRule + unclassRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + fullWzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\n\nReply ONLY as JSON matching this schema: " + exJson);
+    ? ("Experte BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + entityRule + confRule + unclassRule + mspRule + "\nVerfuegbare WZ (inkl. relevante Abt. 25 zur Abgrenzung):\n" + fullWzList + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 25 (Abgrenzung zu Abt. 28):\n" + GP2019_REF_25 + "\n\nPRODUKT-REFERENZ GP 2019 – Abteilung 28:\n" + GP2019_REF + "\n\nAntworte NUR als JSON nach diesem Schema: " + exJson)
+    : ("Expert BSIG 2025 + DESTATIS WZ 2008 + GP 2019." + scopeRule + entityRule + confRule + unclassRule + mspRule + "\nAvailable WZ (incl. relevant Div. 25 for boundary cases):\n" + fullWzList + "\n\nPRODUCT REFERENCE GP 2019 – Division 25 (boundary to Div. 28):\n" + GP2019_REF_25 + "\n\nPRODUCT REFERENCE GP 2019 – Division 28:\n" + GP2019_REF + "\n\nReply ONLY as JSON matching this schema: " + exJson);
   // Retrieve from the vendored Güterverzeichnis using the actual products plus
   // the register's Gegenstand. Appended to the VARIABLE half of the message:
   // the cached static prefix must stay byte-identical across calls.
@@ -3765,6 +3791,10 @@ function mk(l) {
     errPhase1:    de ? "Unternehmenssuche fehlgeschlagen. Bitte Firmennamen prüfen oder nur Produkte eingeben." : "Company lookup failed. Please check the company name or enter products only.",
     // Not "geprüfte Katalogeinträge": nothing here was verified, these are the
     // entries the classification was weighed against.
+    holdingTitle:   de ? "Konzernstruktur — Rechtsträger separat zu prüfen" : "Group structure — entities assessed separately",
+    holdingDefault: de ? "Die geprüfte Gesellschaft übt selbst keine Tätigkeit nach Anlage 2 Nr. 5 aus. Verbundene operative Gesellschaften sind eigene Rechtsträger und getrennt zu prüfen." : "The assessed company does not itself carry out an activity under Annex 2 No. 5. Affiliated operating companies are separate legal entities and must be assessed separately.",
+    holdingSubs:    de ? "Separat zu prüfen:" : "To assess separately:",
+    holdingBasis:   de ? "Die Sektorzuordnung knüpft an die eigene wirtschaftliche Tätigkeit der jeweiligen Einrichtung an. Für die Schwellenwerte nach § 28 BSIG 2025 kann die Konzernverbindung dagegen erheblich sein — siehe die Prüfung der IT-Selbständigkeit unten." : "Sector classification attaches to each entity's own economic activity. For the size thresholds under § 28 BSIG 2025, however, group affiliation can be decisive — see the IT-independence check below.",
     gpHitsTitle:  de ? "GP 2019 Güterverzeichnis — herangezogene Katalogeinträge" : "GP 2019 product catalogue — entries considered",
     gpAlternatives: de ? "Weitere in Betracht gezogene Klassen" : "Other classes considered",
     srcGp:        de ? "GP 2019 Güterverzeichnis" : "GP 2019 product catalogue",
@@ -5009,6 +5039,33 @@ export default function App() {
               {/* Catalogue entries the classification was checked against.
                   Every row is a real Meldenummer, so the answer can be
                   verified against the GP 2019 PDF by hand. */}
+              {/* Konzernmutter erkannt. Die Einrichtung selbst faellt nicht
+                  ueber Anlage 2 Nr. 5 in den Anwendungsbereich, die operativen
+                  Toechter sind aber eigene Rechtstraeger und separat zu
+                  pruefen. Bewusst neutral-blau statt gruen, damit der Block
+                  nicht als Entwarnung fuer den Konzern gelesen wird. */}
+              {(result.holding_note || (Array.isArray(result.subsidiary_hints) && result.subsidiary_hints.length > 0)) && (
+                <div style={{ padding: "14px 24px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#324C9C", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <MI name="account_tree" size={14} color="#324C9C"/>{t.holdingTitle}
+                  </div>
+                  <p style={{ fontSize: 12.5, color: "#374151", margin: "0 0 8px", lineHeight: 1.6 }}>
+                    {result.holding_note || t.holdingDefault}
+                  </p>
+                  {Array.isArray(result.subsidiary_hints) && result.subsidiary_hints.length > 0 && (
+                    <>
+                      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#324C9C", marginBottom: 5 }}>{t.holdingSubs}</div>
+                      <ul style={{ margin: "0 0 8px", paddingLeft: 18, fontSize: 12.5, color: "#374151", lineHeight: 1.65 }}>
+                        {result.subsidiary_hints.map(function(s, i) {
+                          return <li key={i}>{typeof s === "string" ? s : (s && (s.name || s.label)) || ""}</li>;
+                        })}
+                      </ul>
+                    </>
+                  )}
+                  <p style={{ fontSize: 11.5, color: "#6b7280", margin: 0, lineHeight: 1.55 }}>{t.holdingBasis}</p>
+                </div>
+              )}
+
               {Array.isArray(result.gp_hits) && result.gp_hits.length > 0 && (
                 <div style={{ padding: "14px 24px", background: "#fafafa", borderBottom: "1px solid #e5e7eb" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .4, display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
