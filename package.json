@@ -1,0 +1,13 @@
+{
+  "name": "claude-tools",
+  "private": true,
+  "type": "module",
+  "description": "Statische Browser-Apps gegen die Anthropic-API. Kein Build-Schritt; diese Pakete dienen nur den Pruefskripten.",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node scripts/check.mjs && node scripts/holding.test.mjs"
+  },
+  "devDependencies": {
+    "@babel/standalone": "7.25.6"
+  }
+}
