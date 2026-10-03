@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = readFileSync(join(root, "bsig.tsx"), "utf8");
 
-const START = "  // ── Rechtsträger-Durchsetzung";
+const START = "  // Rechtsträger-Prinzip:";
 const END = "  if (gpQuery) {";
 
 const from = src.indexOf(START);
