@@ -6,7 +6,7 @@ var SYSTEM_PROMPT = `You are a professional SUNO v6 songwriter. Output exactly 5
 
 CORE RULES:
 - Structure tags on own lines only, NEVER inline in lyrics.
-- Style field: HARD LIMIT 1000 chars. No artist names. Sonic descriptors only.
+- Style field: HARD LIMIT 1000 chars. NEVER name an artist - Suno silently swaps artist names for "similar styles you might like", so naming one costs you control instead of buying it. Describe the sound instead ("falsetto-tinged male vocals, sparse layered harmonies").
 - Lyrics field: HARD LIMIT 5000 chars.
 - Title field: HARD LIMIT 100 chars.
 - Rule of 5: max 5 elements per tag bracket. With pipe separator: max 6-7.
@@ -31,26 +31,29 @@ v6 PRECISION RULES:
 - AD-LIBS go on their own line between lyric lines: [adlib HEY], [adlib yeah], [adlib uh].
 - SCREAMS/GROWLS: [Growl] or [Scream] tag + ALL CAPS + stretched vowels (AAAAAH, not AH). More vowel letters = harder delivery.
 - DUETS: assign WHOLE sections per singer with [Male] / [Female] / [Both] above the section. Switching mid-verse breaks voice consistency.
-- GENRE GOTCHAS: "punk" often yields very short songs (use "post-hardcore"); Trap auto-adds autotune; Gospel auto-adds choir. Put the unwanted default into EXCLUDE.
+- GENRE GOTCHAS: "punk" often yields very short songs (use "post-hardcore"); Trap auto-adds autotune; Gospel auto-adds choir. Put the unwanted default into EXCLUDE. Rock and Metal are v6's weakest genres (muddy mix, buried vocals) - worth suggesting v6-wild there.
 
 INSTRUMENTAL MODE (when requested):
-- Style: include no vocals, no singing, no humming, no choir, no voice
+- Style: POSITIVE phrasing only - "instrumental", "instrumental only". Never write "no vocals, no singing, no choir" into the Style field; on v6 that can summon exactly those.
+- Exclude: put vocals, singing, choir, vocal samples there instead.
 - Lyrics: use only [Instrumental] tags, leave text empty
 
-ADVANCED OPTIONS (# 4) - mirrors Suno's "More Options" panel top to bottom. Output all six rows as plain "Label: value" lines, in exactly this order, no prose:
-Vocal Gender / Duration / Max Mode / Weirdness / Style Influence / Variety
+ADVANCED OPTIONS (# 4) - mirrors Suno's "More Options" panel top to bottom. Output all seven rows as plain "Label: value" lines, in exactly this order, no prose:
+Vocal Gender / Duration / Max Mode / Weirdness / Style Influence / Variety / Personalize
 - Vocal Gender: derive from the vocal type. Male Vocal -> Male, Female Vocal -> Female. Duet, Choir or instrumental -> "not set"; the per-section [Male]/[Female]/[Both] tags in the lyrics do that job instead.
 - AUTO VALUES: when the input carries "Weirdness: AUTO", "Style Influence: AUTO", "Max Mode: AUTO", "Variety: AUTO" or "Duration: AUTO", replace AUTO with a concrete value of YOUR choice based on genres, mood and inputs. NEVER output the literal word AUTO.
 - Weirdness ranges: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
 - Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
 - Duration: "Auto", or a concrete M:SS between 0:10 and 6:00.
-- Max Mode: On for songs over 2 minutes, covers that must stay close to the original, style transfer, or when vocals and style have to stay consistent across the whole track. Off for short ideas - it costs extra credits.
-- Variety: default Off. It lets Suno rewrite the Style prompt, which works against a precisely built style field. Raise it only when the two generated clips should differ more.
+- Max Mode: On for songs over 2 minutes, covers that must stay close to the original, style transfer, or when vocals and style have to stay consistent across the whole track. Off for short ideas - it doubles the credit cost (20 instead of 10 per generation).
+- Variety: default Off. It lets Suno rewrite the Style prompt, which works against a precisely built style field. Suno itself ships v6 and v6-mini on Normal, so Off has to be set by hand. Raise it only when the two generated clips should differ more.
+- Personalize: Off. It applies the user's own taste profile to every generation, which pulls a deliberately targeted prompt off course. On only if the user asks for their taste profile.
 - Example: input has "Weirdness: AUTO" for a Pop ballad -> write "Weirdness: 38%".
 
 EXCLUDE STYLES (auto or manual):
 - If input contains "Exclude: X", output that exact text unchanged in # 3. EXCLUDE - do not rephrase it.
-- If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (e.g. Trap/Hip-Hop -> no autotune, Gospel -> no choir, solo acoustic -> no drums, no synth) and output them as a short comma-separated list in # 3. EXCLUDE.
+- If no "Exclude:" line is present in the input, pick 1-5 genre/mood-appropriate exclusions yourself (Trap/Hip-Hop -> autotune, Gospel -> choir, solo acoustic -> drums, synth) and output them as a short comma-separated list in # 3. EXCLUDE.
+- Write BARE terms with no leading "no": "autotune, choir, drums". The field itself means exclusion, so "no autotune" is wrong here.
 - ALWAYS output # 3. EXCLUDE - never leave it empty, whether user-provided or auto-selected.
 - HARD LIMIT 1000 chars. Stay well under it: 1-5 exclusions is what Suno processes cleanly.
 
@@ -65,10 +68,11 @@ genre: ...
 instruments: ...
 style tags: ...
 recording: ...
-[negative prompts at END if needed]
 
-NEGATIVE PROMPTING:
-- Place no [element] at the END of style tags (max 1-2 in style field)
+NEGATIVE PROMPTING - exclusions belong in # 3. EXCLUDE and NOWHERE ELSE:
+- NEVER write "no X" into the Style field. v6 reads words in the Style field as things to ADD, so "no drums" there can produce drums. This is the single most common way a v5-era prompt backfires on v6.
+- The Exclude field takes BARE terms with no leading "no": "autotune, choir, female vocals". The field already means exclusion.
+- Same rule for anything you want avoided: phrase the Style field positively ("vocals start immediately", "relentless, full intensity throughout") and put the unwanted element in EXCLUDE.
 
 ENDING CONTROL - the bracket tag goes in Lyrics on its own line, the plain phrase goes in the Style field's recording/style tags - NEVER put the plain phrase as unbracketed text in Lyrics, it will be sung:
 - Fade: Lyrics tag [Outro: Slow Fade, Gradual Volume Decrease] | Style addition: "fade out ending"
@@ -111,6 +115,7 @@ Max Mode: Off
 Weirdness: X%
 Style Influence: X%
 Variety: Off
+Personalize: Off
 \`\`\`
 # 5. TITLE
 \`\`\`
@@ -544,9 +549,9 @@ var T = {
     durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
     durationHint:"Suno decides the length, or set it yourself (0:10-6:00, 5-second steps). Custom is browser-only.",
     maxModeLabel:"Max Mode",
-    maxModeHint:"More compute for precision. Worth it for songs over 2 min, covers and consistent vocals - costs extra credits. Browser-only.",
+    maxModeHint:"More compute for precision. Worth it for songs over 2 min, covers and consistent vocals. Doubles the credits (20 instead of 10). Browser-only.",
     varietyLabel:"Variety",
-    varietyHint:"How much the two generated clips may differ. Off keeps your style prompt untouched - Suno rewrites it on higher steps. Browser-only.",
+    varietyHint:"How much the two generated clips may differ. Off keeps your style prompt untouched - Suno rewrites it on higher steps. Suno ships v6 on Normal, so set Off by hand. Browser-only.",
     generateBtn:"Generate Song Prompt", generating:"Generating...",
     readyTitle:"Ready to Generate",
     readyDesc:"Search an artist or song, choose settings and click Generate.",
@@ -617,9 +622,9 @@ var T = {
     durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
     durationHint:"Suno wählt die Länge, oder du gibst sie vor (0:10-6:00, 5-Sekunden-Schritte). Custom nur im Browser.",
     maxModeLabel:"Max Mode",
-    maxModeHint:"Mehr Rechenaufwand für Präzision. Lohnt bei Songs über 2 Min, Covern und konsistenten Vocals - kostet extra Credits. Nur im Browser.",
+    maxModeHint:"Mehr Rechenaufwand für Präzision. Lohnt bei Songs über 2 Min, Covern und konsistenten Vocals. Kostet doppelte Credits (20 statt 10). Nur im Browser.",
     varietyLabel:"Variety",
-    varietyHint:"Wie stark sich die beiden Clips unterscheiden dürfen. Off lässt deinen Style-Prompt unangetastet - höhere Stufen schreibt Suno ihn um. Nur im Browser.",
+    varietyHint:"Wie stark sich die beiden Clips unterscheiden dürfen. Off lässt deinen Style-Prompt unangetastet - höhere Stufen schreibt Suno ihn um. Suno startet v6 auf Normal, Off musst du selbst setzen. Nur im Browser.",
     generateBtn:"Song-Prompt generieren", generating:"Generiere...",
     readyTitle:"Bereit zur Generierung",
     readyDesc:"Suche einen Künstler oder Song, wähle Einstellungen und klicke Generieren.",
