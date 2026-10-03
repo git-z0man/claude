@@ -462,6 +462,13 @@ function truncateExclude(s) {
   var pos = lastComma < 1 ? 1000 : lastComma;
   return cut.substring(0, pos).trim();
 }
+// The Exclude field already means "leave out", so "no autotune" there is
+// redundant at best. Strip a leading "no"/"without" per item and drop empties.
+function cleanExclude(s) {
+  return (s || "").split(",").map(function(x){
+    return x.trim().replace(/^(?:no|without)\s+/i, "");
+  }).filter(Boolean).join(", ");
+}
 function parseOutput(raw) {
   var r = {lyrics:"", style:"", advanced:"", title:"", exclude:""};
   function exB(sec) {
@@ -1280,11 +1287,13 @@ export default function App() {
       },
       body:JSON.stringify({
         model: modelMode==="fast" ? "claude-sonnet-5-5" : "claude-opus-5-5",
-        max_tokens:4096,
+        max_tokens:16000,
         // Fast: thinking off. Sonnet 5.5 rejects {type:"disabled"} with a 400,
         // so between_tools is the way to turn it off there. Keeping it off is
-        // deliberate - adaptive thinking ate the 4096 max_tokens budget on
-        // Sonnet 5 and returned empty responses.
+        // deliberate - adaptive thinking ate the old 4096 max_tokens budget on
+        // Sonnet 5 and returned empty responses. max_tokens is a ceiling, not
+        // a charge: 16000 leaves Premium's thinking room next to 5000 chars
+        // of lyrics instead of failing with "cut off".
         // Premium: adaptive at low effort. Opus 5.5 cannot disable thinking at
         // all, and its effort default dropped to medium, so low stays explicit.
         thinking: modelMode==="fast" ? {type:"between_tools"} : {type:"adaptive"},
@@ -1297,6 +1306,9 @@ export default function App() {
     if(!raw||!raw.trim()) throw new Error("Empty response");
     var d; try{d=JSON.parse(raw);}catch(e){throw new Error("Invalid JSON");}
     if(d.error) throw new Error("API: "+d.error.message);
+    if(d.stop_reason==="refusal") throw new Error(isEn
+      ? "Claude declined this request. Rephrase the song idea or lyrics and try again."
+      : "Claude hat die Anfrage abgelehnt. Song-Idee oder Lyrics umformulieren und erneut versuchen.");
     if(!d.content||!d.content.length) throw new Error("No content");
     var txt = d.content.map(function(b){return b.text||"";}).join("").trim();
     if(d.stop_reason==="max_tokens") throw new Error(isEn
@@ -1379,20 +1391,24 @@ export default function App() {
     if(songKey)            p.push("Key: "+songKey);
     if(dynamics.length)    p.push("Dynamics: "+dynamics.join(", "));
     if(prodFx.length)      p.push("Production: "+prodFx.join(", "));
-    if(vocalType)          p.push("Vocals: "+vocalType);
-    if(vocalTone)          p.push("Vocal tone: "+vocalTone);
-    if(accent)             p.push("Accent: "+accent+" (maintain consistently throughout)");
+    // "No Vocals" is instrumental mode. Sent as "Vocals: No Vocals" it would
+    // invite exactly the negative Style phrasing v6 turns into vocals.
+    var instr = instrumental || vocalType==="No Vocals";
+    if(vocalType && !instr) p.push("Vocals: "+vocalType);
+    if(vocalTone && !instr) p.push("Vocal tone: "+vocalTone);
+    if(accent && !instr)   p.push("Accent: "+accent+" (maintain consistently throughout)");
     if(era)                p.push("Era: "+era);
     p.push("Song language: "+(lang||"English")+
       " — ALL lyrics MUST be written exclusively in this language. Do NOT use any other language.");
     if(structure.length)   p.push("Structure: "+structure.join(" > "));
     if(lyricThemes.length) p.push("Themes: "+lyricThemes.join(", "));
     if(lyricContent)       p.push("Lyric content: "+lyricContent);
-    if(instrumental)       p.push(
-      "INSTRUMENTAL MODE: No vocals. Style must include no vocals no singing no humming. " +
+    if(instr)              p.push(
+      "INSTRUMENTAL MODE: Style says \"instrumental\" in positive terms only, " +
+      "never \"no vocals\". Vocals, singing and humming go into EXCLUDE. " +
       "Lyrics: use only [Instrumental] tags."
     );
-    if(voicesMode)         p.push(
+    if(voicesMode && !instr) p.push(
       "VOICES MODE: Remove ALL gender descriptors from Style AND Lyrics. " +
       "Use freed space for production detail. Keep Weirdness low."
     );
@@ -1406,7 +1422,14 @@ export default function App() {
     p.push("Duration: "+(durationMode==="auto" ? "Auto" : fmtDuration(durationSec)));
     p.push("Max Mode: "+(maxMode?"On":"Off"));
     p.push("Variety: "+variety);
-    if(excludeStyle.trim()) p.push("Exclude: "+excludeStyle.trim());
+    var excl = cleanExclude(excludeStyle);
+    if(excl && instr) {
+      var have = excl.toLowerCase().split(/\s*,\s*/);
+      ["vocals","singing","humming"].forEach(function(v){
+        if(have.indexOf(v)===-1) excl += ", "+v;
+      });
+    }
+    if(excl)               p.push("Exclude: "+excl);
     if(titleSugg.trim())   p.push("Title: "+titleSugg.trim());
     if(ownLyrics)          p.push("Own Lyrics:\n"+ownLyrics);
     if(description)        p.push("Additional: "+description);
@@ -1440,7 +1463,7 @@ export default function App() {
     try{
       var txt=await callSong([
         "Generate ONLY # 1. LYRICS and # 5. TITLE. " +
-        "Completely new lyrics. Do NOT output sections 2 or 3."
+        "Completely new lyrics. Do NOT output sections 2, 3 or 4."
       ]);
       var p=parseOutput(txt);
       assertComplete(p, ["lyrics"],
@@ -1460,7 +1483,7 @@ export default function App() {
     try{
       var extra=[
         "Generate ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS. " +
-        "HARD LIMIT: under 1000 characters for Style. No artist names. Do NOT output sections 1 or 4."
+        "HARD LIMIT: under 1000 characters for Style. No artist names. Do NOT output sections 1 or 5."
       ];
       if(output&&output.lyrics)
         extra=["Current Lyrics (context):",output.lyrics].concat(extra);
