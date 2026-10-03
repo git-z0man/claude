@@ -1132,7 +1132,7 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-haiku-4-5-20251001",max_tokens:10,
+        model:"claude-haiku-4-5",max_tokens:10,
         messages:[{role:"user",content:"hi"}]
       })
     }).then(function(r){
@@ -1274,9 +1274,15 @@ export default function App() {
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model: modelMode==="fast" ? "claude-sonnet-5" : "claude-opus-5",
+        model: modelMode==="fast" ? "claude-sonnet-5-5" : "claude-opus-5-5",
         max_tokens:4096,
-        thinking: modelMode==="fast" ? {type:"disabled"} : {type:"adaptive"},
+        // Fast: thinking off. Sonnet 5.5 rejects {type:"disabled"} with a 400,
+        // so between_tools is the way to turn it off there. Keeping it off is
+        // deliberate - adaptive thinking ate the 4096 max_tokens budget on
+        // Sonnet 5 and returned empty responses.
+        // Premium: adaptive at low effort. Opus 5.5 cannot disable thinking at
+        // all, and its effort default dropped to medium, so low stays explicit.
+        thinking: modelMode==="fast" ? {type:"between_tools"} : {type:"adaptive"},
         output_config: modelMode==="fast" ? undefined : {effort:"low"},
         system:[{type:"text", text:sysPr, cache_control:{type:"ephemeral"}}],
         messages:[{role:"user",content:userMsg}]
@@ -2464,17 +2470,17 @@ export default function App() {
                   <button onClick={function(){setModelMode("fast");}}
                     className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
                       (modelMode==="fast"?"bg-emerald-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
-                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 5</span>
+                    ⚡ {isEn?"Fast":"Schnell"} <span className="opacity-70">· Sonnet 5.5</span>
                   </button>
                   <button onClick={function(){setModelMode("premium");}}
                     className={"flex-1 py-1.5 rounded text-xs font-semibold transition-all "+
                       (modelMode==="premium"?"bg-indigo-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
-                    💎 {isEn?"Premium":"Premium"} <span className="opacity-70">· Opus 5</span>
+                    💎 {isEn?"Premium":"Premium"} <span className="opacity-70">· Opus 5.5</span>
                   </button>
                 </div>
                 <p className="text-[10px] text-zinc-500 mt-1 leading-snug">
                   {modelMode==="fast"
-                    ? (isEn?"~5× cheaper per song. Solid pop/standard genres.":"~5× günstiger pro Song. Solide für Pop / Standardgenres.")
+                    ? (isEn?"~2× cheaper per song. Solid pop/standard genres.":"~2× günstiger pro Song. Solide für Pop / Standardgenres.")
                     : (isEn?"Top-tier creative writing. Best for nuance & originality.":"Stärkstes Modell für Kreativtexte. Mehr Originalität.")}
                 </p>
               </div>
@@ -2692,7 +2698,7 @@ export default function App() {
                 <span className="text-[11px] text-zinc-600 shrink-0">·</span>
                 <button onClick={function(){navigateTo("advanced");}}
                   className="text-[11px] text-zinc-400 hover:text-indigo-300 shrink-0">
-                  {modelMode==="fast"?"⚡ Sonnet 5":"💎 Opus 5"}
+                  {modelMode==="fast"?"⚡ Sonnet 5.5":"💎 Opus 5.5"}
                 </button>
               </div>
               <button onClick={generate} disabled={loading}
@@ -2782,7 +2788,7 @@ export default function App() {
                   if (s.excludeStyle) items.push([isEn?"Exclude":"Ausschluss", s.excludeStyle]);
                   if (s.instrumental) items.push(["Instrumental", "✓"]);
                   if (s.voicesMode) items.push(["Voices Mode", "✓"]);
-                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 5":"💎 Opus 5"]);
+                  if (s.modelMode) items.push([isEn?"Model":"Modell", s.modelMode==="fast"?"⚡ Sonnet 5.5":"💎 Opus 5.5"]);
                   if (s.autoAdvanced) items.push([isEn?"Weirdness/Style":"Weirdness/Style", "AUTO"]);
                   else {
                     if (s.weirdness!==undefined) items.push(["Weirdness", s.weirdness+"%"]);
