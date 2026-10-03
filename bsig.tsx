@@ -3504,6 +3504,8 @@ async function analyzeWZ(company, products, compData, lang, signal) {
   // Rechtsträger-Prinzip: die Prompt-Regel allein genügt nicht, daher hier erzwingen.
   // Umgestellt nur bei selbst erklärtem "holding_rein" — eine reine Namensheuristik
   // würde falsche Entwarnungen erzeugen. Alles andere wird nur markiert.
+  // Diese erste Kommentarzeile und "if (gpQuery) {" unten sind die Marker, an
+  // denen scripts/holding.test.mjs den Block ausschneidet.
   var etype = String(parsed.entity_type || "").toLowerCase().trim();
   var wzNum = parseFloat(parsed.primary_wz);
   var wzInBsig = !isNaN(wzNum) && wzNum >= 26 && wzNum < 31;
