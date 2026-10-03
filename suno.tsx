@@ -751,17 +751,25 @@ function SectionHeader({title, onClear}) {
   );
 }
 function Section({id, title, onClear, isOpen, onToggle, hasData, children}) {
-  var effectiveOpen = hasData || isOpen;
-  var canToggle = !hasData;
+  // A section with data opens by itself so Smart Fill results are visible,
+  // but it can still be folded away - otherwise a filled-in form becomes one
+  // endless page.
+  var [foldedWithData, setFoldedWithData] = useState(false);
+  useEffect(function(){ if (!hasData) setFoldedWithData(false); }, [hasData]);
+  var effectiveOpen = hasData ? !foldedWithData : isOpen;
+  var canToggle = true;
+  function handleToggle() {
+    if (hasData) setFoldedWithData(!foldedWithData);
+    else onToggle();
+  }
   return (
     <div id={id?"sec-"+id:undefined} style={{scrollMarginTop:"54px"}}>
-      <div onClick={canToggle?onToggle:undefined}
+      <div onClick={canToggle?handleToggle:undefined}
         className={"flex items-center justify-between -mx-1 px-1 py-1 rounded select-none "+(canToggle?"cursor-pointer hover:bg-zinc-900/40":"cursor-default")}>
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-          {hasData
-            ? <span className="text-indigo-500 inline-block w-2 text-center" style={{fontSize:"10px"}}>●</span>
-            : <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{isOpen?"▼":"▶"}</span>}
+          <span className="text-zinc-600 inline-block w-2 text-center" style={{fontSize:"9px"}}>{effectiveOpen?"▼":"▶"}</span>
           <span>{title}</span>
+          {hasData && <span className="text-indigo-500" style={{fontSize:"8px"}}>●</span>}
         </h2>
         {onClear && (
           <span onClick={function(e){e.stopPropagation();}}>
@@ -854,12 +862,31 @@ function AdvancedDisplay({content, t, isEn}) {
   var wVal = wm?Number(wm[1]):null;
   var sVal = sm?Number(sm[1]):null;
   var wZone = wVal!==null?getWZone(wVal):null;
+  // Vocal Gender, Duration, Max Mode, Variety, Personalize: the model sets
+  // them too, and each one is a control the user has to set by hand in Suno.
+  var rows = content.split("\n").map(function(l){
+    return l.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
+  }).filter(function(m){
+    return m && !/^(weirdness|style influence)$/i.test(m[1]);
+  });
   return (
     <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
       <div className="px-4 py-3 border-b border-zinc-800">
         <p className="text-sm font-semibold text-white">{t.advTitle}</p>
         <p className="text-xs text-zinc-500">{t.advSubtitle}</p>
       </div>
+      {rows.length>0&&(
+        <div className="px-5 pt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {rows.map(function(m){
+            return (
+              <div key={m[1]} className="bg-zinc-800 rounded-lg px-3 py-2">
+                <p className="text-[11px] text-zinc-500">{m[1]}</p>
+                <p className="text-sm font-semibold text-white">{m[2]}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="p-5 space-y-6">
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -1071,6 +1098,14 @@ export default function App() {
   var [newPresetName, setNewPresetName] = useState("");
   function loadPreset(p) {
     var s = p.settings || {};
+    // Built-in templates only list what they care about. Without this reset,
+    // "Cinematic" followed by "Pop Ballad" would keep Instrumental and
+    // No Vocals switched on.
+    if (!p.id) {
+      setGenres([]); setMoods([]); setEnergy("Medium"); setTempoTerm("");
+      setBpmMin(""); setBpmMax(""); setVocalType(""); setVocalTone(""); setAccent("");
+      setDynamics([]); setSongKey(""); setProdFx([]); setEra(""); setInstrumental(false);
+    }
     if (s.genres) setGenres(s.genres);
     if (s.extraGenres) setExtraGenres(s.extraGenres);
     if (s.moods) setMoods(s.moods);
@@ -1248,8 +1283,12 @@ export default function App() {
     if(!artists.includes(n)) setArtists(function(p){return p.concat([n]);});
   }
   function removeArtist(a) {
-    setAvailArtists(function(p){return p.filter(function(x){return x!==a;});});
-    setArtists(function(p){return p.filter(function(x){return x!==a;});});
+    clearWithUndo(a, function(){
+      var sav=availArtists, sa=artists;
+      setAvailArtists(function(p){return p.filter(function(x){return x!==a;});});
+      setArtists(function(p){return p.filter(function(x){return x!==a;});});
+      return function(){ setAvailArtists(sav); setArtists(sa); };
+    });
   }
   function hideGenre(g) {
     setHiddenGenres(function(p){return p.includes(g)?p:p.concat([g]);});
@@ -1438,12 +1477,25 @@ export default function App() {
   async function callSong(extra) {
     return await callAPI(SYSTEM_PROMPT, settingsParts().concat(extra).join("\n"));
   }
+  // Regenerate/Optimize patch the entry that was on screen when the call
+  // started, also in the history, so switching entries does not throw the
+  // improved version away.
+  var curTsRef = useRef(null);
+  useEffect(function(){ curTsRef.current = currentEntryTs; }, [currentEntryTs]);
+  function patchOutput(ts, patch) {
+    if (ts!=null) setHistory(function(h){
+      return h.map(function(e){
+        return e.ts===ts ? Object.assign({}, e, {output:Object.assign({}, e.output, patch(e.output))}) : e;
+      });
+    });
+    if (curTsRef.current===ts) setOutput(function(prev){ return prev ? Object.assign({}, prev, patch(prev)) : prev; });
+  }
   function assertComplete(p, fields, enMsg, deMsg) {
     if(isIncompleteParse(p, fields)) throw new Error(isEn ? enMsg : deMsg);
   }
 
   async function generate() {
-    setLoading(true); setError(""); setOutput(null);
+    setLoading(true); setError("");
     try{
       var txt=await callSong([
         "Create a complete optimized SUNO v6 song prompt. " +
@@ -1460,6 +1512,7 @@ export default function App() {
   }
   async function regenLyrics() {
     setLoadingLyrics(true); setError("");
+    var ts=currentEntryTs;
     try{
       var txt=await callSong([
         "Generate ONLY # 1. LYRICS and # 5. TITLE. " +
@@ -1469,10 +1522,8 @@ export default function App() {
       assertComplete(p, ["lyrics"],
         "Regeneration returned no usable lyrics. Try again.",
         "Neue Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
-      setOutput(function(prev){
-        return Object.assign({},prev,{
-          lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
-        });
+      patchOutput(ts, function(prev){
+        return {lyrics:p.lyrics||prev.lyrics, title:p.title||prev.title};
       });
       setError("");
     }catch(e){ setError(e.message||String(e)); }
@@ -1480,6 +1531,7 @@ export default function App() {
   }
   async function regenStyle() {
     setLoadingStyle(true); setError("");
+    var ts=currentEntryTs;
     try{
       var extra=[
         "Generate ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS. " +
@@ -1492,12 +1544,12 @@ export default function App() {
       assertComplete(p, ["style","exclude"],
         "Regeneration returned no usable style. Try again.",
         "Neuer Style enthielt keinen verwertbaren Text. Erneut versuchen.");
-      setOutput(function(prev){
-        return Object.assign({},prev,{
+      patchOutput(ts, function(prev){
+        return {
           style:truncateStyle(p.style)||prev.style,
           advanced:p.advanced||prev.advanced,
           exclude:p.exclude||prev.exclude
-        });
+        };
       });
       setError("");
     }catch(e){ setError(e.message||String(e)); }
@@ -1505,6 +1557,7 @@ export default function App() {
   }
   async function optimizeLyrics() {
     setOptimizingLyrics(true); setError("");
+    var ts=currentEntryTs;
     try{
       var txt=await callSong([
         "Lyrics to optimize:",(output&&output.lyrics)||"",
@@ -1515,10 +1568,8 @@ export default function App() {
       assertComplete(p, ["lyrics"],
         "Optimization returned no usable lyrics. Try again.",
         "Optimierte Lyrics enthielten keinen verwertbaren Text. Erneut versuchen.");
-      setOutput(function(prev){
-        return Object.assign({},prev,{
-          lyrics:p.lyrics||prev.lyrics,title:p.title||prev.title
-        });
+      patchOutput(ts, function(prev){
+        return {lyrics:p.lyrics||prev.lyrics, title:p.title||prev.title};
       });
       setError("");
     }catch(e){ setError(e.message||String(e)); }
@@ -1526,6 +1577,7 @@ export default function App() {
   }
   async function optimizeStyle() {
     setOptimizingStyle(true); setError("");
+    var ts=currentEntryTs;
     try{
       var txt=await callSong([
         "Style to optimize:",(output&&output.style)||"",
@@ -1536,12 +1588,12 @@ export default function App() {
       assertComplete(p, ["style","exclude"],
         "Optimization returned no usable style. Try again.",
         "Optimierter Style enthielt keinen verwertbaren Text. Erneut versuchen.");
-      setOutput(function(prev){
-        return Object.assign({},prev,{
+      patchOutput(ts, function(prev){
+        return {
           style:truncateStyle(p.style)||prev.style,
           advanced:p.advanced||prev.advanced,
           exclude:p.exclude||prev.exclude
-        });
+        };
       });
       setError("");
     }catch(e){ setError(e.message||String(e)); }
@@ -1666,7 +1718,7 @@ export default function App() {
 
   return (
     <div style={{fontFamily:"system-ui,sans-serif"}}
-      className={"min-h-screen bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"")}>
+      className={"h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col "+(theme==="light"?"theme-light":"theme-dark")}>
       <style>{`
         input,textarea,select{font-size:16px!important}
         /* On touch devices iOS Safari leaves :hover stuck after a tap, so a
@@ -1684,6 +1736,10 @@ export default function App() {
           .hover\\:text-white:hover,
           .hover\\:text-zinc-300:hover { color: inherit !important; }
         }
+        /* zinc-600 on zinc-950 is ~2.6:1 - too faint for the helper texts
+           that use it. zinc-500 reaches ~4:1. */
+        .theme-dark .text-zinc-600 { color: #71717a !important; }
+        .theme-dark .placeholder-zinc-600::placeholder { color: #71717a !important; }
         /* Root may have bg-zinc-950 + theme-light on the SAME element — match both descendant AND same-element */
         .theme-light.bg-zinc-950, .theme-light .bg-zinc-950 { background-color: #ffffff !important; }
         .theme-light.bg-zinc-900, .theme-light .bg-zinc-900 { background-color: #fafafa !important; }
@@ -1767,7 +1823,7 @@ export default function App() {
         <div className="flex items-center gap-2.5 min-w-0">
           <div title={t.appSubtitle}
             className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-lg shrink-0">🎵</div>
-          <h1 className="text-base font-semibold text-white truncate">SUNO Song Creator</h1>
+          <h1 className="text-base font-semibold text-white truncate">SUNO<span className="hidden sm:inline"> Song Creator</span></h1>
           <button onClick={checkApi}
             title={apiStatus==="error"?(isEn?"API error - tap to retry":"API-Fehler - tippen für neuen Versuch"):(isEn?"API connected - tap to recheck":"API verbunden - tippen für neuen Check")}
             aria-label={isEn?"API status":"API-Status"}
@@ -1791,8 +1847,9 @@ export default function App() {
           </div>
           {!confirmReset
             ?<button onClick={function(){setConfirmReset(true);}}
+              title={t.restart} aria-label={t.restart}
               className="px-3 py-1.5 rounded text-xs font-medium border border-zinc-700 text-zinc-400 hover:border-red-600 hover:text-red-400 transition-all">
-              ↺ {t.restart}
+              ↺<span className="hidden sm:inline"> {t.restart}</span>
             </button>
             :<div className="flex items-center gap-1">
               <button onClick={resetAll}
@@ -1810,8 +1867,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Panel Toggle */}
-      <div className="flex border-b border-zinc-800">
+      {/* Panel Toggle - wide screens show both panels side by side */}
+      <div className="flex border-b border-zinc-800 lg:hidden">
         <button onClick={function(){setPanel("settings");}}
           className={"flex-1 py-2.5 text-xs font-semibold transition-all "+
             (panel==="settings"?"bg-zinc-800 text-white border-b-2 border-indigo-500":"text-zinc-500 hover:text-zinc-300")}>
@@ -1826,14 +1883,14 @@ export default function App() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden" style={{minHeight:0}}>
+      <div className="flex-1 overflow-hidden lg:grid lg:grid-cols-2" style={{minHeight:0}}>
 
         {/* SETTINGS */}
-        {panel==="settings"&&(
-          <div className="h-full overflow-y-auto p-4 space-y-5">
+        {(
+          <div className={"h-full overflow-y-auto px-4 space-y-5 lg:border-r lg:border-zinc-800 "+(panel==="settings"?"":"hidden lg:block")}>
 
             {/* Quick-Nav-Chips */}
-            <div className="sticky top-0 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-zinc-950 z-20 border-b border-zinc-800 mb-1">
+            <div className="sticky top-0 -mx-4 px-4 pt-3 pb-2 bg-zinc-950 z-20 border-b border-zinc-800 mb-1">
               <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none", WebkitOverflowScrolling:"touch"}}>
                 {[
                   {id:"smartFill",   label:isEn?"Smart Fill":"Smart"},
@@ -2745,8 +2802,8 @@ export default function App() {
         )}
 
         {/* OUTPUT */}
-        {panel==="output"&&(
-          <div className="h-full overflow-y-auto flex flex-col">
+        {(
+          <div className={"h-full overflow-y-auto flex-col "+(panel==="output"?"flex":"hidden lg:flex")}>
             {!output&&!loading&&(
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                 <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center text-3xl mb-4">🎵</div>
@@ -2754,7 +2811,7 @@ export default function App() {
                 <p className="text-sm text-zinc-500 max-w-sm">{t.readyDesc}</p>
               </div>
             )}
-            {loading&&(
+            {loading&&!output&&(
               <div className="flex-1 flex flex-col items-center justify-center gap-3">
                 <div className="w-10 h-10 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"/>
                 <p className="text-sm text-zinc-400">{t.generating}</p>
@@ -2762,6 +2819,12 @@ export default function App() {
             )}
             {output&&(
               <div className="p-4">
+                {loading&&(
+                  <div className="mb-3 px-3 py-2 rounded-lg bg-indigo-950 border border-indigo-800 flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-zinc-600 border-t-indigo-400 rounded-full animate-spin shrink-0"/>
+                    <p className="text-xs text-indigo-300">{t.generating}</p>
+                  </div>
+                )}
                 {error&&<p className="text-xs text-red-400 bg-red-900 rounded p-2 mb-2">{error}</p>}
                 {history.length>1&&(
                   <div className="mb-3">
@@ -2861,7 +2924,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-end mb-2">
                   <CopyBtn
-                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 3. EXCLUDE\n```\n"+(output.exclude||"")+"\n```\n\n# 5. TITLE\n```\n"+output.title+"\n```"}
+                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 3. EXCLUDE\n```\n"+(output.exclude||"")+"\n```\n\n# 4. ADVANCED OPTIONS\n```\n"+(output.advanced||"")+"\n```\n\n# 5. TITLE\n```\n"+output.title+"\n```"}
                     label={t.copyAll} doneLabel={t.copied}/>
                 </div>
                 {activeTab==="lyrics"&&(
