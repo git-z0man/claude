@@ -1,0 +1,68 @@
+<title>SUNO Song Creator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  Loader for the claude.ai Artifact version of suno.tsx.
+  Published with the Artifact tool, suno.tsx alongside as a supporting file,
+  and the capabilities mcp (Suno: audio-create, audio-wait, voices-list) and
+  sample. Unlike suno.html it needs no API key: Claude comes through the
+  sample capability and Suno through the viewer's own connector.
+  The file has no <html>/<head>/<body> because the Artifact tool adds them.
+-->
+<style>
+  :root { --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --line: #27272a; --accent: #6366f1; --err: #fda4af; color-scheme: dark; }
+  html, body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, sans-serif; }
+  #root { min-height: 100vh; }
+  .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; text-align: center;
+          padding-block: 1.5rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .boot .hint { color: var(--muted); font-size: 13px; max-width: 26rem; line-height: 1.55; }
+  .boot .err { color: var(--err); font-size: 13px; max-width: 26rem; }
+  .boot button { background: var(--accent); color: var(--fg); padding: 0.625rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .spin { width: 1.75rem; height: 1.75rem; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 9999px; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+</style>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<div id="root">
+  <div class="boot">
+    <div class="spin"></div>
+    <div class="hint">SUNO Song Creator wird geladen…</div>
+  </div>
+</div>
+
+<script>
+  function renderError(msg) {
+    var root = document.getElementById("root");
+    root.innerHTML = '<div class="boot"><div style="font-weight:600;font-size:1.1rem">App konnte nicht geladen werden</div>' +
+      '<div class="err"></div><button id="reload">Neu laden</button></div>';
+    root.querySelector(".err").textContent = msg;
+    document.getElementById("reload").addEventListener("click", function(){ location.reload(); });
+  }
+
+  async function boot() {
+    try {
+      var res = await fetch("./suno.tsx", { cache: "no-cache" });
+      if (!res.ok) throw new Error("suno.tsx konnte nicht geladen werden (HTTP " + res.status + ").");
+      var src = await res.text();
+      // Same two edits as suno.html, without the API-key header: here the
+      // Anthropic fetch is never used, sample takes its place.
+      src = src.replace(/^import \{([^}]+)\} from "react";\s*/m, "var {$1} = React;\n");
+      src = src.replace(/export default function App/, "function App");
+      var out = Babel.transform(src, {
+        presets: [["typescript", { isTSX: true, allExtensions: true, onlyRemoveTypeImports: true }], "react"],
+        filename: "suno.tsx"
+      });
+      var App = new Function("React", out.code + "\nreturn App;")(React);
+      var rootEl = document.getElementById("root");
+      rootEl.innerHTML = "";
+      ReactDOM.createRoot(rootEl).render(React.createElement(App));
+    } catch (err) {
+      console.error(err);
+      renderError(String((err && err.message) || err));
+    }
+  }
+  boot();
+</script>

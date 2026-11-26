@@ -9,14 +9,14 @@ CORE RULES:
 - Style field: HARD LIMIT 1000 chars. NEVER name an artist - Suno silently swaps artist names for "similar styles you might like", so naming one costs you control instead of buying it. Describe the sound instead ("falsetto-tinged male vocals, sparse layered harmonies").
 - Lyrics field: HARD LIMIT 5000 chars.
 - Title field: HARD LIMIT 100 chars.
-- Rule of 5: max 5 elements per tag bracket. With pipe separator: max 6-7.
+- Rule of 5: max 5 elements per tag bracket, pipes included ([Chorus | anthemic | stacked harmonies]). Each element 3-4 words at most.
 - RHYME: Every verse/chorus/bridge needs clear AABB or ABAB scheme.
 - Non-English: write lyrics natively in the target language. For tricky pronunciation, respell words phonetically inline (e.g. "cafe" -> "kah-FAY") instead of inventing bracket tags.
 - CRITICAL: Write ALL lyrics in the Song language specified. Never default to German or any other language.
 - BPM and Key go in Style field ONLY.
 - Front-load Style field: most important genre and mood in first 20-30 words.
 - Suno reads descriptive words, not parameter syntax. NEVER invent colon/percent-style pseudo-tags like [Reverb: 30%], [Bass: 80%], [Stereo Width: Wide], [Vocal Tone: X]. Use plain descriptive adjectives instead (e.g. "reverb-heavy", "punchy bass", "wide stereo image").
-- Quality comes from the model choice plus the UI controls (Weirdness, Style Influence, Variety, Max Mode, Audio Influence) - never from a bracket tag. v6 does have a real Max Mode, but it is a UI toggle only: [Is_MAX_MODE: MAX], [QUALITY: MAX] and [REALISM: MAX] as text are myths and can even get sung.
+- Quality comes from the model choice plus the UI controls (Weirdness, Style Influence, Variety, Max Mode, Audio Influence) - never from a bracket tag. Max Mode, Variety, Duration and Vocal Gender are settings, never text tags: [Is_MAX_MODE: MAX], [QUALITY: MAX] and [REALISM: MAX] as text are myths and can even get sung.
 
 v6 PRECISION RULES:
 - Use SPECIFIC descriptors. v6 responds to nuance. 5-7 specific tags.
@@ -27,7 +27,8 @@ v6 PRECISION RULES:
 - v6 reads per-section performance direction reliably. Use directed section tags where a section should change: [Bridge | female | whispered].
 - ERA ANCHOR: name the decade together with the genre. "1980s synthwave" beats "synthwave", "90s boom bap" beats "hip hop". Single biggest win for genre fidelity.
 - GENRE FUSION: bridge the genres explicitly ("jazz-influenced hyperpop"), never list them side by side ("jazz, hyperpop") - side-by-side averages into mush.
-- Style field sweet spot is 400-800 chars even though 1000 is allowed. Under 4 tags = generic, over 10 = the later ones get ignored.
+- Style field sweet spot is 400-800 chars even though 1000 is allowed. Budget: 6-8 terms in total, max 2 genres (bridged), max 1-2 eras, max 3-4 instruments, max 2 mood words. Under 4 tags = generic, over 10 = the later ones get ignored.
+- BPM as a value ("118 BPM"), key as "in A minor".
 - AD-LIBS go on their own line between lyric lines: [adlib HEY], [adlib yeah], [adlib uh].
 - SCREAMS/GROWLS: [Growl] or [Scream] tag + ALL CAPS + stretched vowels (AAAAAH, not AH). More vowel letters = harder delivery.
 - DUETS: assign WHOLE sections per singer with [Male] / [Female] / [Both] above the section. Switching mid-verse breaks voice consistency.
@@ -38,17 +39,14 @@ INSTRUMENTAL MODE (when requested):
 - Exclude: put vocals, singing, choir, vocal samples there instead.
 - Lyrics: use only [Instrumental] tags, leave text empty
 
-ADVANCED OPTIONS (# 4) - mirrors Suno's "More Options" panel top to bottom. Output all seven rows as plain "Label: value" lines, in exactly this order, no prose:
-Vocal Gender / Duration / Max Mode / Weirdness / Style Influence / Variety / Personalize
-- Vocal Gender: derive from the vocal type. Male Vocal -> Male, Female Vocal -> Female. Duet, Choir or instrumental -> "not set"; the per-section [Male]/[Female]/[Both] tags in the lyrics do that job instead.
-- AUTO VALUES: when the input carries "Weirdness: AUTO", "Style Influence: AUTO", "Max Mode: AUTO", "Variety: AUTO" or "Duration: AUTO", replace AUTO with a concrete value of YOUR choice based on genres, mood and inputs. NEVER output the literal word AUTO.
-- Weirdness ranges: 10-25 Genre-True, 20-40 Commercial, 45-55 Balanced/Standard (the normal default, not to be avoided), 55-65 Creative, 65-80 Experimental, 80-95 Chaos.
-- Style Influence ranges: 45-60 Vague input, 65-75 Clear, 78-90 Specific.
-- Duration: "Auto", or a concrete M:SS between 0:10 and 6:00.
-- Max Mode: On for songs over 2 minutes, covers that must stay close to the original, style transfer, or when vocals and style have to stay consistent across the whole track. Off for short ideas - it doubles the credit cost (20 instead of 10 per generation).
-- Variety: default Off. It lets Suno rewrite the Style prompt, which works against a precisely built style field. Suno itself ships v6 and v6-mini on Normal, so Off has to be set by hand. Raise it only when the two generated clips should differ more.
-- Personalize: Off. It applies the user's own taste profile to every generation, which pulls a deliberately targeted prompt off course. On only if the user asks for their taste profile.
-- Example: input has "Weirdness: AUTO" for a Pop ballad -> write "Weirdness: 38%".
+SETTINGS (# 4) - exactly what goes to Suno with the song. Output all seven rows as plain "Label: value" lines, in exactly this order, no prose:
+Model / Max Mode / Variety / Vocal Gender / Duration / Weirdness / Style Influence
+- Model, Max Mode, Variety, Duration: copy the value from the input unchanged. The user sets them.
+- Vocal Gender: derive from the vocal type. Male Vocal -> Male, Female Vocal -> Female. Duet, Choir, Voices mode or instrumental -> "not set"; the per-section [Male]/[Female]/[Both] tags in the lyrics do that job instead.
+- AUTO VALUES: when the input carries "Weirdness: AUTO" or "Style Influence: AUTO", replace AUTO with a concrete value of YOUR choice based on genres, mood and inputs. NEVER output the literal word AUTO.
+- Weirdness ranges: Pop/commercial 20-40, balanced ~50 (the normal default, not to be avoided), Indie 50-65, experimental 65-80. Above ~80 it turns chaotic.
+- Style Influence: 70-100 for a worked-out Style field like the one you write (then fewer meta tags in the lyrics). 55-65 only when the input is vague.
+- Example: input has "Weirdness: AUTO" for a Pop ballad -> write "Weirdness: 32%".
 
 EXCLUDE STYLES (auto or manual):
 - If input contains "Exclude: X", output that exact text unchanged in # 3. EXCLUDE - do not rephrase it.
@@ -75,7 +73,7 @@ NEGATIVE PROMPTING - exclusions belong in # 3. EXCLUDE and NOWHERE ELSE:
 - Same rule for anything you want avoided: phrase the Style field positively ("vocals start immediately", "relentless, full intensity throughout") and put the unwanted element in EXCLUDE.
 
 ENDING CONTROL - the bracket tag goes in Lyrics on its own line, the plain phrase goes in the Style field's recording/style tags - NEVER put the plain phrase as unbracketed text in Lyrics, it will be sung:
-- Fade: Lyrics tag [Outro: Slow Fade, Gradual Volume Decrease] | Style addition: "fade out ending"
+- Fade: Lyrics tags [Outro: Slow Fade], then [Fade Out], then [End], each on its own line | Style addition: "fade out ending"
 - Hard Stop: Lyrics tag [Outro: Sudden Stop, Final Chord Hit] | Style addition: "definitive ending"
 - Echo: Lyrics tag [Outro: Reverb Decay, Echoing Into Distance] | Style addition: "reverb tail ending"
 
@@ -107,15 +105,15 @@ recording: ...
 \`\`\`
 comma, separated, excluded, elements
 \`\`\`
-# 4. ADVANCED OPTIONS
+# 4. SETTINGS
 \`\`\`
+Model: v6
+Max Mode: On
+Variety: High
 Vocal Gender: Male
 Duration: Auto
-Max Mode: Off
 Weirdness: X%
 Style Influence: X%
-Variety: Off
-Personalize: Off
 \`\`\`
 # 5. TITLE
 \`\`\`
@@ -484,7 +482,7 @@ function parseOutput(raw) {
   r.lyrics   = exB((raw.match(/# 1\. LYRICS[\s\S]*?(?=# 2\.|$)/i)   || [])[0]);
   r.style    = exB((raw.match(/# 2\. STYLE[\s\S]*?(?=# 3\.|$)/i)    || [])[0]);
   r.exclude  = exB((raw.match(/# 3\.\s*(?:EXCLUDE|AUSSCHLUSS)\b[\s\S]*?(?=# 4\.|$)/i) || [])[0]);
-  r.advanced = exB((raw.match(/# 4\. ADVANCED[\s\S]*?(?=# 5\.|$)/i) || [])[0]);
+  r.advanced = exB((raw.match(/# 4\.\s*(?:ADVANCED|SETTINGS|EINSTELLUNGEN)\b[\s\S]*?(?=# 5\.|$)/i) || [])[0]);
   r.title    = exB((raw.match(/# 5\.\s*(?:TITLE|TITEL)\b[\s\S]*?$/i) || [])[0]);
   r.style    = truncateStyle(r.style);
   r.lyrics   = truncateLyrics(r.lyrics);
@@ -492,9 +490,18 @@ function parseOutput(raw) {
   r.exclude  = truncateExclude(r.exclude);
   return r;
 }
-// Suno's Duration field runs 0:10 to 6:00 in 5-second steps.
-var DURATION_MIN = 10, DURATION_MAX = 360, DURATION_STEP = 5;
-var VARIETY_STEPS = ["Off","Normal","Extra","High","Max"];
+// The connector takes 15 to 360 seconds.
+var DURATION_MIN = 15, DURATION_MAX = 360, DURATION_STEP = 5;
+// Same order as the connector's controls.variety: 0 Off, 1 Normal, 2 High,
+// 3 Extra, 4 Max. The index is the value that goes to Suno.
+var VARIETY_STEPS = ["Off","Normal","High","Extra","Max"];
+// Project default since 7 Nov 2026: Max Mode on, Variety High.
+var DEFAULT_MAX_MODE = true, DEFAULT_VARIETY = "High", DEFAULT_SUNO_MODEL = "v6";
+var SUNO_MODELS = [
+  {id:"v6",      en:"Standard, precise",                de:"Standard, präzise"},
+  {id:"v6-wild", en:"Experimental, try for rock/metal", de:"Experimentell, auch bei Rock/Metal"},
+  {id:"v6-mini", en:"Fast, for drafts",                 de:"Schnell, für Entwürfe"},
+];
 function fmtDuration(sec) {
   var m = Math.floor(sec / 60), s = sec % 60;
   return m + ":" + (s < 10 ? "0" + s : String(s));
@@ -559,22 +566,22 @@ var T = {
     styleInfluenceLabel:"Style Influence",
     styleLeft:"AI Freedom", styleRight:"Very Strict",
     durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
-    durationHint:"Suno decides the length, or set it yourself (0:10-6:00, 5-second steps). Custom is browser-only.",
+    durationHint:"Auto is the default: Suno decides the length. Set one (0:15-6:00) only when a song comes out too long; it goes as a soft target so the outro survives.",
     maxModeLabel:"Max Mode",
-    maxModeHint:"More compute for precision. Worth it for songs over 2 min, covers and consistent vocals. Doubles the credits (20 instead of 10). Browser-only.",
+    maxModeHint:"More compute for precision. Worth it for songs over 2 min, covers and consistent vocals. Doubles the credits (20 instead of 10). Project default: on.",
     varietyLabel:"Variety",
-    varietyHint:"How much the two generated clips may differ. Off keeps your style prompt untouched - Suno rewrites it on higher steps. Suno ships v6 on Normal, so set Off by hand. Browser-only.",
+    varietyHint:"How far Suno reinterprets the Style tags before it makes the song. Off keeps them as written, Max is a radical departure. Project default: High.",
     generateBtn:"Generate Song Prompt", generating:"Generating...",
     readyTitle:"Ready to Generate",
     readyDesc:"Search an artist or song, choose settings and click Generate.",
     regenBtn:"Regenerate", optimizeBtn:"Optimize",
     regenBusy:"Generating...", optimizeBusy:"Optimizing...",
-    tab1:"1 Lyrics", tab2:"2 Style", tab3:"3 Advanced / Title",
+    tab1:"1 Lyrics", tab2:"2 Style", tab3:"3 Settings / Title",
     copyAll:"Copy All", copied:"Copied!", copy:"Copy",
     lyricsTitle:"Lyrics", lyricsSubtitle:"Paste into SUNO Lyrics field",
     styleTitle:"Style", styleSubtitle:"Paste into SUNO Style field",
     excludeTitle:"Exclude Styles", excludeSubtitle:"Paste into SUNO Exclude Styles field",
-    advTitle:"Advanced Options", advSubtitle:"Recommended settings for SUNO",
+    advTitle:"Settings", advSubtitle:"Exactly what goes to Suno",
     advWeirdDesc:"Creativity vs. genre accuracy",
     advStyleDesc:"Influence of the Style field",
     titleSectionTitle:"Title", titleSectionSubtitle:"For the SUNO song title",
@@ -633,22 +640,22 @@ var T = {
     styleInfluenceLabel:"Style Influence",
     styleLeft:"KI-Freiheit", styleRight:"Sehr strikt",
     durationLabel:"Duration", durationAuto:"Auto", durationCustom:"Custom",
-    durationHint:"Suno wählt die Länge, oder du gibst sie vor (0:10-6:00, 5-Sekunden-Schritte). Custom nur im Browser.",
+    durationHint:"Standard ist Auto: Suno wählt die Länge. Eine feste Länge (0:15-6:00) nur, wenn ein Song zu lang wird; sie geht als weiches Ziel raus, damit das Outro bleibt.",
     maxModeLabel:"Max Mode",
-    maxModeHint:"Mehr Rechenaufwand für Präzision. Lohnt bei Songs über 2 Min, Covern und konsistenten Vocals. Kostet doppelte Credits (20 statt 10). Nur im Browser.",
+    maxModeHint:"Mehr Rechenaufwand für Präzision. Lohnt bei Songs über 2 Min, Covern und konsistenten Vocals. Kostet doppelte Credits (20 statt 10). Projektstandard: an.",
     varietyLabel:"Variety",
-    varietyHint:"Wie stark sich die beiden Clips unterscheiden dürfen. Off lässt deinen Style-Prompt unangetastet - höhere Stufen schreibt Suno ihn um. Suno startet v6 auf Normal, Off musst du selbst setzen. Nur im Browser.",
+    varietyHint:"Wie frei Suno die Style-Tags vor dem Generieren umdeutet. Off nimmt sie wörtlich, Max weicht radikal ab. Projektstandard: High.",
     generateBtn:"Song-Prompt generieren", generating:"Generiere...",
     readyTitle:"Bereit zur Generierung",
     readyDesc:"Suche einen Künstler oder Song, wähle Einstellungen und klicke Generieren.",
     regenBtn:"Neu generieren", optimizeBtn:"Optimieren",
     regenBusy:"Generiere...", optimizeBusy:"Optimiere...",
-    tab1:"1 Lyrics", tab2:"2 Style", tab3:"3 Erweitert / Titel",
+    tab1:"1 Lyrics", tab2:"2 Style", tab3:"3 Einstellungen / Titel",
     copyAll:"Alle kopieren", copied:"Kopiert!", copy:"Kopieren",
     lyricsTitle:"Lyrics", lyricsSubtitle:"In das SUNO Lyrics-Feld einfügen",
     styleTitle:"Style", styleSubtitle:"In das SUNO Style-Feld einfügen",
     excludeTitle:"Style ausschließen", excludeSubtitle:"In das SUNO Exclude-Styles-Feld einfügen",
-    advTitle:"Erweiterte Optionen", advSubtitle:"Empfohlene Einstellungen für SUNO",
+    advTitle:"Einstellungen", advSubtitle:"So gehen sie an Suno",
     advWeirdDesc:"Kreativität vs. Genre-Treue",
     advStyleDesc:"Einfluss des Style-Feldes",
     titleSectionTitle:"Titel", titleSectionSubtitle:"Für den SUNO Song-Titel",
@@ -869,7 +876,7 @@ function AdvancedDisplay({content, t, isEn}) {
   var wVal = wm?Number(wm[1]):null;
   var sVal = sm?Number(sm[1]):null;
   var wZone = wVal!==null?getWZone(wVal):null;
-  // Vocal Gender, Duration, Max Mode, Variety, Personalize: the model sets
+  // Model, Max Mode, Variety, Vocal Gender, Duration: the model sets
   // them too, and each one is a control the user has to set by hand in Suno.
   var rows = content.split("\n").map(function(l){
     return l.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
@@ -934,6 +941,306 @@ function AdvancedDisplay({content, t, isEn}) {
             <span>100 {t.styleRight}</span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Suno connector ────────────────────────────────────────────────────────────
+//
+// Inside a published claude.ai Artifact the page reaches the viewer's Suno
+// connector through claude.use("mcp"), with the viewer's own sign-in. On
+// GitHub Pages and in chat artifacts there is no such runtime, and the app
+// stays on copy and paste.
+
+var SUNO_SERVER = "Suno";
+
+function hasClaudeRuntime() {
+  return typeof window !== "undefined" && !!window.claude && typeof window.claude.use === "function";
+}
+
+// The "# 4. SETTINGS" block as {lowercase label: value}.
+function readSettingRows(adv) {
+  var o = {};
+  (adv || "").split("\n").forEach(function(l){
+    var m = l.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
+    if (m) o[m[1].toLowerCase()] = m[2];
+  });
+  return o;
+}
+function parseDurationSec(v) {
+  var m = (v || "").match(/^(\d+):(\d{2})$/);
+  if (!m) return null;
+  return Math.min(DURATION_MAX, Math.max(DURATION_MIN, Number(m[1]) * 60 + Number(m[2])));
+}
+function pct(v) {
+  var n = parseInt(v, 10);
+  return isFinite(n) ? Math.min(100, Math.max(0, n)) / 100 : null;
+}
+
+// What the settings block says, mapped to audio-create. The block on screen
+// is the source, so what Steffen reads is what Suno gets.
+function buildSunoPayload(out, voiceId) {
+  var r = readSettingRows(out.advanced);
+  var p = {title: out.title, style: out.style, lyrics: out.lyrics};
+  if (out.exclude) p.negative_style = out.exclude;
+  var model = (r["model"] || "").toLowerCase();
+  p.model = SUNO_MODELS.some(function(m){ return m.id === model; }) ? model : DEFAULT_SUNO_MODEL;
+  // Entries without a Max Mode row predate the setting: project default on.
+  p.max_mode = !/^off\b/i.test(r["max mode"] || "On");
+  var controls = {};
+  var vName = (r["variety"] || DEFAULT_VARIETY).toLowerCase();
+  var vIdx = VARIETY_STEPS.findIndex(function(s){ return s.toLowerCase() === vName; });
+  controls.variety = vIdx < 0 ? VARIETY_STEPS.indexOf(DEFAULT_VARIETY) : vIdx;
+  var w = pct(r["weirdness"]);        if (w !== null) controls.weirdness = w;
+  var si = pct(r["style influence"]); if (si !== null) controls.style_influence = si;
+  p.controls = controls;
+  if (voiceId) {
+    p.voice_id = voiceId;
+  } else {
+    var g = (r["vocal gender"] || "").toLowerCase();
+    if (g === "male" || g === "female") p.vocal_gender = g;
+    if (out.instrumental) p.instrumental = true;
+  }
+  // Auto = leave duration out. A set length always goes soft, or a song that
+  // runs long is cut off without its outro.
+  var d = parseDurationSec(r["duration"]);
+  if (d) { p.duration = d; p.duration_strict = false; }
+  return p;
+}
+
+function collectClipIds(p) {
+  if (!p || typeof p !== "object") return [];
+  if (Array.isArray(p.clip_ids) && p.clip_ids.length) return p.clip_ids.filter(function(x){ return typeof x === "string"; });
+  if (Array.isArray(p.clips) && p.clips.length) return p.clips.map(function(c){ return c && c.id; }).filter(Boolean);
+  return typeof p.id === "string" ? [p.id] : [];
+}
+function safeHttps(u) {
+  return typeof u === "string" && /^https:\/\//.test(u) ? u : "";
+}
+function toTake(c, fallbackId) {
+  c = c || {};
+  var id = typeof c.id === "string" ? c.id : fallbackId;
+  return {
+    id: id,
+    status: typeof c.status === "string" ? c.status : "queued",
+    title: typeof c.title === "string" ? c.title : "",
+    songUrl: safeHttps(c.song_url) || (/^[\w-]+$/.test(id || "") ? "https://suno.com/song/" + id : ""),
+    audioUrl: safeHttps(c.audio_url),
+    error: c.error ? String(c.error.message || c.error) : "",
+  };
+}
+function takesFromWait(p, ids) {
+  var clips = p && Array.isArray(p.clips) ? p.clips : (p ? [p] : []);
+  return ids.map(function(id){
+    return toTake(clips.find(function(c){ return c && c.id === id; }) || {id: id}, id);
+  });
+}
+function takeSettled(t) {
+  return t.status === "streaming" || t.status === "complete" || t.status === "error";
+}
+
+// One message per error code that has its own fix.
+function sunoErrorText(e, isEn, started) {
+  var code = e && e.code;
+  if (started) return isEn
+    ? "The songs were started, but their status could not be read. Open them with the links below or refresh."
+    : "Die Songs wurden gestartet, der Status ließ sich aber nicht abfragen. Über die Links unten öffnen oder aktualisieren.";
+  switch (code) {
+    case "server_not_connected":
+    case "server_not_found":
+      return isEn ? "No Suno connector: add Suno in claude.ai under Settings → Connectors."
+                  : "Kein Suno-Konnektor: Suno in claude.ai unter Einstellungen → Konnektoren hinzufügen.";
+    case "needs_reauth":
+      return isEn ? "Suno sign-in expired: reconnect Suno in claude.ai under Settings → Connectors."
+                  : "Suno-Anmeldung abgelaufen: Suno in claude.ai unter Einstellungen → Konnektoren neu verbinden.";
+    case "selection_required":
+      return isEn ? "There is more than one Suno connector. Pick one in the claude.ai prompt, then send again."
+                  : "Es gibt mehrere Suno-Konnektoren. Im claude.ai-Dialog einen wählen, dann erneut senden.";
+    case "not_in_manifest":
+    case "approval_required":
+    case "consent_required":
+    case "not_granted":
+      return isEn ? "This page may not use Suno yet. Allow it when claude.ai asks, or in the page's permissions menu."
+                  : "Diese Seite darf Suno noch nicht nutzen. Beim Dialog von claude.ai erlauben oder im Berechtigungsmenü der Seite freigeben.";
+    case "blocked_by_policy":
+      return isEn ? "Your organization blocks this Suno tool." : "Deine Organisation sperrt dieses Suno-Werkzeug.";
+    case "tool_error":
+      return (isEn ? "Suno refused: " : "Suno hat abgelehnt: ") + ((e && e.message) || "");
+    case "no_ids":
+      return isEn ? "Suno answered without song ids. Check the Suno library before sending again."
+                  : "Suno hat ohne Song-IDs geantwortet. Vor erneutem Senden in der Suno-Bibliothek nachsehen.";
+    default:
+      // A write that timed out may still have run: no automatic retry.
+      return isEn
+        ? "No clear answer from Suno. The songs may have been made anyway: check the Suno library before sending again."
+        : "Keine eindeutige Antwort von Suno. Die Songs können trotzdem entstanden sein: erst in der Suno-Bibliothek nachsehen, dann erneut senden.";
+  }
+}
+
+var VOICE_STORAGE_KEY = "sunoSongCreator_voiceId";
+
+function SunoPanel({mcp, output, entryTs, isEn, voicesMode, onTakes}) {
+  var [busy, setBusy] = useState("");
+  var [err, setErr] = useState("");
+  var [showPayload, setShowPayload] = useState(false);
+  var [voices, setVoices] = useState(null);
+  var [voiceErr, setVoiceErr] = useState("");
+  var [voiceId, setVoiceId] = useState(function(){
+    try { return localStorage.getItem(VOICE_STORAGE_KEY) || ""; } catch(e) { return ""; }
+  });
+  useEffect(function(){
+    try { voiceId ? localStorage.setItem(VOICE_STORAGE_KEY, voiceId) : localStorage.removeItem(VOICE_STORAGE_KEY); } catch(e) {}
+  }, [voiceId]);
+  useEffect(function(){ setErr(""); }, [entryTs]);
+
+  if (!mcp) {
+    return (
+      <div className="mb-3 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+        <p className="text-[11px] text-zinc-500 leading-snug">
+          {isEn
+            ? "Sending straight to Suno works in the claude.ai version of this app (Artifact with the Suno connector). Here: copy the fields into Suno."
+            : "Direkt an Suno senden geht in der claude.ai-Version dieser App (Artifact mit Suno-Konnektor). Hier: Felder kopieren und in Suno einfügen."}
+        </p>
+      </div>
+    );
+  }
+
+  var useVoice = voicesMode && voiceId;
+  var payload = buildSunoPayload(output, useVoice ? voiceId : "");
+  var credits = payload.max_mode ? 20 : 10;
+  var takes = output.sunoTakes || [];
+  var pending = takes.some(function(t){ return !takeSettled(t); });
+
+  async function loadVoices() {
+    setVoiceErr(""); setBusy("voices");
+    try {
+      var r = await mcp.callTool(SUNO_SERVER, "voices-list", {collection: "own", limit: 50});
+      var p = r.payload || {};
+      var list = (p.voices || p.items || []).filter(function(v){ return v && typeof v.id === "string"; })
+        .map(function(v){ return {id: v.id, name: typeof v.name === "string" ? v.name : v.id}; });
+      setVoices(list);
+    } catch(e) {
+      setVoiceErr(sunoErrorText(e, isEn, false));
+    } finally { setBusy(""); }
+  }
+
+  async function waitFor(ts, ids) {
+    // audio-wait returns after ~50 s at the latest; a few rounds cover a
+    // normal generation, the refresh button covers the rest.
+    for (var i = 0; i < 6; i++) {
+      var w = await mcp.callTool(SUNO_SERVER, "audio-wait", {ids: ids, until: "playable"}, {cache: false});
+      var t = takesFromWait(w.payload, ids);
+      onTakes(ts, t);
+      if (t.every(takeSettled)) return;
+    }
+  }
+
+  async function send() {
+    if (busy) return;
+    var ts = entryTs;
+    var body = Object.assign({}, payload, {
+      // Guards against a double send of the same click reaching Suno twice.
+      idempotency_key: "songcreator-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10)
+    });
+    var ids = [];
+    setErr(""); setBusy("create");
+    try {
+      var res = await mcp.callTool(SUNO_SERVER, "audio-create", body, {cache: false});
+      ids = collectClipIds(res.payload);
+      if (!ids.length) throw {code: "no_ids"};
+      onTakes(ts, ids.map(function(id){ return toTake({id: id, title: body.title}, id); }));
+      setBusy("wait");
+      await waitFor(ts, ids);
+    } catch(e) {
+      setErr(sunoErrorText(e, isEn, ids.length > 0));
+    } finally { setBusy(""); }
+  }
+
+  async function refresh() {
+    if (busy || !takes.length) return;
+    var ts = entryTs;
+    setErr(""); setBusy("wait");
+    try { await waitFor(ts, takes.map(function(t){ return t.id; })); }
+    catch(e) { setErr(sunoErrorText(e, isEn, true)); }
+    finally { setBusy(""); }
+  }
+
+  return (
+    <div className="mb-3 bg-zinc-900 rounded-xl border border-orange-900/60 overflow-hidden">
+      <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white">🎧 {isEn ? "Generate in Suno" : "In Suno generieren"}</p>
+          <p className="text-xs text-zinc-500">
+            {payload.model} · Max Mode {payload.max_mode ? "On" : "Off"} · Variety {VARIETY_STEPS[payload.controls.variety]}
+            {" · "}{payload.duration ? fmtDuration(payload.duration) : "Duration Auto"}
+            {" · "}{credits} Credits
+          </p>
+        </div>
+        <button onClick={send} disabled={!!busy || !output.lyrics || !output.style}
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+          {busy === "create" || busy === "wait"
+            ? <span className="w-3.5 h-3.5 border-2 border-orange-300 border-t-white rounded-full animate-spin"/>
+            : "▶"}
+          {busy === "create" ? (isEn ? "Sending..." : "Sende...")
+            : busy === "wait" ? (isEn ? "Generating..." : "Generiere...")
+            : takes.length ? (isEn ? "Generate again" : "Nochmal generieren")
+            : (isEn ? "Send to Suno" : "An Suno senden")}
+        </button>
+      </div>
+      <div className="px-4 py-3 space-y-3">
+        {voicesMode && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-zinc-400">Voice:</span>
+            {voices
+              ? <select value={voiceId} onChange={function(e){ setVoiceId(e.target.value); }}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200">
+                  <option value="">{isEn ? "none (Suno picks)" : "keine (Suno wählt)"}</option>
+                  {voices.map(function(v){ return <option key={v.id} value={v.id}>{v.name}</option>; })}
+                </select>
+              : <button onClick={loadVoices} disabled={!!busy}
+                  className="px-2 py-1 rounded text-xs border border-zinc-700 text-zinc-300 hover:border-orange-500 disabled:opacity-50">
+                  {busy === "voices" ? (isEn ? "Loading..." : "Lade...") : (voiceId ? (isEn ? "Voice saved · change" : "Voice gespeichert · ändern") : (isEn ? "Load my voices" : "Meine Voices laden"))}
+                </button>}
+            {voiceErr && <span className="text-xs text-red-400">{voiceErr}</span>}
+          </div>
+        )}
+        {err && <p className="text-xs text-red-300 bg-red-950 border border-red-900 rounded p-2">{err}</p>}
+        {takes.length > 0 && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {takes.map(function(tk, i){
+              return (
+                <div key={tk.id} className="bg-zinc-800 rounded-lg p-3 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-xs font-semibold text-white truncate">Take {i + 1}{tk.title ? " · " + tk.title : ""}</p>
+                    <span className={"text-[10px] px-1.5 py-0.5 rounded shrink-0 " +
+                      (tk.status === "error" ? "bg-red-900 text-red-200"
+                        : takeSettled(tk) ? "bg-emerald-900 text-emerald-200" : "bg-zinc-700 text-zinc-300")}>
+                      {tk.status}
+                    </span>
+                  </div>
+                  {tk.error && <p className="text-[11px] text-red-300 mb-1">{tk.error}</p>}
+                  {tk.audioUrl && <audio controls preload="none" src={tk.audioUrl} className="w-full h-8 my-1"/>}
+                  {tk.songUrl && (
+                    <a href={tk.songUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-orange-300 underline">{isEn ? "Open in Suno" : "In Suno öffnen"}</a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {pending && !busy && (
+          <button onClick={refresh} className="text-xs text-zinc-400 underline">{isEn ? "Refresh status" : "Status aktualisieren"}</button>
+        )}
+        <button onClick={function(){ setShowPayload(!showPayload); }} className="text-[11px] text-zinc-500 hover:text-zinc-300">
+          {showPayload ? "▼" : "▶"} {isEn ? "What goes to Suno" : "Was an Suno geht"}
+        </button>
+        {showPayload && (
+          <pre className="text-[11px] text-zinc-400 bg-zinc-950 rounded p-2 overflow-x-auto whitespace-pre-wrap" style={{fontFamily:"monospace"}}>
+            {JSON.stringify(Object.assign({}, payload, {lyrics: payload.lyrics ? "(" + payload.lyrics.length + (isEn ? " chars)" : " Zeichen)") : ""}), null, 2)}
+          </pre>
+        )}
       </div>
     </div>
   );
@@ -1042,8 +1349,9 @@ export default function App() {
   var [autoAdvanced,     setAutoAdvanced]     = useState(true);
   var [durationMode,     setDurationMode]     = useState("auto");
   var [durationSec,      setDurationSec]      = useState(180);
-  var [maxMode,          setMaxMode]          = useState(false);
-  var [variety,          setVariety]          = useState("Off");
+  var [maxMode,          setMaxMode]          = useState(DEFAULT_MAX_MODE);
+  var [variety,          setVariety]          = useState(DEFAULT_VARIETY);
+  var [sunoModel,        setSunoModel]        = useState(DEFAULT_SUNO_MODEL);
   var [modelMode,        setModelMode]        = useState("premium");
   var [searchQ,          setSearchQ]          = useState("");
   var [searching,        setSearching]        = useState(false);
@@ -1081,7 +1389,7 @@ export default function App() {
       excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
       autoAdvanced:autoAdvanced, durationMode:durationMode, durationSec:durationSec,
-      maxMode:maxMode, variety:variety, modelMode:modelMode
+      maxMode:maxMode, variety:variety, sunoModel:sunoModel, modelMode:modelMode
     };
   }
   function pushHistory(out) {
@@ -1141,6 +1449,7 @@ export default function App() {
     if (s.durationSec !== undefined) setDurationSec(s.durationSec);
     if (s.maxMode !== undefined) setMaxMode(s.maxMode);
     if (s.variety !== undefined) setVariety(s.variety);
+    if (s.sunoModel !== undefined) setSunoModel(s.sunoModel);
   }
   function savePreset() {
     var n = newPresetName.trim(); if (!n) return;
@@ -1154,7 +1463,7 @@ export default function App() {
       excludeStyle:excludeStyle, instrumental:instrumental,
       voicesMode:voicesMode, weirdness:weirdness, styleInf:styleInf,
       autoAdvanced:autoAdvanced, durationMode:durationMode, durationSec:durationSec,
-      maxMode:maxMode, variety:variety, modelMode:modelMode
+      maxMode:maxMode, variety:variety, sunoModel:sunoModel, modelMode:modelMode
     };
     setPresets(function(prev){ return prev.concat([{id:Date.now(), name:n, settings:snap}]); });
     setNewPresetName("");
@@ -1176,8 +1485,23 @@ export default function App() {
   var [initialized,      setInitialized]      = useState(false);
   var [apiStatus,        setApiStatus]        = useState("unknown");
 
+  // claude.ai Artifact runtime: Claude via the sample capability (no API key),
+  // Suno via the viewer's connector. Both stay null everywhere else.
+  var [mcp,      setMcp]      = useState(null);
+  var [sampleFn, setSampleFn] = useState(null);
+  useEffect(function(){
+    if (!hasClaudeRuntime()) return;
+    window.claude.use("mcp").then(function(m){ if (m) setMcp(function(){ return m; }); }).catch(function(){});
+    window.claude.use("sample").then(function(sm){
+      if (sm) setSampleFn(function(){ return sm; });
+      setApiStatus(sm ? "ok" : "error");
+    }).catch(function(){ setApiStatus("error"); });
+  },[]);
+
   function checkApi() {
     setApiStatus("unknown");
+    // In the Artifact there is no API key; the sample capability decides.
+    if (hasClaudeRuntime()) { if (sampleFn) setApiStatus("ok"); return; }
     fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{
@@ -1234,9 +1558,15 @@ export default function App() {
       if (s.styleInf!=null)                setStyleInf(s.styleInf);
       if (s.autoAdvanced!=null)            setAutoAdvanced(s.autoAdvanced);
       if (s.durationMode)                  setDurationMode(s.durationMode);
-      if (s.durationSec!=null)             setDurationSec(s.durationSec);
-      if (s.maxMode!=null)                 setMaxMode(s.maxMode);
-      if (s.variety)                       setVariety(s.variety);
+      if (s.durationSec!=null)             setDurationSec(Math.max(DURATION_MIN, s.durationSec));
+      // Saves without sunoModel predate the 7 Nov 2026 defaults (Max Mode
+      // on, Variety High). Their stored Off/Off was the old default, not a
+      // choice, so they start on the new defaults instead.
+      if (s.sunoModel) {
+        setSunoModel(s.sunoModel);
+        if (s.maxMode!=null)               setMaxMode(s.maxMode);
+        if (s.variety)                     setVariety(s.variety);
+      }
       if (s.modelMode)                     setModelMode(s.modelMode);
     }
     setInitialized(true);
@@ -1253,7 +1583,7 @@ export default function App() {
         era, lang, structure, lyricThemes, lyricContent,
         ownLyrics, description, titleSugg, excludeStyle,
         instrumental, voicesMode, weirdness, styleInf, autoAdvanced,
-        durationMode, durationSec, maxMode, variety, modelMode
+        durationMode, durationSec, maxMode, variety, sunoModel, modelMode
       });
     }, 300);
     return function(){ clearTimeout(id); };
@@ -1261,7 +1591,7 @@ export default function App() {
      bpmMin,bpmMax,vocalType,vocalTone,accent,dynamics,songKey,prodFx,era,lang,
      structure,lyricThemes,lyricContent,ownLyrics,description,titleSugg,
      excludeStyle,instrumental,voicesMode,weirdness,styleInf,autoAdvanced,
-     durationMode,durationSec,maxMode,variety,modelMode]);
+     durationMode,durationSec,maxMode,variety,sunoModel,modelMode]);
 
   function toggle(arr, set, item) {
     set(arr.includes(item)
@@ -1314,7 +1644,7 @@ export default function App() {
     setTitleSugg(""); setExcludeStyle("");
     setInstrumental(false); setVoicesMode(false);
     setWeirdness(DEFAULT_WEIRDNESS); setStyleInf(70); setAutoAdvanced(true);
-    setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
+    setDurationMode("auto"); setDurationSec(180); setMaxMode(DEFAULT_MAX_MODE); setVariety(DEFAULT_VARIETY); setSunoModel(DEFAULT_SUNO_MODEL);
     setModelMode("premium");
     if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
     else { setOutput(null); setCurrentEntryTs(null); }
@@ -1324,6 +1654,28 @@ export default function App() {
   }
 
   async function callAPI(sysPr, userMsg) {
+    if (sampleFn) {
+      var sr;
+      try {
+        sr = await sampleFn([{role:"user", content:
+          "<instructions>\n"+sysPr+"\n</instructions>\n\n"+userMsg}],
+          {modelTier: modelMode==="fast" ? "default" : "complex", cache:false});
+      } catch(e) {
+        if (e && e.code==="not_granted") throw new Error(isEn
+          ? "This page may not ask Claude. Allow it in the page's permissions menu."
+          : "Diese Seite darf Claude nicht fragen. Im Berechtigungsmenü der Seite erlauben.");
+        if (e && e.code==="rate_limited") throw new Error(isEn
+          ? "Too many requests just now. Wait a moment and try again."
+          : "Gerade zu viele Anfragen. Kurz warten und erneut versuchen.");
+        throw new Error((e && e.message) || String(e));
+      }
+      var st = ((sr && sr.text) || "").trim();
+      if (sr && sr.truncated) throw new Error(isEn
+        ? "Response cut off before finishing - try again."
+        : "Antwort wurde abgeschnitten - erneut versuchen.");
+      if (!st) throw new Error(isEn ? "Model returned no text content." : "Modell hat keinen Text zurueckgegeben.");
+      return st;
+    }
     var res = await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{
@@ -1465,9 +1817,10 @@ export default function App() {
       p.push("Weirdness: "+weirdness+"%");
       p.push("Style Influence: "+styleInf+"%");
     }
-    p.push("Duration: "+(durationMode==="auto" ? "Auto" : fmtDuration(durationSec)));
+    p.push("Model: "+sunoModel);
     p.push("Max Mode: "+(maxMode?"On":"Off"));
     p.push("Variety: "+variety);
+    p.push("Duration: "+(durationMode==="auto" ? "Auto" : fmtDuration(durationSec)));
     var excl = cleanExclude(excludeStyle);
     if(excl && instr) {
       var have = excl.toLowerCase().split(/\s*,\s*/);
@@ -1512,6 +1865,7 @@ export default function App() {
       assertComplete(parsed, ["lyrics","style","advanced","title","exclude"],
         "Response didn't match the expected format. Try regenerating, or switch to Premium.",
         "Antwort entsprach nicht dem erwarteten Format. Erneut versuchen oder zu Premium wechseln.");
+      parsed.instrumental = instrumental || vocalType==="No Vocals";
       setOutput(parsed); pushHistory(parsed); setError("");
       setActiveTab("lyrics"); setPanel("output");
     }catch(e){ setError(e.message||String(e)); }
@@ -1541,7 +1895,7 @@ export default function App() {
     var ts=currentEntryTs;
     try{
       var extra=[
-        "Generate ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS. " +
+        "Generate ONLY # 2. STYLE, # 3. EXCLUDE and # 4. SETTINGS. " +
         "HARD LIMIT: under 1000 characters for Style. No artist names. Do NOT output sections 1 or 5."
       ];
       if(output&&output.lyrics)
@@ -1589,7 +1943,7 @@ export default function App() {
       var txt=await callSong([
         "Style to optimize:",(output&&output.style)||"",
         "CRITICAL: under 1000 chars. No artist names. " +
-        "Output ONLY # 2. STYLE, # 3. EXCLUDE and # 4. ADVANCED OPTIONS."
+        "Output ONLY # 2. STYLE, # 3. EXCLUDE and # 4. SETTINGS."
       ]);
       var p=parseOutput(txt);
       assertComplete(p, ["style","exclude"],
@@ -1653,6 +2007,7 @@ export default function App() {
     x += '  <durationSec>'+durationSec+'</durationSec>\n';
     x += '  <maxMode>'+maxMode+'</maxMode>\n';
     x += '  <variety>'+esc(variety)+'</variety>\n';
+    x += '  <sunoModel>'+esc(sunoModel)+'</sunoModel>\n';
     x += '  <modelMode>'+esc(modelMode)+'</modelMode>\n';
     x += '</SunoSongSettings>';
     return x;
@@ -1732,9 +2087,10 @@ export default function App() {
         num("styleInf", setStyleInf);
         bool("autoAdvanced", setAutoAdvanced);
         str("durationMode", setDurationMode, "auto");
-        num("durationSec", setDurationSec);
+        num("durationSec", function(n){ setDurationSec(Math.max(DURATION_MIN, n)); });
         bool("maxMode", setMaxMode);
-        str("variety", setVariety, "Off");
+        str("variety", setVariety, DEFAULT_VARIETY);
+        str("sunoModel", setSunoModel, DEFAULT_SUNO_MODEL);
         str("modelMode", setModelMode, "premium");
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
@@ -2578,14 +2934,14 @@ export default function App() {
             <Section title={t.advancedTitle}
               onClear={function(){clearWithUndo(t.advancedTitle, function(){
                 var sex=excludeStyle, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
-                var sdm=durationMode, sds=durationSec, smx=maxMode, svy=variety;
+                var sdm=durationMode, sds=durationSec, smx=maxMode, svy=variety, ssm=sunoModel;
                 setExcludeStyle(""); setInstrumental(false); setVoicesMode(false);
                 setWeirdness(DEFAULT_WEIRDNESS); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
-                setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
-                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); setDurationMode(sdm); setDurationSec(sds); setMaxMode(smx); setVariety(svy); };
+                setDurationMode("auto"); setDurationSec(180); setMaxMode(DEFAULT_MAX_MODE); setVariety(DEFAULT_VARIETY); setSunoModel(DEFAULT_SUNO_MODEL);
+                return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); setDurationMode(sdm); setDurationSec(sds); setMaxMode(smx); setVariety(svy); setSunoModel(ssm); };
               });}}
               id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
-              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==DEFAULT_WEIRDNESS||styleInf!==70||!autoAdvanced||modelMode!=="premium"||durationMode!=="auto"||maxMode||variety!=="Off")}>
+              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==DEFAULT_WEIRDNESS||styleInf!==70||!autoAdvanced||modelMode!=="premium"||durationMode!=="auto"||maxMode!==DEFAULT_MAX_MODE||variety!==DEFAULT_VARIETY||sunoModel!==DEFAULT_SUNO_MODEL)}>
               <div className="mb-3">
                 <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
                 <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
@@ -2618,6 +2974,26 @@ export default function App() {
                     {excludeStyle.length} / 1000 {t.chars}
                   </span>
                 </div>
+              </div>
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs text-zinc-400">{isEn?"Suno model":"Suno-Modell"}</label>
+                  <span className="text-xs font-semibold text-white">{sunoModel}</span>
+                </div>
+                <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
+                  {SUNO_MODELS.map(function(m){
+                    return (
+                      <button key={m.id} onClick={function(){setSunoModel(m.id);}} title={isEn?m.en:m.de}
+                        className={"flex-1 py-1 rounded text-xs font-semibold transition-all "+
+                          (sunoModel===m.id?"bg-orange-600 text-white":"text-zinc-400 hover:text-zinc-200")}>
+                        {m.id}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1 leading-snug">
+                  {(function(){ var m=SUNO_MODELS.find(function(x){return x.id===sunoModel;}); return m?(isEn?m.en:m.de):""; })()}
+                </p>
               </div>
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-1">
@@ -2959,9 +3335,12 @@ export default function App() {
                     );
                   })}
                 </div>
+                <SunoPanel mcp={mcp} output={output} entryTs={currentEntryTs} isEn={isEn}
+                  voicesMode={voicesMode}
+                  onTakes={function(ts, takes){ patchOutput(ts, function(){ return {sunoTakes: takes}; }); }}/>
                 <div className="flex justify-end mb-2">
                   <CopyBtn
-                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 3. EXCLUDE\n```\n"+(output.exclude||"")+"\n```\n\n# 4. ADVANCED OPTIONS\n```\n"+(output.advanced||"")+"\n```\n\n# 5. TITLE\n```\n"+output.title+"\n```"}
+                    text={"# 1. LYRICS\n```\n"+output.lyrics+"\n```\n\n# 2. STYLE\n```\n"+output.style+"\n```\n\n# 3. EXCLUDE\n```\n"+(output.exclude||"")+"\n```\n\n# 4. SETTINGS\n```\n"+(output.advanced||"")+"\n```\n\n# 5. TITLE\n```\n"+output.title+"\n```"}
                     label={t.copyAll} doneLabel={t.copied}/>
                 </div>
                 {activeTab==="lyrics"&&(
