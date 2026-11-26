@@ -427,6 +427,11 @@ var PROD_FX_INFO = {
 
 var STORAGE_KEY = "sunoSongCreator_v1";
 
+// Start value of the manual Weirdness slider (only used with AUTO off). 50 is
+// Suno's own default and the "standard, balanced" row of the reference; the
+// old 62 already sat in the "Creative" zone.
+var DEFAULT_WEIRDNESS = 50;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getWZone(v) {
@@ -577,7 +582,8 @@ var T = {
     exportImport:"Export / Import Settings",
     autoSaved:"Settings are saved automatically in the browser.",
     exportXml:"Export XML", importXml:"Import XML",
-    importOk:"Settings imported!", copyXml:"Copy", openTab:"Open in Tab",
+    importOk:"Settings imported!", importBad:"Not a valid settings file - nothing was changed.",
+    copyXml:"Copy", openTab:"Open in Tab",
     copyAndSave:"Copy XML - paste into text editor - save as .xml",
     apiOk:"API connected", apiError:"API not reachable",
   },
@@ -650,7 +656,8 @@ var T = {
     exportImport:"Einstellungen Export / Import",
     autoSaved:"Einstellungen werden automatisch im Browser gespeichert.",
     exportXml:"XML exportieren", importXml:"XML importieren",
-    importOk:"Einstellungen importiert!", copyXml:"Kopieren", openTab:"In Tab öffnen",
+    importOk:"Einstellungen importiert!", importBad:"Keine gültige Einstellungsdatei - nichts wurde geändert.",
+    copyXml:"Kopieren", openTab:"In Tab öffnen",
     copyAndSave:"XML kopieren - in Texteditor einfügen - als .xml speichern",
     apiOk:"API verbunden", apiError:"API nicht erreichbar",
   }
@@ -1030,7 +1037,7 @@ export default function App() {
   var [excludeStyle,     setExcludeStyle]     = useState("");
   var [instrumental,     setInstrumental]     = useState(false);
   var [voicesMode,       setVoicesMode]       = useState(false);
-  var [weirdness,        setWeirdness]        = useState(62);
+  var [weirdness,        setWeirdness]        = useState(DEFAULT_WEIRDNESS);
   var [styleInf,         setStyleInf]         = useState(70);
   var [autoAdvanced,     setAutoAdvanced]     = useState(true);
   var [durationMode,     setDurationMode]     = useState("auto");
@@ -1306,7 +1313,7 @@ export default function App() {
     setLyricThemes([]); setLyricContent(""); setOwnLyrics(""); setDescription("");
     setTitleSugg(""); setExcludeStyle("");
     setInstrumental(false); setVoicesMode(false);
-    setWeirdness(62); setStyleInf(70); setAutoAdvanced(true);
+    setWeirdness(DEFAULT_WEIRDNESS); setStyleInf(70); setAutoAdvanced(true);
     setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
     setModelMode("premium");
     if (history.length>0) { setOutput(history[0].output); setCurrentEntryTs(history[0].ts); }
@@ -1657,48 +1664,78 @@ export default function App() {
     reader.onload=function(e){
       try{
         var doc=new DOMParser().parseFromString(e.target.result,"application/xml");
-        function getT(tag){var el=doc.querySelector(tag);return el?el.textContent:"";}
-        function getArr(tag){
-          return Array.from(doc.querySelectorAll(tag+" > item"))
-            .map(function(el){return el.textContent;}).filter(Boolean);
+        // DOMParser does not throw on broken XML, it returns a <parsererror>
+        // document. Without this check any file reported "imported" and
+        // changed nothing.
+        var root=doc.documentElement;
+        if(doc.querySelector("parsererror") || !root || root.nodeName!=="SunoSongSettings"){
+          setImportMsg(t.importBad);
+          setTimeout(function(){setImportMsg("");},4000);
+          return;
         }
-        var g=getArr("genres");       if(g.length)  setGenres(g);
-        var eg=getArr("extraGenres"); if(eg.length) setExtraGenres(eg);
-        var ar=getArr("artists");     if(ar.length) setArtists(ar);
-        var av=getArr("availExtra");
-        if(av.length) setAvailArtists(
-          PRESET_ARTISTS.concat(av.filter(function(a){return !PRESET_ARTISTS.includes(a);}))
-        );
-        var mo=getArr("moods");       if(mo.length) setMoods(mo);
-        var en=getT("energy");        if(en) setEnergy(en);
-        var tt=getT("tempoTerm");     if(tt) setTempoTerm(tt);
-        var b1=getT("bpmMin");        if(b1) setBpmMin(b1);
-        var b2=getT("bpmMax");        if(b2) setBpmMax(b2);
-        var vt=getT("vocalType");     if(vt) setVocalType(vt);
-        var vn=getT("vocalTone");     if(vn) setVocalTone(vn);
-        var ac=getT("accent");        if(ac) setAccent(ac);
-        var dy=getArr("dynamics");    if(dy.length) setDynamics(dy);
-        var sk=getT("songKey");       if(sk) setSongKey(sk);
-        var pf=getArr("prodFx");      if(pf.length) setProdFx(pf);
-        var er=getT("era");           if(er) setEra(er);
-        var ln=getT("lang");          if(ln) setLang(ln);
-        var st=getArr("structure");   if(st.length) setStructure(st);
-        var lt=getArr("lyricThemes"); if(lt.length) setLyricThemes(lt);
-        var lc=getT("lyricContent");  if(lc) setLyricContent(lc);
-        var ol=getT("ownLyrics");     if(ol) setOwnLyrics(ol);
-        var ds=getT("description");   if(ds) setDescription(ds);
-        var ts=getT("titleSugg");     if(ts) setTitleSugg(ts);
-        var ex=getT("excludeStyle");  if(ex) setExcludeStyle(ex);
-        var im=getT("instrumental");  setInstrumental(im==="true");
-        var vm=getT("voicesMode");    setVoicesMode(vm==="true");
-        var wr=getT("weirdness");     if(wr) setWeirdness(Number(wr));
-        var si=getT("styleInf");      if(si) setStyleInf(Number(si));
-        var aa=getT("autoAdvanced");  if(aa) setAutoAdvanced(aa==="true");
-        var dm=getT("durationMode");  if(dm) setDurationMode(dm);
-        var dsec=getT("durationSec"); if(dsec) setDurationSec(Number(dsec));
-        var mx=getT("maxMode");       if(mx) setMaxMode(mx==="true");
-        var vy=getT("variety");       if(vy) setVariety(vy);
-        var mm2=getT("modelMode");    if(mm2) setModelMode(mm2);
+        // A tag that is present wins, even when empty: an export with no tempo
+        // must clear the tempo here. Only a missing tag (older exports) keeps
+        // the current value.
+        function child(tag){
+          for (var i=0;i<root.children.length;i++)
+            if (root.children[i].nodeName===tag) return root.children[i];
+          return null;
+        }
+        function str(tag, set, fallback){
+          var el=child(tag); if(!el) return;
+          var v=el.textContent;
+          set(v || fallback || "");
+        }
+        function arr(tag, set){
+          var el=child(tag); if(!el) return;
+          set(Array.from(el.children)
+            .filter(function(c){return c.nodeName==="item";})
+            .map(function(c){return c.textContent;}).filter(Boolean));
+        }
+        function bool(tag, set){
+          var el=child(tag); if(el) set(el.textContent==="true");
+        }
+        function num(tag, set){
+          var el=child(tag); if(!el) return;
+          var n=Number(el.textContent);
+          if(el.textContent!=="" && isFinite(n)) set(n);
+        }
+        arr("genres", setGenres);
+        arr("extraGenres", setExtraGenres);
+        arr("artists", setArtists);
+        arr("availExtra", function(av){
+          setAvailArtists(PRESET_ARTISTS.concat(av.filter(function(a){return !PRESET_ARTISTS.includes(a);})));
+        });
+        arr("moods", setMoods);
+        str("energy", setEnergy, "Medium");
+        str("tempoTerm", setTempoTerm);
+        str("bpmMin", setBpmMin);
+        str("bpmMax", setBpmMax);
+        str("vocalType", setVocalType);
+        str("vocalTone", setVocalTone);
+        str("accent", setAccent);
+        arr("dynamics", setDynamics);
+        str("songKey", setSongKey);
+        arr("prodFx", setProdFx);
+        str("era", setEra);
+        str("lang", setLang, "English");
+        arr("structure", setStructure);
+        arr("lyricThemes", setLyricThemes);
+        str("lyricContent", setLyricContent);
+        str("ownLyrics", setOwnLyrics);
+        str("description", setDescription);
+        str("titleSugg", setTitleSugg);
+        str("excludeStyle", setExcludeStyle);
+        bool("instrumental", setInstrumental);
+        bool("voicesMode", setVoicesMode);
+        num("weirdness", setWeirdness);
+        num("styleInf", setStyleInf);
+        bool("autoAdvanced", setAutoAdvanced);
+        str("durationMode", setDurationMode, "auto");
+        num("durationSec", setDurationSec);
+        bool("maxMode", setMaxMode);
+        str("variety", setVariety, "Off");
+        str("modelMode", setModelMode, "premium");
         setImportMsg(t.importOk);
         setTimeout(function(){setImportMsg("");},3000);
       }catch(err){
@@ -2543,12 +2580,12 @@ export default function App() {
                 var sex=excludeStyle, sin=instrumental, svm=voicesMode, sw=weirdness, ssi=styleInf, saa=autoAdvanced, smo=modelMode;
                 var sdm=durationMode, sds=durationSec, smx=maxMode, svy=variety;
                 setExcludeStyle(""); setInstrumental(false); setVoicesMode(false);
-                setWeirdness(62); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
+                setWeirdness(DEFAULT_WEIRDNESS); setStyleInf(70); setAutoAdvanced(true); setModelMode("premium");
                 setDurationMode("auto"); setDurationSec(180); setMaxMode(false); setVariety("Off");
                 return function(){ setExcludeStyle(sex); setInstrumental(sin); setVoicesMode(svm); setWeirdness(sw); setStyleInf(ssi); setAutoAdvanced(saa); setModelMode(smo); setDurationMode(sdm); setDurationSec(sds); setMaxMode(smx); setVariety(svy); };
               });}}
               id="advanced" isOpen={openSections.advanced} onToggle={function(){toggleSec("advanced");}}
-              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==62||styleInf!==70||!autoAdvanced||modelMode!=="premium"||durationMode!=="auto"||maxMode||variety!=="Off")}>
+              hasData={!!(excludeStyle||instrumental||voicesMode||weirdness!==DEFAULT_WEIRDNESS||styleInf!==70||!autoAdvanced||modelMode!=="premium"||durationMode!=="auto"||maxMode||variety!=="Off")}>
               <div className="mb-3">
                 <p className="text-xs font-medium text-zinc-300 mb-1.5">{isEn?"Quality":"Qualität"}</p>
                 <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
