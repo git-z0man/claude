@@ -22,7 +22,7 @@ Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
 
 1. **GitHub Pages aktivieren** (Einmal-Setup)
    `Settings` → `Pages` → unter *Source* `Deploy from a branch` →
-   Branch `claude/tsx-artifact-improvements-nsesW`, Folder `/ (root)` → `Save`.
+   Branch `main`, Folder `/ (root)` → `Save`.
    Nach 1–2 Minuten ist die Seite unter
    `https://git-z0man.github.io/claude/` erreichbar.
 2. **Anthropic-API-Key holen**
