@@ -13,7 +13,7 @@ Live unter: <https://git-z0man.github.io/claude/>
 | `/` (`index.html`) | Landing Page mit Links zu allen Apps |
 | `/bsig.html` | **BSIG 2025 Scope Checker** — prüft, ob ein deutsches Maschinen-/Elektronik-Unternehmen unter das BSIG 2025 (NIS-2-Umsetzung DE) fällt. WZ-Klassifikation, MSP-Hinweise, Erheblichkeitsschwelle. |
 | `/nisg.html` | **NISG 2026 Scope Checker** — prüft, ob ein österreichisches Unternehmen als wesentliche oder wichtige Einrichtung unter das NISG 2026 (NIS-2-Umsetzung AT, in Kraft ab 1. Oktober 2026) fällt. Sektor-Klassifikation gegen Anlagen 1 + 2, Size-Cap-Rule (EU 2003/361), ÖNACE-Recherche via firmenabc.at. |
-| `/suno.html` | **SUNO Song Creator** — generiert optimierte Songprompts für SUNO v6. |
+| `/suno.html` | **SUNO Song Creator** — generiert optimierte Songprompts für SUNO v6. Als claude.ai-Artifact (`suno-artifact.html`) schickt er den Song direkt über den Suno-Konnektor an Suno. |
 
 Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
 `anthropicApiKey`).
@@ -60,6 +60,25 @@ Alle Apps teilen sich den API-Key (gleicher `localStorage`-Schlüssel
 - `suno-v6-reference.md` — Quelldokument für den `SYSTEM_PROMPT` in `suno.tsx`.
   Der Prompt ist ein Destillat daraus (nur verhaltensrelevante Regeln, weil er
   bei jedem API-Call mitgeht). Bei Suno-Änderungen erst dort pflegen.
+
+## SUNO Song Creator als claude.ai-Artifact
+
+`suno-artifact.html` lädt dieselbe `suno.tsx` als veröffentlichtes
+claude.ai-Artifact. Dort braucht die App keinen API-Key und kein Copy-Paste:
+
+- Claude kommt über die Artifact-Capability `sample`.
+- Suno kommt über die Capability `mcp` mit dem Suno-Konnektor des Betrachters
+  (Werkzeuge `audio-create`, `audio-wait`, `voices-list`). Der Button
+  „An Suno senden“ schickt Lyrics, Style, Exclude Styles, Titel und den
+  Einstellungen-Block (Modell, Max Mode, Variety, Vocal Gender, Duration,
+  Weirdness, Style Influence) per `audio-create`, wartet mit `audio-wait` und
+  zeigt beide Takes mit Link. Eine gesetzte Duration geht immer mit
+  `duration_strict: false` raus.
+
+Veröffentlichen mit dem Artifact-Tool: `suno-artifact.html` als Seite,
+`suno.tsx` als Zusatzdatei (`contentType: text/plain`), Capabilities
+`{mcp: {servers: [{server: "Suno", tools: ["audio-create", "audio-wait", "voices-list"]}]}, sample: {}}`.
+Auf GitHub Pages fehlt diese Laufzeit, dort bleibt es beim Kopieren.
 
 ## Eine neue App hinzufügen
 
